@@ -2,14 +2,14 @@ use crate::header;
 use crate::{ShpError, ShapeType};
 use crate::record;
 
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read};
 
 pub struct Reader<T: Read> {
    source: T ,
    header: header::Header,
 }
 
-impl<T: Read + Seek> Reader<T> {
+impl<T: Read> Reader<T> {
    pub fn new(mut source: T) -> Result<Reader<T>, ShpError> {
       let header = header::Header::read_from(&mut source)?;
       Ok(Reader{source, header})

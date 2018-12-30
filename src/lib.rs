@@ -5,7 +5,7 @@ pub mod reader;
 pub mod record;
 
 use std::io::Read;
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::convert::{From};
 use std::fmt;
 
@@ -176,7 +176,6 @@ impl PatchType {
             _ => None
         }
     }
-
 }
 
 #[cfg(test)]

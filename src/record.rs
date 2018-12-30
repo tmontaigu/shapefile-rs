@@ -35,7 +35,7 @@ pub struct RecordHeader {
 }
 
 impl RecordHeader {
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<RecordHeader, ShpError> {
+    pub fn read_from<T: Read>(source: &mut T) -> Result<RecordHeader, ShpError> {
         let record_number = source.read_i32::<BigEndian>()?;
         let record_size = source.read_i32::<BigEndian>()?;
         Ok(RecordHeader { record_number, record_size })
@@ -111,34 +111,34 @@ impl Default for Point {
     }
 }
 
-fn read_points<T: Read>(mut source: &mut T, num_points: i32) -> Result<(Vec<f64>, Vec<f64>), std::io::Error> {
+fn read_points<T: Read>(source: &mut T, num_points: i32) -> Result<(Vec<f64>, Vec<f64>), std::io::Error> {
     let mut xs = Vec::<f64>::with_capacity(num_points as usize);
     let mut ys = Vec::<f64>::with_capacity(num_points as usize);
 
-    for i in 0..num_points {
+    for _i in 0..num_points {
         xs.push(source.read_f64::<LittleEndian>()?);
         ys.push(source.read_f64::<LittleEndian>()?);
     }
     Ok((xs, ys))
 }
 
-fn read_z_dimension<T: Read>(mut source: &mut T, num_points: i32) -> Result<ZDimension, std::io::Error> {
+fn read_z_dimension<T: Read>(source: &mut T, num_points: i32) -> Result<ZDimension, std::io::Error> {
     let mut zs = Vec::<f64>::with_capacity(num_points as usize);
     let mut range = [0.0; 2];
     range[0] = source.read_f64::<LittleEndian>()?;
     range[1] = source.read_f64::<LittleEndian>()?;
-    for i in 0..num_points {
+    for _i in 0..num_points {
         zs.push(source.read_f64::<LittleEndian>()?);
     }
     Ok(ZDimension{range, values: zs})
 }
 
-fn read_m_dimension<T: Read>(mut source: &mut T, num_points: i32) -> Result<MDimension, std::io::Error> {
+fn read_m_dimension<T: Read>(source: &mut T, num_points: i32) -> Result<MDimension, std::io::Error> {
     let mut zs = Vec::<f64>::with_capacity(num_points as usize);
     let mut range = [0.0; 2];
     range[0] = source.read_f64::<LittleEndian>()?;
     range[1] = source.read_f64::<LittleEndian>()?;
-    for i in 0..num_points {
+    for _i in 0..num_points {
         zs.push(source.read_f64::<LittleEndian>()?);
     }
     Ok(MDimension{range, values: zs})
@@ -148,10 +148,9 @@ pub fn read_poly_line_record<T: Read>(mut source: &mut T, shape_type: ShapeType)
     let bbox = BBox::read_from(&mut source)?;
     let num_parts = source.read_i32::<LittleEndian>()?;
     let num_points = source.read_i32::<LittleEndian>()?;
-    let vec_size = num_points as usize;;
 
     let mut parts = Vec::<i32>::with_capacity(num_parts as usize);
-    for i in 0..num_parts {
+    for _i in 0..num_parts {
         parts.push(source.read_i32::<LittleEndian>()?);
     }
 
@@ -184,15 +183,14 @@ pub fn read_multipatch_record<T: Read>(mut source: &mut T, shape_type: ShapeType
     let bbox = BBox::read_from(&mut source)?;
     let num_parts = source.read_i32::<LittleEndian>()?;
     let num_points = source.read_i32::<LittleEndian>()?;
-    let vec_size = num_points as usize;;
 
     let mut parts = Vec::<i32>::with_capacity(num_parts as usize);
-    for i in 0..num_parts {
+    for _i in 0..num_parts {
         parts.push(source.read_i32::<LittleEndian>()?);
     }
 
     let mut part_types = Vec::<PatchType>::with_capacity(num_parts as usize);
-    for i in 0..num_parts {
+    for _i in 0..num_parts {
         part_types.push(PatchType::read_from(&mut source)?);
     }
 
@@ -221,7 +219,7 @@ pub fn read_multipatch_record<T: Read>(mut source: &mut T, shape_type: ShapeType
 
 
 
-pub fn read_point_record<T: Read>(mut source: &mut T, shape_type: ShapeType) -> Result<Point, std::io::Error> {
+pub fn read_point_record<T: Read>(source: &mut T, shape_type: ShapeType) -> Result<Point, std::io::Error> {
     let x = source.read_f64::<LittleEndian>()?;
     let y = source.read_f64::<LittleEndian>()?;
 
@@ -240,8 +238,6 @@ pub fn read_point_record<T: Read>(mut source: &mut T, shape_type: ShapeType) -> 
 pub fn read_multipoint_record<T: Read>(mut source: &mut T, shape_type: ShapeType) -> Result<Multipoint, std::io::Error> {
     let bbox = BBox::read_from(&mut source)?;
     let num_points = source.read_i32::<LittleEndian>()?;
-
-    let vec_size = num_points as usize;;
 
     let (xs, ys) = read_points(&mut source, num_points)?;
 
@@ -287,7 +283,7 @@ macro_rules! convert_shape_vector {
 
 macro_rules! shape_vector_conversion {
     ($funcname:ident, $shapestruct: ty, $pat:pat, $shp:ident) => {
-        fn $funcname(shapes: Vec<Shape>) -> Result<Vec<$shapestruct>, ShpError> {
+        pub fn $funcname(shapes: Vec<Shape>) -> Result<Vec<$shapestruct>, ShpError> {
             convert_shape_vector!($shapestruct, shapes, $pat, $shp)
         }
     }
@@ -304,24 +300,28 @@ shape_vector_conversion!(to_vec_of_multipatch, Multipatch, Shape::Multipatch(shp
 mod tests {
     use super::*;
 
+    #[test]
     fn convert_to_vec_of_poly_err() {
         let shapes = vec!(Shape::Point(Point::default()), Shape::Polyline(Polyline::default()));
         assert!(to_vec_of_polyline(shapes).is_err());
     }
 
+    #[test]
     fn convert_to_vec_of_point_err() {
         let shapes = vec!(Shape::Point(Point::default()), Shape::Polyline(Polyline::default()));
         assert!(to_vec_of_point(shapes).is_err());
     }
 
+    #[test]
     fn convert_to_vec_of_poly_ok() {
         let shapes = vec!(Shape::Polyline(Polyline::default()), Shape::Polyline(Polyline::default()));
         assert!(to_vec_of_polyline(shapes).is_ok());
     }
 
+    #[test]
     fn convert_to_vec_of_point_ok() {
         let shapes = vec!(Shape::Point(Point::default()), Shape::Point(Point::default()));
-        assert!(to_vec_of_point(shapes).is_err());
+        assert!(to_vec_of_point(shapes).is_ok());
     }
 }
 
