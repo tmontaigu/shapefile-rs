@@ -85,6 +85,32 @@ pub struct Multipoint {
     pub m: Option<MDimension>,
 }
 
+impl Default for Polyline {
+    fn default() -> Self {
+        Polyline {
+            bbox: BBox{xmin: 0.0, ymin: 0.0, xmax: 0.0, ymax: 0.0},
+            num_parts: 0,
+            num_points: 0,
+            parts: Vec::<i32>::new(),
+            xs: Vec::<f64>::new(),
+            ys: Vec::<f64>::new(),
+            z: None,
+            m: None
+        }
+    }
+}
+
+impl Default for Point {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            z: None,
+            m: None
+        }
+    }
+}
+
 fn read_points<T: Read>(mut source: &mut T, num_points: i32) -> Result<(Vec<f64>, Vec<f64>), std::io::Error> {
     let mut xs = Vec::<f64>::with_capacity(num_points as usize);
     let mut ys = Vec::<f64>::with_capacity(num_points as usize);
@@ -230,5 +256,72 @@ pub fn read_multipoint_record<T: Read>(mut source: &mut T, shape_type: ShapeType
     }
 
     Ok(Multipoint {bbox, xs, ys, z: z_dim, m: m_dim})
+}
+
+macro_rules! push_if_matches {
+    ($shapes:expr, $pat:pat => $result:expr) => {
+        for shape in $shapes {
+            match shape {
+                Shape::NullShape => {},
+                $pat => {$result;},
+                _ => { return Err(ShpError::MixedShapeType); },
+            }
+        }
+    };
+}
+
+macro_rules! convert_shape_vector {
+    ($shapestruct: ty, $source:expr, $pat:pat => $dst:ident, $shp:ident) => {
+        {
+            let mut $dst = Vec::<$shapestruct>::new();
+            push_if_matches!($source, $pat => $dst.push($shp));
+
+            Ok($dst)
+        }
+     };
+
+    ($shapestruct: ty, $source:expr, $pat:pat, $shp:ident) => {
+        convert_shape_vector!($shapestruct, $source, $pat => dst, $shp)
+    }
+}
+
+macro_rules! shape_vector_conversion {
+    ($funcname:ident, $shapestruct: ty, $pat:pat, $shp:ident) => {
+        fn $funcname(shapes: Vec<Shape>) -> Result<Vec<$shapestruct>, ShpError> {
+            convert_shape_vector!($shapestruct, shapes, $pat, $shp)
+        }
+    }
+}
+
+shape_vector_conversion!(to_vec_of_polyline, Polyline, Shape::Polyline(shp), shp);
+shape_vector_conversion!(to_vec_of_point, Point, Shape::Point(shp), shp);
+shape_vector_conversion!(to_vec_of_multipoint, Multipoint, Shape::Multipoint(shp), shp);
+shape_vector_conversion!(to_vec_of_multipatch, Multipatch, Shape::Multipatch(shp), shp);
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn convert_to_vec_of_poly_err() {
+        let shapes = vec!(Shape::Point(Point::default()), Shape::Polyline(Polyline::default()));
+        assert!(to_vec_of_polyline(shapes).is_err());
+    }
+
+    fn convert_to_vec_of_point_err() {
+        let shapes = vec!(Shape::Point(Point::default()), Shape::Polyline(Polyline::default()));
+        assert!(to_vec_of_point(shapes).is_err());
+    }
+
+    fn convert_to_vec_of_poly_ok() {
+        let shapes = vec!(Shape::Polyline(Polyline::default()), Shape::Polyline(Polyline::default()));
+        assert!(to_vec_of_polyline(shapes).is_ok());
+    }
+
+    fn convert_to_vec_of_point_ok() {
+        let shapes = vec!(Shape::Point(Point::default()), Shape::Point(Point::default()));
+        assert!(to_vec_of_point(shapes).is_err());
+    }
 }
 
