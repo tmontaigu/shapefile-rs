@@ -3,6 +3,12 @@ use byteorder::{LittleEndian, BigEndian, ReadBytesExt};
 use super::{ShapeType, ShpError, PatchType};
 use std::io::Read;
 
+const NO_DATA : f64 = -10e38;
+
+fn is_no_data(val: f64) -> bool {
+    return val <= NO_DATA;
+}
+
 pub enum Shape {
     NullShape,
     Point(Point),
@@ -43,8 +49,8 @@ impl RecordHeader {
 }
 
 pub struct ZDimension {
-    range: [f64; 2],
-    values: Vec<f64>,
+    pub range: [f64; 2],
+    pub values: Vec<f64>,
 }
 
 pub type MDimension = ZDimension;
@@ -139,7 +145,14 @@ fn read_m_dimension<T: Read>(source: &mut T, num_points: i32) -> Result<MDimensi
     range[0] = source.read_f64::<LittleEndian>()?;
     range[1] = source.read_f64::<LittleEndian>()?;
     for _i in 0..num_points {
-        zs.push(source.read_f64::<LittleEndian>()?);
+        let value = source.read_f64::<LittleEndian>()?;
+        if is_no_data(value) {
+            zs.push(std::f64::NAN);
+        }
+        else {
+            zs.push(value);
+        }
+
     }
     Ok(MDimension{range, values: zs})
 }
@@ -162,7 +175,7 @@ pub fn read_poly_line_record<T: Read>(mut source: &mut T, shape_type: ShapeType)
     }
 
     let mut m_dim = None;
-    if shape_type.has_z() {
+    if shape_type.has_m() {
         m_dim = Some(read_m_dimension(&mut source, num_points)?);
     }
 
@@ -202,7 +215,7 @@ pub fn read_multipatch_record<T: Read>(mut source: &mut T, shape_type: ShapeType
     }
 
     let mut m_dim = None;
-    if shape_type.has_z() {
+    if shape_type.has_m() {
         m_dim = Some(read_m_dimension(&mut source, num_points)?);
     }
 
@@ -247,7 +260,7 @@ pub fn read_multipoint_record<T: Read>(mut source: &mut T, shape_type: ShapeType
     }
 
     let mut m_dim = None;
-    if shape_type.has_z() {
+    if shape_type.has_m() {
         m_dim = Some(read_m_dimension(&mut source, num_points)?);
     }
 

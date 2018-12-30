@@ -11,7 +11,7 @@ fn read_line_header() {
 }
 
 #[test]
-fn read() {
+fn read_line() {
     let mut file = File::open("./tests/data/line.shp").unwrap();
     let mut reader = shapefile::Reader::new(file).unwrap();
     let shapes = reader.read().unwrap();
@@ -31,9 +31,40 @@ fn read() {
         assert_eq!(shape.xs, vec![1.0, 5.0, 5.0, 3.0, 1.0, 3.0, 2.0]);
         assert_eq!(shape.ys, vec![5.0, 5.0, 1.0, 3.0, 1.0, 2.0, 6.0]);
         assert!(shape.z.is_none());
-        assert!(shape.z.is_none());
+        assert!(shape.m.is_none());
     }
     else {
         assert!(false);
     }
+}
+
+
+#[test]
+fn read_linem() {
+    let file = File::open("./tests/data/linem.shp").unwrap();
+    let mut reader = shapefile::Reader::new(file).unwrap();
+    let shapes = reader.read().unwrap();
+
+    let shapes = shapefile::record::to_vec_of_polyline(shapes).unwrap();
+    assert_eq!(shapes.len(), 1);
+
+    {
+        let shape = &shapes[0];
+        assert_eq!(shape.bbox.xmin, 1.0);
+        assert_eq!(shape.bbox.ymin, 1.0);
+        assert_eq!(shape.bbox.xmax, 5.0);
+        assert_eq!(shape.bbox.ymax, 6.0);
+        assert_eq!(shape.parts, vec![0, 5]);
+        assert_eq!(shape.xs, vec![1.0, 5.0, 5.0, 3.0, 1.0, 3.0, 2.0]);
+        assert_eq!(shape.ys, vec![5.0, 5.0, 1.0, 3.0, 1.0, 2.0, 6.0]);
+        assert!(shape.z.is_none());
+        assert!(shape.m.is_some());
+    }
+
+    //let m_values = &shapes[0].m.unwrap().values;
+
+    //if let Some(dim) = &shapes[0].m {
+    //   println!("{:?}", &dim.values)
+    //}
+
 }
