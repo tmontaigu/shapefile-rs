@@ -3,11 +3,11 @@ use crate::{ShapeType, ShpError};
 use std::io::Read;
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 
-const SHP_HEADER_SIZE: i32 = 100;
+pub const SHP_HEADER_SIZE: i32 = 100;
 const SHP_FILE_CODE: i32 = 9994;
 
 pub struct Header {
-    file_length: i32,
+    pub file_length: i32,
     pub point_min: [f64; 3],
     pub point_max: [f64; 3],
     pub m_range: [f64; 2],
@@ -29,7 +29,7 @@ impl Default for Header {
 }
 
 impl Header {
-    pub fn read_from<T: Read>(mut source: T) -> Result<Header, ShpError> {
+    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Header, ShpError> {
         let file_code = source.read_i32::<BigEndian>()?;
 
         if file_code != SHP_FILE_CODE {
