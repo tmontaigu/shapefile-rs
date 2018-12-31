@@ -267,37 +267,21 @@ pub fn read_multipoint_record<T: Read>(mut source: &mut T, shape_type: ShapeType
     Ok(Multipoint {bbox, xs, ys, z: z_dim, m: m_dim})
 }
 
-macro_rules! push_if_matches {
-    ($shapes:expr, $pat:pat => $result:expr) => {
-        for shape in $shapes {
-            match shape {
-                Shape::NullShape => {},
-                $pat => {$result;},
-                _ => { return Err(ShpError::MixedShapeType); },
-            }
-        }
-    };
-}
-
-macro_rules! convert_shape_vector {
-    ($shapestruct: ty, $source:expr, $pat:pat => $dst:ident, $shp:ident) => {
-        {
-            let mut $dst = Vec::<$shapestruct>::new();
-            push_if_matches!($source, $pat => $dst.push($shp));
-
-            Ok($dst)
-        }
-     };
-
-    ($shapestruct: ty, $source:expr, $pat:pat, $shp:ident) => {
-        convert_shape_vector!($shapestruct, $source, $pat => dst, $shp)
-    }
-}
 
 macro_rules! shape_vector_conversion {
     ($funcname:ident, $shapestruct: ty, $pat:pat, $shp:ident) => {
         pub fn $funcname(shapes: Vec<Shape>) -> Result<Vec<$shapestruct>, ShpError> {
-            convert_shape_vector!($shapestruct, shapes, $pat, $shp)
+            let mut shape_structs = Vec::<$shapestruct>::with_capacity(shapes.len());
+            for shape in shapes {
+                match shape {
+                    Shape::NullShape => {},
+                    $pat => shape_structs.push($shp),
+                    _ => {
+                        return Err(ShpError::MixedShapeType);
+                    },
+                }
+            }
+            Ok(shape_structs)
         }
     }
 }
