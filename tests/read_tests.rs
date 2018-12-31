@@ -63,3 +63,15 @@ fn read_linem() {
         assert_eq!(dim.values, vec![0.0, NO_DATA, 3.0, NO_DATA, 0.0, NO_DATA, NO_DATA]);
     }
 }
+
+#[test]
+fn read_iter() {
+    let file = File::open("./tests/data/linem.shp").unwrap();
+    let mut reader = shapefile::Reader::new(file).unwrap();
+
+    for shape in reader {
+        if let shapefile::record::Shape::Polyline(poly) = shape.unwrap() {
+            println!("{}", poly.num_points);
+        }
+    }
+}
