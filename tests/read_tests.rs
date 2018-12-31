@@ -22,7 +22,7 @@ fn read_line() {
         _ => {assert!(false);}
     }
 
-    if let shapefile::record::Shape::Polyline(shape) = &shapes[0] {
+    if let shapefile::Shape::Polyline(shape) = &shapes[0] {
         assert_eq!(shape.bbox.xmin, 1.0);
         assert_eq!(shape.bbox.ymin, 1.0);
         assert_eq!(shape.bbox.xmax, 5.0);
@@ -67,11 +67,13 @@ fn read_linem() {
 #[test]
 fn read_iter() {
     let file = File::open("./tests/data/linem.shp").unwrap();
-    let mut reader = shapefile::Reader::new(file).unwrap();
+    let reader = shapefile::Reader::new(file).unwrap();
 
     for shape in reader {
-        if let shapefile::record::Shape::Polyline(poly) = shape.unwrap() {
+        if let Ok(shapefile::Shape::Polyline(poly)) = shape {
             println!("{}", poly.num_points);
         }
     }
 }
+
+

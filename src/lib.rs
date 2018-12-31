@@ -9,14 +9,14 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::convert::{From};
 use std::fmt;
 
-pub use crate::record::NO_DATA;
+pub use crate::record::{NO_DATA, Shape};
 pub use crate::reader::Reader;
 
 //TODO use std::num::FromPrimitive ?
 //https://stackoverflow.com/questions/28028854/how-do-i-match-enum-values-with-an-integer
 
 #[derive(Debug)]
-pub enum ShpError {
+pub enum Error {
     InvalidFileCode(i32),
     IoError(std::io::Error),
     InvalidShapeType(i32),
@@ -24,9 +24,9 @@ pub enum ShpError {
     MixedShapeType,
 }
 
-impl From<std::io::Error> for ShpError {
-    fn from(error: std::io::Error) -> ShpError {
-        ShpError::IoError(error)
+impl From<std::io::Error> for Error {
+    fn from(error: std::io::Error) -> Error {
+        Error::IoError(error)
     }
 }
 
@@ -52,9 +52,9 @@ pub enum ShapeType {
 }
 
 impl ShapeType {
-    pub fn read_from<T: Read>(source: &mut T) -> Result<ShapeType, ShpError> {
+    pub fn read_from<T: Read>(source: &mut T) -> Result<ShapeType, Error> {
         let code = source.read_i32::<LittleEndian>()?;
-        Self::from(code).ok_or(ShpError::InvalidShapeType(code))
+        Self::from(code).ok_or(Error::InvalidShapeType(code))
     }
 
     pub fn from(code: i32) -> Option<ShapeType> {
@@ -161,9 +161,9 @@ pub enum PatchType {
 }
 
 impl PatchType {
-    pub fn read_from<T: Read>(source: &mut T) -> Result<PatchType, ShpError> {
+    pub fn read_from<T: Read>(source: &mut T) -> Result<PatchType, Error> {
         let code = source.read_i32::<LittleEndian>()?;
-        Self::from(code).ok_or(ShpError::InvalidPatchType(code))
+        Self::from(code).ok_or(Error::InvalidPatchType(code))
     }
 
     pub fn from(code: i32) -> Option<PatchType> {

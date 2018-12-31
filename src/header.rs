@@ -1,4 +1,4 @@
-use crate::{ShapeType, ShpError};
+use crate::{ShapeType, Error};
 
 use std::io::Read;
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
@@ -29,11 +29,11 @@ impl Default for Header {
 }
 
 impl Header {
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Header, ShpError> {
+    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Header, Error> {
         let file_code = source.read_i32::<BigEndian>()?;
 
         if file_code != SHP_FILE_CODE {
-            return Err(ShpError::InvalidFileCode(file_code));
+            return Err(Error::InvalidFileCode(file_code));
         }
 
         const SIZE_OF_SKIP: usize = std::mem::size_of::<i32>() * 5;

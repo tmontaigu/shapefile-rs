@@ -1,6 +1,6 @@
 use byteorder::{LittleEndian, BigEndian, ReadBytesExt};
 
-use super::{ShapeType, ShpError, PatchType};
+use super::{ShapeType, Error, PatchType};
 use std::io::Read;
 
 pub const NO_DATA : f64 = -10e38;
@@ -41,7 +41,7 @@ pub struct RecordHeader {
 }
 
 impl RecordHeader {
-    pub fn read_from<T: Read>(source: &mut T) -> Result<RecordHeader, ShpError> {
+    pub fn read_from<T: Read>(source: &mut T) -> Result<RecordHeader, Error> {
         let record_number = source.read_i32::<BigEndian>()?;
         let record_size = source.read_i32::<BigEndian>()?;
         Ok(RecordHeader { record_number, record_size })
@@ -191,7 +191,7 @@ pub fn read_poly_line_record<T: Read>(mut source: &mut T, shape_type: ShapeType)
     })
 }
 
-pub fn read_multipatch_record<T: Read>(mut source: &mut T, shape_type: ShapeType) -> Result<Multipatch, ShpError> {
+pub fn read_multipatch_record<T: Read>(mut source: &mut T, shape_type: ShapeType) -> Result<Multipatch, Error> {
     //TODO check that shape type is polygon/polyline type
     let bbox = BBox::read_from(&mut source)?;
     let num_parts = source.read_i32::<LittleEndian>()?;
@@ -270,14 +270,14 @@ pub fn read_multipoint_record<T: Read>(mut source: &mut T, shape_type: ShapeType
 
 macro_rules! shape_vector_conversion {
     ($funcname:ident, $shapestruct: ty, $pat:pat, $shp:ident) => {
-        pub fn $funcname(shapes: Vec<Shape>) -> Result<Vec<$shapestruct>, ShpError> {
+        pub fn $funcname(shapes: Vec<Shape>) -> Result<Vec<$shapestruct>, Error> {
             let mut shape_structs = Vec::<$shapestruct>::with_capacity(shapes.len());
             for shape in shapes {
                 match shape {
                     Shape::NullShape => {},
                     $pat => shape_structs.push($shp),
                     _ => {
-                        return Err(ShpError::MixedShapeType);
+                        return Err(Error::MixedShapeType);
                     },
                 }
             }
