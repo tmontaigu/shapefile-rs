@@ -3,7 +3,7 @@ use byteorder::{LittleEndian, BigEndian, ReadBytesExt};
 use super::{ShapeType, ShpError, PatchType};
 use std::io::Read;
 
-const NO_DATA : f64 = -10e38;
+pub const NO_DATA : f64 = -10e38;
 
 fn is_no_data(val: f64) -> bool {
     return val <= NO_DATA;
@@ -147,7 +147,7 @@ fn read_m_dimension<T: Read>(source: &mut T, num_points: i32) -> Result<MDimensi
     for _i in 0..num_points {
         let value = source.read_f64::<LittleEndian>()?;
         if is_no_data(value) {
-            zs.push(std::f64::NAN);
+            zs.push(NO_DATA);
         }
         else {
             zs.push(value);

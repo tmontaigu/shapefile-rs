@@ -9,6 +9,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::convert::{From};
 use std::fmt;
 
+pub use crate::record::NO_DATA;
 pub use crate::reader::Reader;
 
 //TODO use std::num::FromPrimitive ?
