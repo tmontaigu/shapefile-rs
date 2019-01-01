@@ -124,6 +124,9 @@ macro_rules! shape_vector_conversion {
 }
 
 shape_vector_conversion!(to_vec_of_polyline, Polyline, Shape::Polyline(shp), shp);
+shape_vector_conversion!(to_vec_of_polylinem, PolylineM, Shape::PolylineM(shp), shp);
+shape_vector_conversion!(to_vec_of_polylinez, PolylineZ, Shape::PolylineZ(shp), shp);
+
 shape_vector_conversion!(to_vec_of_point, Point, Shape::Point(shp), shp);
 
 

@@ -167,7 +167,6 @@ impl EsriShape for Polyline {
     }
 
     fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
-        self.shapetype().write_to(&mut dest)?;
         self.bbox.write_to(&mut dest)?;
 
         dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
@@ -175,9 +174,9 @@ impl EsriShape for Polyline {
 
         write_parts(&mut dest, &self.parts)?;
         write_points(&mut dest, &self.xs, &self.ys)?;
-
         Ok(())
     }
+
 }
 
 
@@ -292,12 +291,16 @@ impl EsriShape for PolylineZ {
     }
 
     fn write_to<T: Write>(mut self, mut dest: &mut T) -> Result<(), Error> {
+        let m_range = std::mem::replace(&mut self.m_range, [0.0, 0.0]);
+        let ms = std::mem::replace(&mut self.ms, Vec::<f64>::new());
         let z_range = std::mem::replace(&mut self.z_range, [0.0, 0.0]);
         let zs = std::mem::replace(&mut self.zs, Vec::<f64>::new());
-        let poly = PolylineM::from(self);
+
+        let poly = Polyline::from(PolylineM::from(self)); //FIXME
         poly.write_to(&mut dest)?;
 
         write_measures(&mut dest, &z_range, &zs)?;
+        write_measures(&mut dest, &m_range, &ms)?;
 
         Ok(())
     }
