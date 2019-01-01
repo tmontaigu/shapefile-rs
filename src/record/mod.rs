@@ -128,6 +128,8 @@ shape_vector_conversion!(to_vec_of_polylinem, PolylineM, Shape::PolylineM(shp), 
 shape_vector_conversion!(to_vec_of_polylinez, PolylineZ, Shape::PolylineZ(shp), shp);
 
 shape_vector_conversion!(to_vec_of_point, Point, Shape::Point(shp), shp);
+shape_vector_conversion!(to_vec_of_pointm, PointM, Shape::PointM(shp), shp);
+shape_vector_conversion!(to_vec_of_pointz, PointZ, Shape::PointZ(shp), shp);
 
 
 #[cfg(test)]
