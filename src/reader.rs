@@ -1,20 +1,18 @@
+use crate::record;
 use crate::header;
 use crate::{Error, ShapeType, Shape};
-use crate::record;
 
-use std::io::Read;
 
-use std::iter::{FusedIterator, IntoIterator, Iterator};
 use std::path::Path;
 use std::fs::File;
-use std::io::BufReader;
-use std::io::Seek;
+use std::io::{BufReader, Read};
 
 pub struct Reader<T: Read> {
     source: T,
     header: header::Header,
     pos: usize,
 }
+
 
 impl<T: Read> Reader<T> {
 
@@ -35,7 +33,7 @@ impl<T: Read> Reader<T> {
 impl Reader<BufReader<File>> {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let file = File::open(path)?;
-        let mut source = BufReader::new(file);
+        let source = BufReader::new(file);
 
         Self::new( source)
     }
@@ -55,7 +53,7 @@ impl<T: Read> Iterator for Reader<T> {
             Ok(hdr) => hdr,
             Err(e) => return Some(Err(e)),
         };
-        self.pos += (std::mem::size_of::<i32>() * 2);
+        self.pos += std::mem::size_of::<i32>() * 2;
 
         let shapetype = match ShapeType::read_from(&mut self.source) {
             Ok(shapetype) => shapetype,

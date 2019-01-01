@@ -1,11 +1,8 @@
 use std::io::Write;
 
 use crate::Error;
-use crate::Shape;
 use crate::record::{EsriShape, RecordHeader};
 use crate::header;
-use crate::ShapeType;
-use byteorder::LittleEndian;
 
 
 pub struct Writer<T: Write> {

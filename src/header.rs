@@ -65,10 +65,10 @@ impl Header {
         Ok(hdr)
     }
 
-    pub fn write_to<T: Write>(&self, mut dest: &mut T) -> Result<(), Error> {
+    pub fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         dest.write_i32::<BigEndian>(SHP_FILE_CODE)?;
 
-        let mut skip: [u8; SIZE_OF_SKIP] = [0; SIZE_OF_SKIP];
+        let skip: [u8; SIZE_OF_SKIP] = [0; SIZE_OF_SKIP];
         dest.write(&skip)?;
 
         dest.write_i32::<BigEndian>(self.file_length)?;
