@@ -5,6 +5,10 @@ use crate::record;
 use std::io::Read;
 
 use std::iter::{FusedIterator, IntoIterator, Iterator};
+use std::path::Path;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::Seek;
 
 pub struct Reader<T: Read> {
     source: T,
@@ -13,6 +17,7 @@ pub struct Reader<T: Read> {
 }
 
 impl<T: Read> Reader<T> {
+
     pub fn new(mut source: T) -> Result<Reader<T>, Error> {
         let header = header::Header::read_from(&mut source)?;
         Ok(Reader { source, header, pos: header::SHP_HEADER_SIZE as usize })
@@ -27,29 +32,15 @@ impl<T: Read> Reader<T> {
     }
 }
 
-fn read_shape<T: Read>(mut source: &mut T, shapetype: ShapeType) -> Result<Shape, Error> {
-    let shape = match shapetype {
-        ShapeType::Polyline |
-        ShapeType::PolylineZ |
-        ShapeType::PolylineM |
-        ShapeType::Polygon |
-        ShapeType::PolygonZ |
-        ShapeType::PolygonM => Shape::Polyline(record::read_poly_line_record(&mut source, shapetype)?),
+impl Reader<BufReader<File>> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        let file = File::open(path)?;
+        let mut source = BufReader::new(file);
 
-        ShapeType::Point |
-        ShapeType::PointZ |
-        ShapeType::PointM => Shape::Point(record::read_point_record(&mut source, shapetype)?),
-
-        ShapeType::Multipoint |
-        ShapeType::MultipointZ |
-        ShapeType::MultipointM => Shape::Multipoint(record::read_multipoint_record(&mut source, shapetype)?),
-
-        ShapeType::Multipatch => Shape::Multipatch(record::read_multipatch_record(&mut source, shapetype)?),
-
-        ShapeType::NullShape => Shape::NullShape
-    };
-    Ok(shape)
+        Self::new( source)
+    }
 }
+
 
 impl<T: Read> Iterator for Reader<T> {
     type Item = Result<Shape, Error>;
@@ -78,6 +69,8 @@ impl<T: Read> Iterator for Reader<T> {
         let pos_diff = (hdr.record_size as usize + std::mem::size_of::<i32>()) * 2;
         self.pos += pos_diff;
 
-        Some(read_shape(&mut self.source, shapetype))
+        Some(Shape::read_from(&mut self.source, shapetype))
+        //Some(read_shape(&mut self.source, shapetype))
     }
 }
+

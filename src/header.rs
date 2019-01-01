@@ -1,10 +1,12 @@
 use crate::{ShapeType, Error};
 
 use std::io::Read;
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::io::Write;
 
 pub const SHP_HEADER_SIZE: i32 = 100;
 const SHP_FILE_CODE: i32 = 9994;
+const SIZE_OF_SKIP: usize = std::mem::size_of::<i32>() * 5;
 
 pub struct Header {
     pub file_length: i32,
@@ -36,7 +38,6 @@ impl Header {
             return Err(Error::InvalidFileCode(file_code));
         }
 
-        const SIZE_OF_SKIP: usize = std::mem::size_of::<i32>() * 5;
         let mut skip: [u8; SIZE_OF_SKIP] = [0; SIZE_OF_SKIP];
         source.read_exact(&mut skip)?;
 
@@ -62,6 +63,30 @@ impl Header {
         hdr.m_range[1] = source.read_f64::<LittleEndian>()?;
 
         Ok(hdr)
+    }
+
+    pub fn write_to<T: Write>(&self, mut dest: &mut T) -> Result<(), Error> {
+        dest.write_i32::<BigEndian>(SHP_FILE_CODE)?;
+
+        let mut skip: [u8; SIZE_OF_SKIP] = [0; SIZE_OF_SKIP];
+        dest.write(&skip)?;
+
+        dest.write_i32::<BigEndian>(self.file_length)?;
+        dest.write_i32::<LittleEndian>(self.version)?;
+        dest.write_i32::<LittleEndian>(self.shape_type as i32)?;
+
+        dest.write_f64::<LittleEndian>(self.point_min[0])?;
+        dest.write_f64::<LittleEndian>(self.point_min[1])?;
+        dest.write_f64::<LittleEndian>(self.point_max[0])?;
+        dest.write_f64::<LittleEndian>(self.point_max[1])?;
+
+        dest.write_f64::<LittleEndian>(self.point_min[2])?;
+        dest.write_f64::<LittleEndian>(self.point_max[2])?;
+
+        dest.write_f64::<LittleEndian>(self.m_range[0])?;
+        dest.write_f64::<LittleEndian>(self.m_range[1])?;
+
+        Ok(())
     }
 }
 

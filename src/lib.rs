@@ -3,14 +3,16 @@ extern crate byteorder;
 pub mod header;
 pub mod reader;
 pub mod record;
+pub mod writer;
 
 use std::io::Read;
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::convert::{From};
 use std::fmt;
 
 pub use crate::record::{NO_DATA, Shape};
 pub use crate::reader::Reader;
+use std::io::Write;
 
 //TODO use std::num::FromPrimitive ?
 //https://stackoverflow.com/questions/28028854/how-do-i-match-enum-values-with-an-integer
@@ -32,29 +34,34 @@ impl From<std::io::Error> for Error {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ShapeType {
-    NullShape,
-    Point,
-    Polyline,
-    Polygon,
-    Multipoint,
+    NullShape = 0,
+    Point = 1,
+    Polyline = 3,
+    Polygon = 5,
+    Multipoint = 8,
 
-    PointZ,
-    PolylineZ,
-    PolygonZ,
-    MultipointZ,
+    PointZ = 11,
+    PolylineZ = 13,
+    PolygonZ = 15,
+    MultipointZ = 18,
 
-    PointM,
-    PolylineM,
-    PolygonM,
-    MultipointM,
+    PointM = 21,
+    PolylineM = 23,
+    PolygonM = 25,
+    MultipointM = 28,
 
-    Multipatch
+    Multipatch = 31
 }
 
 impl ShapeType {
     pub fn read_from<T: Read>(source: &mut T) -> Result<ShapeType, Error> {
         let code = source.read_i32::<LittleEndian>()?;
         Self::from(code).ok_or(Error::InvalidShapeType(code))
+    }
+
+    pub fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), std::io::Error> {
+        dest.write_i32::<LittleEndian>(*self as i32)?;
+        Ok(())
     }
 
     pub fn from(code: i32) -> Option<ShapeType> {
