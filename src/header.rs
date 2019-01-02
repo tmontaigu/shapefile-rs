@@ -1,8 +1,7 @@
-use crate::{ShapeType, Error};
+use super::{ShapeType, Error};
 
-use std::io::Read;
+use std::io::{Read, Write};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::Write;
 
 pub const SHP_HEADER_SIZE: i32 = 100;
 const SHP_FILE_CODE: i32 = 9994;

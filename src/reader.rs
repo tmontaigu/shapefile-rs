@@ -1,6 +1,6 @@
-use crate::record;
-use crate::header;
-use crate::{Error, ShapeType, Shape};
+use record;
+use header;
+use {Error, ShapeType, Shape};
 
 
 use std::path::Path;

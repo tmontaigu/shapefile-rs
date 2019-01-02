@@ -1,8 +1,8 @@
 use std::io::Write;
 
-use crate::Error;
-use crate::record::{EsriShape, RecordHeader};
-use crate::header;
+use Error;
+use record::{EsriShape, RecordHeader};
+use header;
 
 
 pub struct Writer<T: Write> {
@@ -15,6 +15,7 @@ impl<T: Write> Writer<T> {
         Self{dest}
     }
 
+    //TODO This method should move (take mut self) as calling it twice would produce a shitty file
     pub fn write_shapes<S: EsriShape>(&mut self, shapes: Vec<S>) -> Result<(), Error> {
         let mut file_length = header::SHP_HEADER_SIZE as usize;
         for shape in &shapes {

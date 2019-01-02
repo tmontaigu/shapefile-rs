@@ -1,12 +1,13 @@
-use crate::record::BBox;
 use std::io::{Read, Write};
 
-use crate::Error;
 use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};
-use crate::ShapeType;
-use crate::record::EsriShape;
-use crate::record::is_no_data;
-use crate::NO_DATA;
+
+use ShapeType;
+use record::EsriShape;
+use record::is_no_data;
+use NO_DATA;
+use record::BBox;
+use Error;
 
 use std::mem::size_of;
 
@@ -157,6 +158,17 @@ impl From<PolylineM> for Polyline {
     }
 }
 
+impl From<Polygon> for Polyline {
+    fn from(p: Polygon) -> Self {
+        Self {
+            bbox: p.bbox,
+            xs: p.xs,
+            ys: p.ys,
+            parts: p.parts,
+        }
+    }
+}
+
 impl EsriShape for Polyline {
     fn shapetype(&self) -> ShapeType {
         ShapeType::Polyline
@@ -176,7 +188,6 @@ impl EsriShape for Polyline {
         write_points(&mut dest, &self.xs, &self.ys)?;
         Ok(())
     }
-
 }
 
 
@@ -220,6 +231,19 @@ impl From<PolylineZ> for PolylineM {
             ms: polyz.ms,
             parts: polyz.parts,
             m_range: polyz.m_range,
+        }
+    }
+}
+
+impl From<PolygonM> for PolylineM {
+    fn from(p: PolygonM) -> Self {
+        Self {
+            bbox: p.bbox,
+            xs: p.xs,
+            ys: p.ys,
+            ms: p.ms,
+            m_range: p.m_range,
+            parts: p.parts,
         }
     }
 }
@@ -302,6 +326,135 @@ impl EsriShape for PolylineZ {
         write_measures(&mut dest, &z_range, &zs)?;
         write_measures(&mut dest, &m_range, &ms)?;
 
+        Ok(())
+    }
+}
+
+impl From<PolygonZ> for PolylineZ {
+    fn from(p: PolygonZ) -> Self {
+        Self {
+            bbox: p.bbox,
+            xs: p.xs,
+            ys: p.ys,
+            zs: p.zs,
+            ms: p.ms,
+            m_range: p.m_range,
+            z_range: p.z_range,
+            parts: p.parts,
+        }
+    }
+}
+
+pub struct Polygon {
+    pub bbox: BBox,
+    pub parts: Vec<i32>,
+    pub xs: Vec<f64>,
+    pub ys: Vec<f64>,
+}
+
+impl Polygon {
+    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Polygon, Error> {
+        let poly = Polyline::read_from(&mut source)?;
+        Ok(poly.into())
+    }
+}
+
+impl From<Polyline> for Polygon {
+    fn from(p: Polyline) -> Self {
+        Self {
+            bbox: p.bbox,
+            xs: p.xs,
+            ys: p.ys,
+            parts: p.parts,
+        }
+    }
+}
+
+impl EsriShape for Polygon {
+    fn shapetype(&self) -> ShapeType {
+        ShapeType::Polygon
+    }
+
+    fn size_in_bytes(&self) -> usize {
+        let poly: &Polyline = self.as_ref();
+        poly.size_in_bytes()
+    }
+
+    fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
+        let polyline: Polyline = self.into();
+        polyline.write_to(&mut dest)?;
+        Ok(())
+    }
+}
+
+impl AsRef<Polyline> for Polygon {
+    fn as_ref(&self) -> &Polyline {
+        unsafe {
+            std::mem::transmute::<&Polygon, &Polyline>(self)
+        }
+    }
+}
+
+pub struct PolygonM {
+    pub bbox: BBox,
+    pub parts: Vec<i32>,
+    pub xs: Vec<f64>,
+    pub ys: Vec<f64>,
+    pub m_range: [f64; 2],
+    pub ms: Vec<f64>,
+}
+
+pub struct PolygonZ {
+    pub bbox: BBox,
+    pub parts: Vec<i32>,
+    pub xs: Vec<f64>,
+    pub ys: Vec<f64>,
+    pub z_range: [f64; 2],
+    pub zs: Vec<f64>,
+    pub m_range: [f64; 2],
+    pub ms: Vec<f64>,
+}
+
+impl AsRef<PolylineZ> for PolygonZ {
+    fn as_ref(&self) -> &PolylineZ {
+        unsafe { std::mem::transmute::<&PolygonZ, &PolylineZ>(&self) }
+    }
+}
+
+impl From<PolylineZ> for PolygonZ {
+    fn from(p: PolylineZ) -> Self {
+        Self {
+            bbox: p.bbox,
+            xs: p.xs,
+            ys: p.ys,
+            zs: p.zs,
+            ms: p.ms,
+            m_range: p.m_range,
+            z_range: p.z_range,
+            parts: p.parts,
+        }
+    }
+}
+
+impl PolygonZ {
+    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Self, Error> {
+        let poly = PolylineZ::read_from(&mut source)?;
+        Ok(poly.into())
+    }
+}
+
+impl EsriShape for PolygonZ {
+    fn shapetype(&self) -> ShapeType {
+        ShapeType::PolygonZ
+    }
+
+    fn size_in_bytes(&self) -> usize {
+        self.as_ref().size_in_bytes()
+    }
+
+    fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
+        let polyz: PolylineZ = self.into();
+        polyz.write_to(&mut dest)?;
         Ok(())
     }
 }

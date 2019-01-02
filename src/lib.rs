@@ -6,13 +6,13 @@ pub mod record;
 pub mod writer;
 
 use std::io::Read;
+use std::io::Write;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::convert::{From};
 use std::fmt;
 
-pub use crate::record::{NO_DATA, Shape};
-pub use crate::reader::Reader;
-use std::io::Write;
+pub use record::{NO_DATA, Shape};
+pub use reader::Reader;
 
 //TODO use std::num::FromPrimitive ?
 //https://stackoverflow.com/questions/28028854/how-do-i-match-enum-values-with-an-integer

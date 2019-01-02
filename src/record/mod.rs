@@ -6,8 +6,8 @@ mod point;
 
 use super::{ShapeType, Error};
 
-pub use crate::record::poly::{Polyline, PolylineM, PolylineZ};
-pub use crate::record::point::{Point, PointM, PointZ};
+pub use record::poly::{Polyline, PolylineM, PolylineZ, Polygon, PolygonZ};
+pub use record::point::{Point, PointM, PointZ};
 
 pub const NO_DATA: f64 = -10e38;
 
@@ -37,6 +37,8 @@ pub enum Shape {
     Polyline(Polyline),
     PolylineM(PolylineM),
     PolylineZ(PolylineZ),
+    Polygon(Polygon),
+    PolygonZ(PolygonZ)
 }
 
 impl Shape {
@@ -48,6 +50,8 @@ impl Shape {
             ShapeType::Point => Shape::Point(Point::read_from(&mut source)?),
             ShapeType::PointM => Shape::PointM(PointM::read_from(&mut source)?),
             ShapeType::PointZ => Shape::PointZ(PointZ::read_from(&mut source)?),
+            ShapeType::Polygon => Shape::Polygon(Polygon::read_from(&mut source)?),
+            ShapeType::PolygonZ => Shape::PolygonZ(PolygonZ::read_from(&mut source)?),
             _ => { unimplemented!() }
         };
         Ok(shape)
@@ -131,6 +135,8 @@ shape_vector_conversion!(to_vec_of_point, Point, Shape::Point(shp), shp);
 shape_vector_conversion!(to_vec_of_pointm, PointM, Shape::PointM(shp), shp);
 shape_vector_conversion!(to_vec_of_pointz, PointZ, Shape::PointZ(shp), shp);
 
+shape_vector_conversion!(to_vec_of_polygon, Polygon, Shape::Polygon(shp), shp);
+shape_vector_conversion!(to_vec_of_polygonz, PolygonZ, Shape::PolygonZ(shp), shp);
 
 #[cfg(test)]
 mod tests {

@@ -1,11 +1,11 @@
 use std::io::{Read, Write};
 
 use byteorder::{ReadBytesExt, LittleEndian, WriteBytesExt};
-use crate::record::EsriShape;
-use crate::ShapeType;
+use record::EsriShape;
+use ShapeType;
 use std::mem::size_of;
 
-use crate::Error;
+use super::Error;
 
 pub struct Point {
     pub x: f64,
