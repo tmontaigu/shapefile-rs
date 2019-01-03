@@ -43,7 +43,7 @@ impl<T: Write> Writer<T> {
         for (i, shape) in shapes.into_iter().enumerate() {
 
             //TODO Check record size < i32_max ?
-            let record_size = ((shape.size_in_bytes() + std::mem::size_of::<i32>()) / 2);
+            let record_size = (shape.size_in_bytes() + std::mem::size_of::<i32>()) / 2;
             let rc_hdr = RecordHeader{
                 record_number: i as i32,
                 record_size: record_size as i32,

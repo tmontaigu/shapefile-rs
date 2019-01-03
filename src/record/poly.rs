@@ -4,8 +4,6 @@ use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};
 
 use ShapeType;
 use record::EsriShape;
-use record::is_no_data;
-use NO_DATA;
 use record::BBox;
 use Error;
 use record::io::*;

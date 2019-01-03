@@ -192,6 +192,6 @@ mod tests {
             m_range: [0.0, 0.0],
         };
 
-        let poly = Polyline::from(polym);
+        let _poly = Polyline::from(polym);
     }
 }
