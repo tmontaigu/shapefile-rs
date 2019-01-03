@@ -9,7 +9,7 @@ mod multipoint;
 
 use super::{ShapeType, Error};
 
-pub use record::poly::{Polyline, PolylineM, PolylineZ, Polygon, PolygonZ};
+pub use record::poly::{Polyline, PolylineM, PolylineZ, Polygon, PolygonM, PolygonZ};
 pub use record::point::{Point, PointM, PointZ};
 pub use record::multipoint::{Multipoint, MultipointZ};
 
@@ -43,6 +43,7 @@ pub enum Shape {
     PolylineM(PolylineM),
     PolylineZ(PolylineZ),
     Polygon(Polygon),
+    PolygonM(PolygonM),
     PolygonZ(PolygonZ),
     Multipoint(Multipoint),
     MultipointZ(MultipointZ),
@@ -58,6 +59,7 @@ impl Shape {
             ShapeType::PointM => Shape::PointM(PointM::read_from(&mut source)?),
             ShapeType::PointZ => Shape::PointZ(PointZ::read_from(&mut source)?),
             ShapeType::Polygon => Shape::Polygon(Polygon::read_from(&mut source)?),
+            ShapeType::PolygonM => Shape::PolygonM(PolygonM::read_from(&mut source)?),
             ShapeType::PolygonZ => Shape::PolygonZ(PolygonZ::read_from(&mut source)?),
             ShapeType::Multipoint => Shape::Multipoint(Multipoint::read_from(&mut source)?),
             ShapeType::MultipointZ => Shape::MultipointZ(MultipointZ::read_from(&mut source)?),
@@ -145,6 +147,7 @@ shape_vector_conversion!(to_vec_of_pointm, PointM, Shape::PointM(shp), shp);
 shape_vector_conversion!(to_vec_of_pointz, PointZ, Shape::PointZ(shp), shp);
 
 shape_vector_conversion!(to_vec_of_polygon, Polygon, Shape::Polygon(shp), shp);
+shape_vector_conversion!(to_vec_of_polygonm, PolygonM, Shape::PolygonM(shp), shp);
 shape_vector_conversion!(to_vec_of_polygonz, PolygonZ, Shape::PolygonZ(shp), shp);
 
 shape_vector_conversion!(to_vec_of_multipoint, Multipoint, Shape::Multipoint(shp), shp);

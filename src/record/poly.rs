@@ -30,7 +30,7 @@ impl Polyline {
         }
     }
 
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Polyline, Error> {
+    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Polyline, std::io::Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -128,7 +128,7 @@ pub struct PolylineM {
 }
 
 impl PolylineM {
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<PolylineM, Error> {
+    pub fn read_from<T: Read>(mut source: &mut T) -> Result<PolylineM, std::io::Error> {
         let poly = Polyline::read_from(&mut source)?;
         let (m_range, ms) = read_m_dimension(&mut source, poly.xs.len() as i32)?;
         Ok(Self {
@@ -347,6 +347,29 @@ impl From<PolylineM> for PolygonM {
             parts: p.parts,
             m_range: p.m_range,
         }
+    }
+}
+
+impl PolygonM {
+    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Self, std::io::Error> {
+        let poly = PolylineM::read_from(&mut source)?;
+        Ok(Self::from(poly))
+    }
+}
+
+impl EsriShape for PolygonM {
+    fn shapetype(&self) -> ShapeType {
+        ShapeType::PolygonM
+    }
+
+    fn size_in_bytes(&self) -> usize {
+        self.as_ref().size_in_bytes()
+    }
+
+    fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
+        let polym: PolylineM = self.into();
+        polym.write_to(&mut dest)?;
+        Ok(())
     }
 }
 

@@ -15,6 +15,7 @@ const POINTM_PATH: &str = "./tests/data/pointm.shp";
 const POINTZ_PATH: &str = "./tests/data/pointz.shp";
 
 const POLYGON_PATH: &str = "./tests/data/polygon.shp";
+const POLYGONM_PATH: &str = "./tests/data/polygonm.shp";
 const POLYGONZ_PATH: &str = "./tests/data/polygonz.shp";
 
 const MULTIPOINT_PATH: &str = "./tests/data/multipoint.shp";
@@ -165,6 +166,21 @@ fn check_polygon<T: Read>(mut reader: shapefile::Reader<T>) {
     }
 }
 
+fn check_polygonm<T: Read>(mut reader: shapefile::Reader<T>) {
+    let shapes = reader.read().unwrap();
+    assert_eq!(shapes.len(), 1, "Wrong number of shapes");
+
+    if let shapefile::Shape::PolygonM(shp) = &shapes[0] {
+        assert_eq!(shp.xs, vec![159814.75390576152, 160420.36722814097, 159374.30785312195, 159814.75390576152]);
+        assert_eq!(shp.ys, vec![5404314.139043656, 5403703.520652497, 5403473.287488617, 5404314.139043656]);
+        assert_eq!(shp.ms, vec![0.0, 0.0, 0.0,0.0]);
+        assert_eq!(shp.m_range, [0.0, 0.0]);
+        assert_eq!(shp.parts, vec![0]);
+    } else {
+        assert!(false, "The second shape is not a PolygonZ");
+    }
+}
+
 fn check_polygonz<T: Read>(mut reader: shapefile::Reader<T>) {
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
@@ -188,8 +204,7 @@ fn check_multipoint<T: Read>(mut reader: shapefile::Reader<T>) {
     if let shapefile::Shape::Multipoint(shp) = &shapes[0] {
         assert_eq!(shp.xs, vec![122.0, 124.0]);
         assert_eq!(shp.ys, vec![37.0, 32.0]);
-    }
-    else {
+    } else {
         assert!(false, "Shape is not a Multipoint");
     }
 }
@@ -203,8 +218,7 @@ fn check_multipointz<T: Read>(mut reader: shapefile::Reader<T>) {
         assert_eq!(shp.ys, vec![4188903.4295959473, 4188903.4295959473, 4188903.7578430176, 4188903.539001465]);
         assert_eq!(shp.zs, vec![72.00995635986328, 72.0060806274414, 72.00220489501953, 71.99445343017578]);
         assert_eq!(shp.ms, vec![-1e38, -1e38, -1e38, -1e38]);
-    }
-    else {
+    } else {
         assert!(false, "Shape is not a Multipoint");
     }
 }
@@ -254,6 +268,7 @@ read_test!(read_pointz, check_pointz, POINTZ_PATH);
 
 /* Read tests on Polygon */
 read_test!(read_polygon, check_polygon, POLYGON_PATH);
+read_test!(read_polygonm, check_polygonm, POLYGONM_PATH);
 read_test!(read_polygonz, check_polygonz, POLYGONZ_PATH);
 
 /* Read tests on Multipoint */
@@ -273,8 +288,9 @@ read_write_read_test!(read_write_read_pointm, to_vec_of_pointm, check_pointm, PO
 read_write_read_test!(read_write_read_pointz, to_vec_of_pointz, check_pointz, POINTZ_PATH);
 
 /* Read-Write-Read tests on Polygons */
-use shapefile::record::{to_vec_of_polygon, to_vec_of_polygonz};
+use shapefile::record::{to_vec_of_polygon, to_vec_of_polygonm, to_vec_of_polygonz};
 read_write_read_test!(read_write_read_polygon, to_vec_of_polygon, check_polygon, POLYGON_PATH);
+read_write_read_test!(read_write_read_polygonm, to_vec_of_polygonm, check_polygonm, POLYGONM_PATH);
 read_write_read_test!(read_write_read_polygonz, to_vec_of_polygonz, check_polygonz, POLYGONZ_PATH);
 
 /* Read-Write-Read tests on Multipoint */
