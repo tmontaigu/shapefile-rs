@@ -1,19 +1,24 @@
 use byteorder::{LittleEndian, BigEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Write};
 
+mod io;
 mod poly;
 mod point;
+mod multipoint;
+
 
 use super::{ShapeType, Error};
 
 pub use record::poly::{Polyline, PolylineM, PolylineZ, Polygon, PolygonZ};
 pub use record::point::{Point, PointM, PointZ};
+pub use record::multipoint::{Multipoint, MultipointZ};
 
 pub const NO_DATA: f64 = -10e38;
 
 fn is_no_data(val: f64) -> bool {
     return val <= NO_DATA;
 }
+
 
 pub fn min_and_max_of_f64_slice(slice: &[f64]) -> (f64, f64) {
     slice.iter().fold(
@@ -38,7 +43,9 @@ pub enum Shape {
     PolylineM(PolylineM),
     PolylineZ(PolylineZ),
     Polygon(Polygon),
-    PolygonZ(PolygonZ)
+    PolygonZ(PolygonZ),
+    Multipoint(Multipoint),
+    MultipointZ(MultipointZ),
 }
 
 impl Shape {
@@ -52,6 +59,8 @@ impl Shape {
             ShapeType::PointZ => Shape::PointZ(PointZ::read_from(&mut source)?),
             ShapeType::Polygon => Shape::Polygon(Polygon::read_from(&mut source)?),
             ShapeType::PolygonZ => Shape::PolygonZ(PolygonZ::read_from(&mut source)?),
+            ShapeType::Multipoint => Shape::Multipoint(Multipoint::read_from(&mut source)?),
+            ShapeType::MultipointZ => Shape::MultipointZ(MultipointZ::read_from(&mut source)?),
             _ => { unimplemented!() }
         };
         Ok(shape)
@@ -137,6 +146,9 @@ shape_vector_conversion!(to_vec_of_pointz, PointZ, Shape::PointZ(shp), shp);
 
 shape_vector_conversion!(to_vec_of_polygon, Polygon, Shape::Polygon(shp), shp);
 shape_vector_conversion!(to_vec_of_polygonz, PolygonZ, Shape::PolygonZ(shp), shp);
+
+shape_vector_conversion!(to_vec_of_multipoint, Multipoint, Shape::Multipoint(shp), shp);
+shape_vector_conversion!(to_vec_of_multipointz, MultipointZ, Shape::MultipointZ(shp), shp);
 
 #[cfg(test)]
 mod tests {

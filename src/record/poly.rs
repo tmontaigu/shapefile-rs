@@ -8,83 +8,10 @@ use record::is_no_data;
 use NO_DATA;
 use record::BBox;
 use Error;
+use record::io::*;
 
 use std::mem::size_of;
 
-pub struct ZDimension {
-    pub range: [f64; 2],
-    pub values: Vec<f64>,
-}
-
-pub type MDimension = ZDimension;
-
-
-fn read_points<T: Read>(source: &mut T, num_points: i32) -> Result<(Vec<f64>, Vec<f64>), std::io::Error> {
-    let mut xs = Vec::<f64>::with_capacity(num_points as usize);
-    let mut ys = Vec::<f64>::with_capacity(num_points as usize);
-
-    for _i in 0..num_points {
-        xs.push(source.read_f64::<LittleEndian>()?);
-        ys.push(source.read_f64::<LittleEndian>()?);
-    }
-    Ok((xs, ys))
-}
-
-fn read_z_dimension<T: Read>(source: &mut T, num_points: i32) -> Result<ZDimension, std::io::Error> {
-    let mut zs = Vec::<f64>::with_capacity(num_points as usize);
-    let mut range = [0.0; 2];
-    range[0] = source.read_f64::<LittleEndian>()?;
-    range[1] = source.read_f64::<LittleEndian>()?;
-    for _i in 0..num_points {
-        zs.push(source.read_f64::<LittleEndian>()?);
-    }
-    Ok(ZDimension { range, values: zs })
-}
-
-fn read_m_dimension<T: Read>(source: &mut T, num_points: i32) -> Result<MDimension, std::io::Error> {
-    let mut zs = Vec::<f64>::with_capacity(num_points as usize);
-    let mut range = [0.0; 2];
-    range[0] = source.read_f64::<LittleEndian>()?;
-    range[1] = source.read_f64::<LittleEndian>()?;
-    for _i in 0..num_points {
-        let value = source.read_f64::<LittleEndian>()?;
-        if is_no_data(value) {
-            zs.push(NO_DATA);
-        } else {
-            zs.push(value);
-        }
-    }
-    Ok(MDimension { range, values: zs })
-}
-
-fn write_parts<T: Write>(dest: &mut T, parts: &Vec<i32>) -> Result<(), std::io::Error> {
-    for p in parts {
-        dest.write_i32::<LittleEndian>(*p)?;
-    }
-    Ok(())
-}
-
-fn write_points<T: Write>(dest: &mut T, xs: &Vec<f64>, ys: &Vec<f64>) -> Result<(), std::io::Error> {
-    assert_eq!(xs.len(), ys.len());
-
-    for (x, y) in xs.into_iter().zip(ys) {
-        dest.write_f64::<LittleEndian>(*x)?;
-        dest.write_f64::<LittleEndian>(*y)?;
-    }
-
-    Ok(())
-}
-
-fn write_measures<T: Write>(dest: &mut T, m_range: &[f64; 2], ms: &Vec<f64>) -> Result<(), std::io::Error> {
-    dest.write_f64::<LittleEndian>(m_range[0])?;
-    dest.write_f64::<LittleEndian>(m_range[1])?;
-
-    for m in ms {
-        dest.write_f64::<LittleEndian>(*m)?;
-    }
-
-    Ok(())
-}
 
 pub struct Polyline {
     pub bbox: BBox,
@@ -203,14 +130,14 @@ pub struct PolylineM {
 impl PolylineM {
     pub fn read_from<T: Read>(mut source: &mut T) -> Result<PolylineM, Error> {
         let poly = Polyline::read_from(&mut source)?;
-        let m_dim = read_m_dimension(&mut source, poly.xs.len() as i32)?;
+        let (m_range, ms) = read_m_dimension(&mut source, poly.xs.len() as i32)?;
         Ok(Self {
             bbox: poly.bbox,
             parts: poly.parts,
             xs: poly.xs,
             ys: poly.ys,
-            m_range: m_dim.range,
-            ms: m_dim.values,
+            m_range,
+            ms,
         })
     }
 
@@ -263,7 +190,7 @@ impl EsriShape for PolylineM {
         let poly = Polyline::from(self);
         poly.write_to(&mut dest)?;
 
-        write_measures(&mut dest, &m_range, &ms)?;
+        write_range_and_vec(&mut dest, &m_range, &ms)?;
 
         Ok(())
     }
@@ -290,17 +217,17 @@ impl PolylineZ {
 
     pub fn read_from<T: Read>(mut source: &mut T) -> Result<PolylineZ, Error> {
         let poly = Polyline::read_from(&mut source)?;
-        let z_dim = read_z_dimension(&mut source, poly.xs.len() as i32)?;
-        let m_dim = read_m_dimension(&mut source, poly.xs.len() as i32)?;
+        let (z_range, zs) = read_z_dimension(&mut source, poly.xs.len() as i32)?;
+        let (m_range, ms) = read_m_dimension(&mut source, poly.xs.len() as i32)?;
         Ok(Self {
             bbox: poly.bbox,
             parts: poly.parts,
             xs: poly.xs,
             ys: poly.ys,
-            z_range: z_dim.range,
-            zs: z_dim.values,
-            m_range: m_dim.range,
-            ms: m_dim.values,
+            z_range,
+            zs,
+            m_range,
+            ms,
         })
     }
 }
@@ -323,8 +250,8 @@ impl EsriShape for PolylineZ {
         let poly = Polyline::from(PolylineM::from(self)); //FIXME
         poly.write_to(&mut dest)?;
 
-        write_measures(&mut dest, &z_range, &zs)?;
-        write_measures(&mut dest, &m_range, &ms)?;
+        write_range_and_vec(&mut dest, &z_range, &zs)?;
+        write_range_and_vec(&mut dest, &m_range, &ms)?;
 
         Ok(())
     }
@@ -404,6 +331,25 @@ pub struct PolygonM {
     pub ms: Vec<f64>,
 }
 
+impl AsRef<PolylineM> for PolygonM {
+    fn as_ref(&self) -> &PolylineM {
+        unsafe { std::mem::transmute::<&PolygonM, &PolylineM>(self) }
+    }
+}
+
+impl From<PolylineM> for PolygonM {
+    fn from(p: PolylineM) -> Self {
+        Self {
+            bbox: p.bbox,
+            xs: p.xs,
+            ys: p.ys,
+            ms: p.ms,
+            parts: p.parts,
+            m_range: p.m_range,
+        }
+    }
+}
+
 pub struct PolygonZ {
     pub bbox: BBox,
     pub parts: Vec<i32>,
@@ -458,3 +404,4 @@ impl EsriShape for PolygonZ {
         Ok(())
     }
 }
+
