@@ -327,4 +327,4 @@ read_write_read_test!(read_write_read_multipointz, to_vec_of_multipointz, check_
 
 /* Read-Write-Read tests on Multipoint */
 use shapefile::record::{to_vec_of_multipatch};
-//read_write_read_test!(read_write_read_multipatch, to_vec_of_multipatch, check_multipatch, MULTIPATCH_PATH);
+read_write_read_test!(read_write_read_multipatch, to_vec_of_multipatch, check_multipatch, MULTIPATCH_PATH);
