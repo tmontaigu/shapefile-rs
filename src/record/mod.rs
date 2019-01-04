@@ -5,6 +5,7 @@ mod io;
 mod poly;
 mod point;
 mod multipoint;
+mod multipatch;
 
 
 use super::{ShapeType, Error};
@@ -12,6 +13,7 @@ use super::{ShapeType, Error};
 pub use record::poly::{Polyline, PolylineM, PolylineZ, Polygon, PolygonM, PolygonZ};
 pub use record::point::{Point, PointM, PointZ};
 pub use record::multipoint::{Multipoint, MultipointZ};
+pub use record::multipatch::{Multipatch, PatchType};
 
 pub const NO_DATA: f64 = -10e38;
 
@@ -47,6 +49,7 @@ pub enum Shape {
     PolygonZ(PolygonZ),
     Multipoint(Multipoint),
     MultipointZ(MultipointZ),
+    Multipatch(Multipatch),
 }
 
 impl Shape {
@@ -63,6 +66,7 @@ impl Shape {
             ShapeType::PolygonZ => Shape::PolygonZ(PolygonZ::read_from(&mut source)?),
             ShapeType::Multipoint => Shape::Multipoint(Multipoint::read_from(&mut source)?),
             ShapeType::MultipointZ => Shape::MultipointZ(MultipointZ::read_from(&mut source)?),
+            ShapeType::Multipatch => Shape::Multipatch(Multipatch::read_from(&mut source)?),
             _ => { unimplemented!() }
         };
         Ok(shape)
@@ -152,6 +156,8 @@ shape_vector_conversion!(to_vec_of_polygonz, PolygonZ, Shape::PolygonZ(shp), shp
 
 shape_vector_conversion!(to_vec_of_multipoint, Multipoint, Shape::Multipoint(shp), shp);
 shape_vector_conversion!(to_vec_of_multipointz, MultipointZ, Shape::MultipointZ(shp), shp);
+
+shape_vector_conversion!(to_vec_of_multipatch, Multipatch, Shape::Multipatch(shp), shp);
 
 #[cfg(test)]
 mod tests {

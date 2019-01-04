@@ -21,6 +21,8 @@ const POLYGONZ_PATH: &str = "./tests/data/polygonz.shp";
 const MULTIPOINT_PATH: &str = "./tests/data/multipoint.shp";
 const MULTIPOINTZ_PATH: &str = "./tests/data/multipointz.shp";
 
+const MULTIPATCH_PATH: &str = "./tests/data/multipatch.shp";
+
 #[test]
 fn read_line_header() {
     let mut file = File::open(LINE_PATH).unwrap();
@@ -173,7 +175,7 @@ fn check_polygonm<T: Read>(mut reader: shapefile::Reader<T>) {
     if let shapefile::Shape::PolygonM(shp) = &shapes[0] {
         assert_eq!(shp.xs, vec![159814.75390576152, 160420.36722814097, 159374.30785312195, 159814.75390576152]);
         assert_eq!(shp.ys, vec![5404314.139043656, 5403703.520652497, 5403473.287488617, 5404314.139043656]);
-        assert_eq!(shp.ms, vec![0.0, 0.0, 0.0,0.0]);
+        assert_eq!(shp.ms, vec![0.0, 0.0, 0.0, 0.0]);
         assert_eq!(shp.m_range, [0.0, 0.0]);
         assert_eq!(shp.parts, vec![0]);
     } else {
@@ -220,6 +222,23 @@ fn check_multipointz<T: Read>(mut reader: shapefile::Reader<T>) {
         assert_eq!(shp.ms, vec![-1e38, -1e38, -1e38, -1e38]);
     } else {
         assert!(false, "Shape is not a Multipoint");
+    }
+}
+
+fn check_multipatch<T: Read>(mut reader: shapefile::Reader<T>) {
+    use shapefile::NO_DATA;
+    let shapes = reader.read().unwrap();
+    assert_eq!(shapes.len(), 1, "Wrong number of shapes");
+
+    if let shapefile::Shape::Multipatch(shp) = &shapes[0] {
+        assert_eq!(shp.xs, vec![0.0, 0.0, 5.0, 5.0, 5.0, 5.0, 0.0, 0.0, 0.0, 0.0, 2.5, 0.0, 5.0, 5.0, 0.0, 0.0]);
+        assert_eq!(shp.ys, vec![0.0, 0.0, 0.0, 0.0, 5.0, 5.0, 5.0, 5.0, 0.0, 0.0, 2.5, 0.0, 0.0, 5.0, 5.0, 0.0]);
+        assert_eq!(shp.zs, vec![0.0, 3.0, 0.0, 3.0, 0.0, 3.0, 0.0, 3.0, 0.0, 3.0, 5.0, 3.0, 3.0, 3.0, 3.0, 3.0]);
+        assert_eq!(shp.ms, vec![NO_DATA, NO_DATA, NO_DATA, NO_DATA, NO_DATA, NO_DATA, NO_DATA, NO_DATA, NO_DATA, NO_DATA, NO_DATA, NO_DATA, NO_DATA, NO_DATA, NO_DATA, NO_DATA]);
+        assert_eq!(shp.parts, vec![0, 10]);
+        assert_eq!(shp.parts_type, vec![shapefile::PatchType::TriangleStrip, shapefile::PatchType::TriangleFan]);
+    } else {
+        assert!(false, "Shape is not a Multipatch");
     }
 }
 
@@ -275,6 +294,9 @@ read_test!(read_polygonz, check_polygonz, POLYGONZ_PATH);
 read_test!(read_multipoint, check_multipoint, MULTIPOINT_PATH);
 read_test!(read_multipointz, check_multipointz, MULTIPOINTZ_PATH);
 
+/* Read tests on Multipatch */
+read_test!(read_multipatch, check_multipatch, MULTIPATCH_PATH);
+
 /* Read-Write-Read tests on Polylines */
 use shapefile::record::{to_vec_of_polyline, to_vec_of_polylinem, to_vec_of_polylinez};
 read_write_read_test!(read_write_read_line, to_vec_of_polyline, check_line, LINE_PATH);
@@ -297,3 +319,7 @@ read_write_read_test!(read_write_read_polygonz, to_vec_of_polygonz, check_polygo
 use shapefile::record::{to_vec_of_multipoint, to_vec_of_multipointz};
 read_write_read_test!(read_write_read_multipoint, to_vec_of_multipoint, check_multipoint, MULTIPOINT_PATH);
 read_write_read_test!(read_write_read_multipointz, to_vec_of_multipointz, check_multipointz, MULTIPOINTZ_PATH);
+
+/* Read-Write-Read tests on Multipoint */
+use shapefile::record::{to_vec_of_multipatch};
+//read_write_read_test!(read_write_read_multipatch, to_vec_of_multipatch, check_multipatch, MULTIPATCH_PATH);
