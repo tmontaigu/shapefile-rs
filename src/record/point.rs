@@ -108,7 +108,7 @@ impl EsriShape for PointZ {
     }
 
     fn size_in_bytes(&self) -> usize {
-        3 * size_of::<f64>()
+        4 * size_of::<f64>()
     }
 
     fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {

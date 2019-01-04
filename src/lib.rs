@@ -11,7 +11,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::convert::{From};
 use std::fmt;
 
-pub use record::{NO_DATA, Shape};
+pub use record::{NO_DATA, Shape, PatchType};
 pub use reader::Reader;
 
 //TODO use std::num::FromPrimitive ?
@@ -156,35 +156,6 @@ impl TryFrom<i32> for ShapeType {
     }
 }
 */
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum PatchType {
-    TriangleStrip,
-    TriangleFan,
-    OuterRing,
-    InnerRing,
-    FirstRing,
-    Ring
-}
-
-impl PatchType {
-    pub fn read_from<T: Read>(source: &mut T) -> Result<PatchType, Error> {
-        let code = source.read_i32::<LittleEndian>()?;
-        Self::from(code).ok_or(Error::InvalidPatchType(code))
-    }
-
-    pub fn from(code: i32) -> Option<PatchType> {
-        match code {
-            0 => Some(PatchType::TriangleStrip),
-            1 => Some(PatchType::TriangleFan),
-            2 => Some(PatchType::OuterRing),
-            3 => Some(PatchType::InnerRing),
-            4 => Some(PatchType::FirstRing),
-            5 => Some(PatchType::Ring),
-            _ => None
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

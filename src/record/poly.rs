@@ -4,8 +4,6 @@ use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};
 
 use ShapeType;
 use record::EsriShape;
-use record::is_no_data;
-use NO_DATA;
 use record::BBox;
 use Error;
 use record::io::*;
@@ -51,10 +49,9 @@ impl Polyline {
 
     fn size_of_record(num_points: usize, num_parts: usize) -> usize {
         let mut size = 0 as usize;
-        size += size_of::<i32>();
         size += size_of::<f64>() * 4;
-        size += size_of::<i32>();
-        size += size_of::<i32>();
+        size += size_of::<i32>(); // num parts
+        size += size_of::<i32>(); //num points
         size += size_of::<i32>() * num_parts;
         size += size_of::<f64>() * num_points;
         size += size_of::<f64>() * num_points;
@@ -92,6 +89,17 @@ impl From<Polygon> for Polyline {
             xs: p.xs,
             ys: p.ys,
             parts: p.parts,
+        }
+    }
+}
+
+impl From<PolylineZ> for Polyline {
+    fn from(polyz: PolylineZ) -> Self {
+        Self {
+            bbox: polyz.bbox,
+            xs: polyz.xs,
+            ys: polyz.ys,
+            parts: polyz.parts,
         }
     }
 }
@@ -238,7 +246,7 @@ impl EsriShape for PolylineZ {
     }
 
     fn size_in_bytes(&self) -> usize {
-        Self::size_of_record(self.xs.len(), self.xs.len())
+        Self::size_of_record(self.xs.len(), self.parts.len())
     }
 
     fn write_to<T: Write>(mut self, mut dest: &mut T) -> Result<(), Error> {
@@ -428,3 +436,13 @@ impl EsriShape for PolygonZ {
     }
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_size_of_polyline_z() {
+        assert_eq!(PolylineZ::size_of_record(10, 3), 404);
+    }
+}
