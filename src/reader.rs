@@ -5,7 +5,7 @@ use {Error, ShapeType, Shape};
 
 use std::path::Path;
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, SeekFrom, Seek};
 
 pub struct Reader<T: Read> {
     source: T,
@@ -48,7 +48,6 @@ impl<T: Read> Iterator for Reader<T> {
             return None;
         }
 
-
         let hdr = match record::RecordHeader::read_from(&mut self.source) {
             Ok(hdr) => hdr,
             Err(e) => return Some(Err(e)),
@@ -68,7 +67,7 @@ impl<T: Read> Iterator for Reader<T> {
         self.pos += pos_diff;
 
         Some(Shape::read_from(&mut self.source, shapetype))
-        //Some(read_shape(&mut self.source, shapetype))
     }
 }
+
 

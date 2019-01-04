@@ -268,6 +268,11 @@ macro_rules! read_write_read_test {
 
             cursor = writer.dest;
 
+            let pos_at_end = cursor.seek(SeekFrom::Current(0)).unwrap();
+            cursor.seek(SeekFrom::Start(0)).unwrap();
+            let hdr = shapefile::header::Header::read_from(&mut cursor).unwrap();
+            assert_eq!((hdr.file_length * 2) as u64, pos_at_end);
+
             cursor.seek(SeekFrom::Start(0)).unwrap();
             let reader = shapefile::Reader::new(cursor).unwrap();
             $check_func(reader);

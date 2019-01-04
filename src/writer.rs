@@ -19,6 +19,8 @@ impl<T: Write> Writer<T> {
     pub fn write_shapes<S: EsriShape>(&mut self, shapes: Vec<S>) -> Result<(), Error> {
         let mut file_length = header::SHP_HEADER_SIZE as usize;
         for shape in &shapes {
+            file_length += 2 * std::mem::size_of::<i32>(); // record_header
+            file_length += std::mem::size_of::<i32>(); // shape_type
             file_length += shape.size_in_bytes();
         }
         file_length /= 2; // file size is in 16bit words

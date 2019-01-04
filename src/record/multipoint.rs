@@ -77,9 +77,9 @@ impl EsriShape for MultipointZ {
         size += size_of::<i32>();
         size += 2 * size_of::<f64>() * self.xs.len();
         size += 2 * size_of::<f64>();
-        size += 2 * size_of::<f64>() * self.xs.len();
+        size += size_of::<f64>() * self.xs.len();
         size += 2 * size_of::<f64>();
-        size += 2 * size_of::<f64>() * self.xs.len();
+        size += size_of::<f64>() * self.xs.len();
         size
     }
 
