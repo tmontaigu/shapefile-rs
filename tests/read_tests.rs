@@ -301,7 +301,7 @@ fn check_multipointz<T: Read>(reader: shapefile::Reader<T>) {
         assert_eq!(header.point_min, [1422671.7232666016, 4188903.4295959473, 71.99445343017578]);
         assert_eq!(header.point_max, [1422672.1022949219, 4188903.7578430176, 72.00995635986328]);
         //FIXME Input test file is wrong
-        //assert_eq!(header.m_range, [0.0, 0.0]);
+        //assert_eq!(header.m_range, [-1e38, -1e38]);
     }
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");

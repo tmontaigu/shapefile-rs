@@ -1,8 +1,11 @@
-use std::io::Write;
+use std::io::{Write, BufWriter};
 
 use Error;
 use record::{EsriShape, RecordHeader};
 use header;
+use std::fs::File;
+use std::path::Path;
+
 
 
 pub struct Writer<T: Write> {
@@ -99,5 +102,13 @@ impl<T: Write> Writer<T> {
             shape.write_to(&mut self.dest)?;
         }
         Ok(())
+    }
+}
+
+impl Writer<BufWriter<File>> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        let file = File::create(path)?;
+        let dest = BufWriter::new(file);
+         Ok(Self::new( dest))
     }
 }

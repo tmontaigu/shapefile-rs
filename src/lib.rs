@@ -13,6 +13,7 @@ use std::fmt;
 
 pub use record::{NO_DATA, Shape, PatchType};
 pub use reader::Reader;
+use std::path::Path;
 
 //TODO use std::num::FromPrimitive ?
 //https://stackoverflow.com/questions/28028854/how-do-i-match-enum-values-with-an-integer
@@ -157,6 +158,11 @@ impl TryFrom<i32> for ShapeType {
     }
 }
 */
+
+pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
+    let reader = Reader::from_path(path)?;
+    reader.read()
+}
 
 #[cfg(test)]
 mod tests {
