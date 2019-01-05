@@ -178,10 +178,9 @@ fn check_pointz<T: Read>(reader: shapefile::Reader<T>) {
         let header = reader.header();
         assert_eq!(header.file_length, 94);
         assert_eq!(header.shape_type, shapefile::ShapeType::PointZ);
-        //FIXME original file malformed ?
-        //assert_eq!(header.point_min, [1422459.0908050265, 4188942.211755641, 72.40956470558095]);
-        //assert_eq!(header.point_max, [1422464.3681007193, 4188962.3364355816, 72.58286959604922]);
-        //assert_eq!(header.m_range, [0.0, 0.0]);
+        assert_eq!(header.point_min, [1422459.0908050265, 4188942.211755641, 72.40956470558095]);
+        assert_eq!(header.point_max, [1422464.3681007193, 4188962.3364355816, 72.58286959604922]);
+        assert_eq!(header.m_range, [0.0, 0.0]);
     }
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 2, "Wrong number of shapes");
