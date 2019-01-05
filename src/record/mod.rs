@@ -34,6 +34,15 @@ pub trait EsriShape {
     fn shapetype(&self) -> ShapeType;
     fn size_in_bytes(&self) -> usize;
     fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error>;
+
+    fn bbox(&self) -> BBox;
+    fn z_range(&self) -> [f64; 2] {
+        [0.0, 0.0]
+    }
+    fn m_range(&self) -> [f64; 2] {
+        [0.0, 0.0]
+    }
+
 }
 
 pub enum Shape {
@@ -73,7 +82,7 @@ impl Shape {
     }
 }
 
-
+#[derive(Copy, Clone)]
 pub struct BBox {
     pub xmin: f64,
     pub ymin: f64,

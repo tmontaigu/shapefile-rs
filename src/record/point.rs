@@ -6,6 +6,8 @@ use ShapeType;
 use std::mem::size_of;
 
 use super::Error;
+use record::BBox;
+use record::is_no_data;
 
 pub struct Point {
     pub x: f64,
@@ -33,6 +35,15 @@ impl EsriShape for Point {
         dest.write_f64::<LittleEndian>(self.x)?;
         dest.write_f64::<LittleEndian>(self.y)?;
         Ok(())
+    }
+
+    fn bbox(&self) -> BBox {
+        BBox{
+            xmin: self.x,
+            ymin: self.y,
+            xmax: self.x,
+            ymax: self.y
+        }
     }
 }
 
@@ -78,6 +89,24 @@ impl EsriShape for PointM {
         dest.write_f64::<LittleEndian>(self.m)?;
         Ok(())
     }
+
+    fn bbox(&self) -> BBox {
+        BBox{
+            xmin: self.x,
+            ymin: self.y,
+            xmax: self.x,
+            ymax: self.y
+        }
+    }
+
+    fn m_range(&self) -> [f64; 2] {
+        if is_no_data(self.m) {
+            [0.0, 0.0]
+        }
+        else {
+            [self.m, self.m]
+        }
+    }
 }
 
 
@@ -117,5 +146,27 @@ impl EsriShape for PointZ {
         dest.write_f64::<LittleEndian>(self.z)?;
         dest.write_f64::<LittleEndian>(self.m)?;
         Ok(())
+    }
+
+    fn bbox(&self) -> BBox {
+       BBox{
+           xmin: self.x,
+           ymin: self.y,
+           xmax: self.x,
+           ymax: self.y
+       }
+    }
+
+    fn z_range(&self) -> [f64; 2] {
+        [self.z, self.z]
+    }
+
+    fn m_range(&self) -> [f64; 2] {
+        if is_no_data(self.m) {
+            [0.0, 0.0]
+        }
+        else {
+            [self.m, self.m]
+        }
     }
 }

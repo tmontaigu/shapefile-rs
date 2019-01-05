@@ -109,4 +109,16 @@ impl EsriShape for Multipatch {
         write_range_and_vec(&mut dest, &self.m_range, &self.ms)?;
         Ok(())
     }
+
+    fn bbox(&self) -> BBox {
+        self.bbox
+    }
+
+    fn z_range(&self) -> [f64; 2] {
+        self.z_range
+    }
+
+    fn m_range(&self) -> [f64; 2] {
+        self.m_range
+    }
 }

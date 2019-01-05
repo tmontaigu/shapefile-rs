@@ -24,6 +24,7 @@ pub enum Error {
     InvalidShapeType(i32),
     InvalidPatchType(i32),
     MixedShapeType,
+    MalformedShape,
 }
 
 impl From<std::io::Error> for Error {

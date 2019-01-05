@@ -124,6 +124,10 @@ impl EsriShape for Polyline {
         write_points(&mut dest, &self.xs, &self.ys)?;
         Ok(())
     }
+
+    fn bbox(&self) -> BBox {
+       self.bbox
+    }
 }
 
 
@@ -227,6 +231,14 @@ impl EsriShape for PolylineM {
 
         Ok(())
     }
+
+    fn bbox(&self) -> BBox {
+        self.bbox
+    }
+
+    fn m_range(&self) -> [f64; 2] {
+        self.m_range
+    }
 }
 
 pub struct PolylineZ {
@@ -318,6 +330,18 @@ impl EsriShape for PolylineZ {
 
         Ok(())
     }
+
+    fn bbox(&self) -> BBox {
+        self.bbox
+    }
+
+    fn z_range(&self) -> [f64; 2] {
+        self.z_range
+    }
+
+    fn m_range(&self) -> [f64; 2] {
+        self.m_range
+    }
 }
 
 impl From<PolygonZ> for PolylineZ {
@@ -378,6 +402,10 @@ impl EsriShape for Polygon {
         let polyline: Polyline = self.into();
         polyline.write_to(&mut dest)?;
         Ok(())
+    }
+
+    fn bbox(&self) -> BBox {
+       self.bbox
     }
 }
 
@@ -446,6 +474,14 @@ impl EsriShape for PolygonM {
         polym.write_to(&mut dest)?;
         Ok(())
     }
+
+    fn bbox(&self) -> BBox {
+        self.bbox
+    }
+
+    fn m_range(&self) -> [f64; 2] {
+        self.m_range
+    }
 }
 
 pub struct PolygonZ {
@@ -509,6 +545,18 @@ impl EsriShape for PolygonZ {
         let polyz: PolylineZ = self.into();
         polyz.write_to(&mut dest)?;
         Ok(())
+    }
+
+    fn bbox(&self) -> BBox {
+        self.bbox
+    }
+
+    fn z_range(&self) -> [f64; 2] {
+        self.z_range
+    }
+
+    fn m_range(&self) -> [f64; 2] {
+        self.m_range
     }
 }
 

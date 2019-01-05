@@ -48,6 +48,10 @@ impl EsriShape for Multipoint {
         write_points(&mut dest, &self.xs, &self.ys)?;
         Ok(())
     }
+
+    fn bbox(&self) -> BBox {
+        self.bbox
+    }
 }
 
 pub struct MultipointZ {
@@ -110,5 +114,17 @@ impl EsriShape for MultipointZ {
         write_range_and_vec(&mut dest, &self.z_range, &self.zs)?;
         write_range_and_vec(&mut dest, &self.m_range, &self.ms)?;
         Ok(())
+    }
+
+    fn bbox(&self) -> BBox {
+       self.bbox
+}
+
+    fn z_range(&self) -> [f64; 2] {
+        self.z_range
+    }
+
+    fn m_range(&self) -> [f64; 2] {
+        self.m_range
     }
 }

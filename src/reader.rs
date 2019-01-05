@@ -27,6 +27,10 @@ impl<T: Read> Reader<T> {
         }
         Ok(shapes)
     }
+
+    pub fn header(&self) -> &header::Header {
+        &self.header
+    }
 }
 
 impl Reader<BufReader<File>> {
