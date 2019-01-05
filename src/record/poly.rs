@@ -3,12 +3,13 @@ use std::io::{Read, Write};
 use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};
 
 use ShapeType;
-use record::EsriShape;
+use record::{EsriShape, min_and_max_of_f64_slice};
 use record::BBox;
 use Error;
 use record::io::*;
 
 use std::mem::size_of;
+use NO_DATA;
 
 
 pub struct Polyline {
@@ -20,7 +21,7 @@ pub struct Polyline {
 
 impl Polyline {
     pub fn new(xs: Vec<f64>, ys: Vec<f64>, parts: Vec<i32>) -> Self {
-        Polyline {
+        Self {
             bbox: BBox::from_xys(&xs, &ys),
             parts,
             xs,
@@ -136,6 +137,30 @@ pub struct PolylineM {
 }
 
 impl PolylineM {
+    pub fn new(xs: Vec<f64>, ys: Vec<f64>, parts: Vec<i32>) -> Self {
+        let ms = (0..xs.len()).map(|_| NO_DATA).collect();
+        Self {
+            bbox: BBox::from_xys(&xs, &ys),
+            parts,
+            xs,
+            ys,
+            m_range: [0.0, 0.0],
+            ms,
+        }
+    }
+
+    pub fn new_with_ms(xs: Vec<f64>, ys: Vec<f64>, parts: Vec<i32>, ms: Vec<f64>) -> Self {
+        let (m_min, m_max) = min_and_max_of_f64_slice(&ms);
+        Self {
+            bbox: BBox::from_xys(&xs, &ys),
+            parts,
+            xs,
+            ys,
+            m_range: [m_min, m_max],
+            ms,
+        }
+    }
+
     pub fn read_from<T: Read>(mut source: &mut T) -> Result<PolylineM, std::io::Error> {
         let poly = Polyline::read_from(&mut source)?;
         let (m_range, ms) = read_m_dimension(&mut source, poly.xs.len() as i32)?;
@@ -216,6 +241,36 @@ pub struct PolylineZ {
 }
 
 impl PolylineZ {
+    pub fn new(xs: Vec<f64>, ys: Vec<f64>, parts: Vec<i32>, zs: Vec<f64>) -> Self {
+        let ms = (0..xs.len()).map(|_| NO_DATA).collect();
+        let (z_min, z_max) = min_and_max_of_f64_slice(&zs);
+        Self {
+            bbox: BBox::from_xys(&xs, &ys),
+            parts,
+            xs,
+            ys,
+            z_range: [z_min, z_max],
+            zs,
+            m_range: [0.0, 0.0],
+            ms,
+        }
+    }
+
+    pub fn new_with_ms(xs: Vec<f64>, ys: Vec<f64>, parts: Vec<i32>, zs: Vec<f64>, ms: Vec<f64>) -> Self {
+        let (m_min, m_max) = min_and_max_of_f64_slice(&ms);
+        let (z_min, z_max) = min_and_max_of_f64_slice(&zs);
+        Self {
+            bbox: BBox::from_xys(&xs, &ys),
+            parts,
+            xs,
+            ys,
+            z_range: [z_min, z_max],
+            zs,
+            m_range: [m_min, m_max],
+            ms,
+        }
+    }
+
     pub fn size_of_record(num_points: usize, num_parts: usize) -> usize {
         let mut size = PolylineM::size_of_record(num_points, num_parts);
         size += size_of::<f64>() * 2;
@@ -288,6 +343,10 @@ pub struct Polygon {
 }
 
 impl Polygon {
+    pub fn new(xs: Vec<f64>, ys: Vec<f64>, parts: Vec<i32>) -> Self {
+        Polyline::new(xs, ys, parts).into()
+    }
+
     pub fn read_from<T: Read>(mut source: &mut T) -> Result<Polygon, Error> {
         let poly = Polyline::read_from(&mut source)?;
         Ok(poly.into())
@@ -359,6 +418,14 @@ impl From<PolylineM> for PolygonM {
 }
 
 impl PolygonM {
+    pub fn new(xs: Vec<f64>, ys: Vec<f64>, parts: Vec<i32>) -> Self {
+        PolylineM::new(xs, ys, parts).into()
+    }
+
+    pub fn new_with_ms(xs: Vec<f64>, ys: Vec<f64>, parts: Vec<i32>, ms: Vec<f64>) -> Self {
+        PolylineM::new_with_ms(xs, ys, parts, ms).into()
+    }
+
     pub fn read_from<T: Read>(mut source: &mut T) -> Result<Self, std::io::Error> {
         let poly = PolylineM::read_from(&mut source)?;
         Ok(Self::from(poly))
@@ -414,6 +481,15 @@ impl From<PolylineZ> for PolygonZ {
 }
 
 impl PolygonZ {
+    pub fn new(xs: Vec<f64>, ys: Vec<f64>, zs: Vec<f64>, parts: Vec<i32>) -> Self {
+       PolylineZ::new(xs, ys, parts, zs).into()
+    }
+
+    pub fn new_with_ms(xs: Vec<f64>, ys: Vec<f64>, parts: Vec<i32>, zs: Vec<f64>, ms: Vec<f64>) -> Self {
+        PolylineZ::new_with_ms(xs, ys, parts, zs, ms).into()
+    }
+
+
     pub fn read_from<T: Read>(mut source: &mut T) -> Result<Self, Error> {
         let poly = PolylineZ::read_from(&mut source)?;
         Ok(poly.into())

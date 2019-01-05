@@ -1,4 +1,4 @@
-use record::{BBox, EsriShape};
+use record::{BBox, EsriShape, min_and_max_of_f64_slice, NO_DATA};
 use std::io::{Read, Write};
 
 use record::io::*;
@@ -15,6 +15,11 @@ pub struct Multipoint {
 }
 
 impl Multipoint {
+    pub fn new(xs: Vec<f64>, ys: Vec<f64>) -> Self {
+        let bbox = BBox::from_xys(&xs, &xs);
+        Self { bbox, xs, ys }
+    }
+
     pub fn read_from<T: Read>(mut source: &mut T) -> Result<Multipoint, std::io::Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -56,6 +61,21 @@ pub struct MultipointZ {
 }
 
 impl MultipointZ {
+    pub fn new(xs: Vec<f64>, ys: Vec<f64>, zs: Vec<f64>) -> Self {
+        let bbox = BBox::from_xys(&xs, &ys);
+        let (min, max) = min_and_max_of_f64_slice(&zs);
+        let num_pts = xs.len();
+        Self { bbox, xs, ys, z_range: [min, max], zs, m_range: [0.0, 0.0], ms: (0..num_pts).map(|_|NO_DATA).collect() }
+    }
+
+    pub fn new_with_m(xs: Vec<f64>, ys: Vec<f64>, zs: Vec<f64>, ms: Vec<f64>) -> Self {
+        let bbox = BBox::from_xys(&xs, &ys);
+        let num_pts = xs.len();
+        let (z_min, z_max) = min_and_max_of_f64_slice(&zs);
+        let (m_min, m_max) = min_and_max_of_f64_slice(&ms);
+        Self { bbox, xs, ys, z_range: [z_min, z_max], zs, m_range: [m_min, m_max], ms }
+    }
+
     pub fn read_from<T: Read>(mut source: &mut T) -> Result<Self, std::io::Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
