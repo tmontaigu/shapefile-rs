@@ -6,18 +6,49 @@ use {Error, ShapeType, Shape};
 use std::path::Path;
 use std::fs::File;
 use std::io::{BufReader, Read, SeekFrom, Seek};
+use byteorder::{BigEndian, ReadBytesExt};
+
+const INDEX_RECORD_SIZE: usize = 2 * std::mem::size_of::<i32>();
+
+struct ShapeIndex {
+    offset: i32,
+    record_size: i32,
+}
+
+
+fn read_index_file<T: Read>(mut source: T) -> Result<Vec<ShapeIndex>, Error> {
+    let header = header::Header::read_from(&mut source)?;
+    let mut pos = header::SHP_HEADER_SIZE as usize;
+
+    let num_shapes = ((header.file_length * 2) - header::SHP_HEADER_SIZE) / INDEX_RECORD_SIZE as i32;
+    let mut shapes_index = Vec::<ShapeIndex>::with_capacity(num_shapes as usize);
+    for _ in 0..num_shapes {
+        let offset = source.read_i32::<BigEndian>()?;
+        let record_size = source.read_i32::<BigEndian>()?;
+        shapes_index.push(ShapeIndex{offset, record_size});
+    }
+    Ok(shapes_index)
+}
+
 
 pub struct Reader<T: Read> {
     source: T,
     header: header::Header,
     pos: usize,
+    shapes_index: Vec<ShapeIndex>,
 }
 
 
 impl<T: Read> Reader<T> {
-        pub fn new(mut source: T) -> Result<Reader<T>, Error> {
+    pub fn new(mut source: T) -> Result<Reader<T>, Error> {
         let header = header::Header::read_from(&mut source)?;
-        Ok(Reader { source, header, pos: header::SHP_HEADER_SIZE as usize })
+
+        Ok(Reader { source, header, pos: header::SHP_HEADER_SIZE as usize, shapes_index: Vec::<ShapeIndex>::new() })
+    }
+
+    pub fn add_index_file(&mut self, source: T) -> Result<(), Error> {
+        self.shapes_index = read_index_file(source)?;
+        Ok(())
     }
 
     pub fn read(self) -> Result<Vec<Shape>, Error> {
@@ -35,10 +66,39 @@ impl<T: Read> Reader<T> {
 
 impl Reader<BufReader<File>> {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        let index_path = path.as_ref().with_extension("shx");
+
         let file = File::open(path)?;
         let source = BufReader::new(file);
 
-        Self::new( source)
+        let mut reader = Self::new( source)?;
+
+        //TODO probably not the best idea to ignore errors (or not letting the user choose to ignore
+        // or not, maybe use the Builder pattern to let user chose if try to load index
+        // provide the path or chose to ignore error, dunno
+        if let Ok(f) = File::open(index_path) {
+            match reader.add_index_file(BufReader::new(f)) {
+                Ok(_) => {},
+                Err(_) => {},
+            }
+        }
+        Ok(reader)
+    }
+}
+
+impl<T: Read + Seek> Reader<T> {
+    pub fn read_nth_shape(&mut self, index: usize) -> Option<Result<Shape, Error>> {
+        let offset =
+        {
+            let shape_idx = self.shapes_index.get(index)?;
+            (shape_idx.offset * 2) as u64
+        };
+
+        match self.source.seek(SeekFrom::Start(offset)) {
+            Err(e) => return Some(Err(Error::IoError(e))),
+            Ok(_) => {}
+        }
+        self.into_iter().next()
     }
 }
 
@@ -72,5 +132,7 @@ impl<T: Read> Iterator for Reader<T> {
         Some(Shape::read_from(&mut self.source, shapetype))
     }
 }
+
+
 
 
