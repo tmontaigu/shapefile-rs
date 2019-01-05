@@ -15,13 +15,12 @@ pub struct Reader<T: Read> {
 
 
 impl<T: Read> Reader<T> {
-
-    pub fn new(mut source: T) -> Result<Reader<T>, Error> {
+        pub fn new(mut source: T) -> Result<Reader<T>, Error> {
         let header = header::Header::read_from(&mut source)?;
         Ok(Reader { source, header, pos: header::SHP_HEADER_SIZE as usize })
     }
 
-    pub fn read(&mut self) -> Result<Vec<Shape>, Error> {
+    pub fn read(self) -> Result<Vec<Shape>, Error> {
         let mut shapes = Vec::<record::Shape>::new();
         for shape in self {
             shapes.push(shape?);

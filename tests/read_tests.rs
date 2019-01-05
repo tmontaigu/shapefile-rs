@@ -31,7 +31,7 @@ fn read_line_header() {
     assert_eq!(header.shape_type, shapefile::ShapeType::Polyline);
 }
 
-fn check_line<T: Read>(mut reader: shapefile::Reader<T>) {
+fn check_line<T: Read>(reader: shapefile::Reader<T>) {
     let shapes = reader.read().unwrap();
 
     assert_eq!(shapes.len(), 1);
@@ -53,7 +53,7 @@ fn check_line<T: Read>(mut reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_linem<T: Read>(mut reader: shapefile::Reader<T>) {
+fn check_linem<T: Read>(reader: shapefile::Reader<T>) {
     use shapefile::NO_DATA;
 
     let shapes = reader.read().unwrap();
@@ -75,7 +75,7 @@ fn check_linem<T: Read>(mut reader: shapefile::Reader<T>) {
 }
 
 
-fn check_linez<T: Read>(mut reader: shapefile::Reader<T>) {
+fn check_linez<T: Read>(reader: shapefile::Reader<T>) {
     use shapefile::NO_DATA;
     let shapes = reader.read().unwrap();
 
@@ -99,7 +99,7 @@ fn check_linez<T: Read>(mut reader: shapefile::Reader<T>) {
 }
 
 
-fn check_point<T: Read>(mut reader: shapefile::Reader<T>) {
+fn check_point<T: Read>(reader: shapefile::Reader<T>) {
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
 
@@ -111,7 +111,7 @@ fn check_point<T: Read>(mut reader: shapefile::Reader<T>) {
     assert_eq!(point.y, 37.0);
 }
 
-fn check_pointm<T: Read>(mut reader: shapefile::Reader<T>) {
+fn check_pointm<T: Read>(reader: shapefile::Reader<T>) {
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 2, "Wrong number of shapes");
 
@@ -132,7 +132,7 @@ fn check_pointm<T: Read>(mut reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_pointz<T: Read>(mut reader: shapefile::Reader<T>) {
+fn check_pointz<T: Read>(reader: shapefile::Reader<T>) {
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 2, "Wrong number of shapes");
 
@@ -155,7 +155,7 @@ fn check_pointz<T: Read>(mut reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_polygon<T: Read>(mut reader: shapefile::Reader<T>) {
+fn check_polygon<T: Read>(reader: shapefile::Reader<T>) {
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
 
@@ -168,7 +168,7 @@ fn check_polygon<T: Read>(mut reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_polygonm<T: Read>(mut reader: shapefile::Reader<T>) {
+fn check_polygonm<T: Read>(reader: shapefile::Reader<T>) {
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
 
@@ -183,7 +183,7 @@ fn check_polygonm<T: Read>(mut reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_polygonz<T: Read>(mut reader: shapefile::Reader<T>) {
+fn check_polygonz<T: Read>(reader: shapefile::Reader<T>) {
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
 
@@ -199,7 +199,7 @@ fn check_polygonz<T: Read>(mut reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_multipoint<T: Read>(mut reader: shapefile::Reader<T>) {
+fn check_multipoint<T: Read>(reader: shapefile::Reader<T>) {
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
 
@@ -211,7 +211,7 @@ fn check_multipoint<T: Read>(mut reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_multipointz<T: Read>(mut reader: shapefile::Reader<T>) {
+fn check_multipointz<T: Read>(reader: shapefile::Reader<T>) {
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
 
@@ -225,7 +225,7 @@ fn check_multipointz<T: Read>(mut reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_multipatch<T: Read>(mut reader: shapefile::Reader<T>) {
+fn check_multipatch<T: Read>(reader: shapefile::Reader<T>) {
     use shapefile::NO_DATA;
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
@@ -257,7 +257,7 @@ macro_rules! read_write_read_test {
     ($func:ident, $convert_func:ident, $check_func:ident, $src_file:ident) => {
         #[test]
         fn $func() {
-            let mut reader = shapefile::Reader::from_path($src_file).unwrap();
+            let reader = shapefile::Reader::from_path($src_file).unwrap();
             let shapes = reader.read().unwrap();
             let shapes = $convert_func(shapes).unwrap();
 
