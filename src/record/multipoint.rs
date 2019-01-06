@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 
 use record::io::*;
 use std::mem::size_of;
-
+use std::fmt;
 
 use byteorder::{ReadBytesExt, LittleEndian, WriteBytesExt};
 use {ShapeType, Error, all_have_same_len, have_same_len_as};
@@ -12,6 +12,12 @@ pub struct Multipoint {
     pub bbox: BBox,
     pub xs: Vec<f64>,
     pub ys: Vec<f64>,
+}
+
+impl fmt::Display for Multipoint {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Multipoint({} points)", self.xs.len())
+    }
 }
 
 impl ReadableShape for Multipoint {
@@ -82,6 +88,13 @@ impl MultipointM {
     }
 }
 
+
+impl fmt::Display for MultipointM {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "MultipointM({} points)", self.xs.len())
+    }
+}
+
 impl ReadableShape for MultipointM {
     type ActualShape = Self;
 
@@ -143,6 +156,12 @@ pub struct MultipointZ {
     pub zs: Vec<f64>,
     pub m_range: [f64; 2],
     pub ms: Vec<f64>,
+}
+
+impl fmt::Display for MultipointZ {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "MultipointZ({} points)", self.xs.len())
+    }
 }
 
 impl MultipointZ {

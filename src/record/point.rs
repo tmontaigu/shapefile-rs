@@ -5,8 +5,10 @@ use record::EsriShape;
 use ShapeType;
 use std::mem::size_of;
 
+
 use super::Error;
 use record::{is_no_data, ReadableShape, BBox};
+use std::fmt;
 
 pub struct Point {
     pub x: f64,
@@ -53,6 +55,12 @@ impl EsriShape for Point {
     }
 }
 
+impl fmt::Display for Point {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Point(x: {}, y: {})", self.x, self.y)
+    }
+}
+
 impl Default for Point {
     fn default() -> Self {
         Self {
@@ -84,6 +92,12 @@ impl ReadableShape for PointM {
             y: point.y,
             m,
         })
+    }
+}
+
+impl fmt::Display for PointM {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Point(x: {}, y: {}, m: {})", self.x, self.y, self.m)
     }
 }
 
@@ -121,6 +135,11 @@ impl EsriShape for PointM {
     }
 }
 
+impl fmt::Display for PointZ {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Point(x: {}, y: {}, z: {}, m: {})", self.x, self.y, self.z, self.m)
+    }
+}
 
 pub struct PointZ {
     pub x: f64,

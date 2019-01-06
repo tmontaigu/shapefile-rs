@@ -8,6 +8,8 @@ use record::BBox;
 use record::{EsriShape, ReadableShape};
 use {ShapeType, Error, all_have_same_len, have_same_len_as};
 
+use std::fmt;
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PatchType {
     TriangleStrip,
@@ -47,6 +49,12 @@ pub struct Multipatch {
     pub zs: Vec<f64>,
     pub m_range: [f64; 2],
     pub ms: Vec<f64>,
+}
+
+impl fmt::Display for Multipatch {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Multipatch({} points, {} parts)", self.xs.len(), self.parts.len())
+    }
 }
 
 impl ReadableShape for Multipatch {

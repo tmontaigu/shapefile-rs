@@ -2,21 +2,26 @@ use std::io::{Read, Write};
 
 use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};
 
-
-use record::{EsriShape, ReadableShape, min_and_max_of_f64_slice};
-use record::BBox;
+use record::{BBox, EsriShape, ReadableShape, min_and_max_of_f64_slice};
 use {ShapeType, Error, all_have_same_len, have_same_len_as};
 use record::io::*;
 
 use std::mem::size_of;
 use NO_DATA;
 
+use std::fmt;
 
 pub struct Polyline {
     pub bbox: BBox,
     pub parts: Vec<i32>,
     pub xs: Vec<f64>,
     pub ys: Vec<f64>,
+}
+
+impl fmt::Display for Polyline {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Polyline({} points, {} parts)", self.xs.len(), self.parts.len())
+    }
 }
 
 impl Polyline {
@@ -153,6 +158,12 @@ pub struct PolylineM {
     pub ms: Vec<f64>,
 }
 
+impl fmt::Display for PolylineM {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PolylineM({} points, {} parts)", self.xs.len(), self.parts.len())
+    }
+}
+
 impl PolylineM {
     pub fn new(xs: Vec<f64>, ys: Vec<f64>, parts: Vec<i32>) -> Self {
         let ms = (0..xs.len()).map(|_| NO_DATA).collect();
@@ -275,6 +286,12 @@ pub struct PolylineZ {
     pub zs: Vec<f64>,
     pub m_range: [f64; 2],
     pub ms: Vec<f64>,
+}
+
+impl fmt::Display for PolylineZ {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PolylineZ({} points, {} parts)", self.xs.len(), self.parts.len())
+    }
 }
 
 impl PolylineZ {
