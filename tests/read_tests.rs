@@ -6,40 +6,47 @@ use std::io::Cursor;
 use std::io::Seek;
 use std::io::SeekFrom;
 
-const LINE_PATH: &str = "./tests/data/line.shp";
-const LINEM_PATH: &str = "./tests/data/linem.shp";
-const LINEZ_PATH: &str = "./tests/data/linez.shp";
+pub const LINE_PATH: &str = "./tests/data/line.shp";
+pub const LINEM_PATH: &str = "./tests/data/linem.shp";
+pub const LINEZ_PATH: &str = "./tests/data/linez.shp";
 
-const POINT_PATH: &str = "./tests/data/point.shp";
-const POINTM_PATH: &str = "./tests/data/pointm.shp";
-const POINTZ_PATH: &str = "./tests/data/pointz.shp";
+pub const POINT_PATH: &str = "./tests/data/point.shp";
+pub const POINTM_PATH: &str = "./tests/data/pointm.shp";
+pub const POINTZ_PATH: &str = "./tests/data/pointz.shp";
 
-const POLYGON_PATH: &str = "./tests/data/polygon.shp";
-const POLYGONM_PATH: &str = "./tests/data/polygonm.shp";
-const POLYGONZ_PATH: &str = "./tests/data/polygonz.shp";
+pub const POLYGON_PATH: &str = "./tests/data/polygon.shp";
+pub const POLYGONM_PATH: &str = "./tests/data/polygonm.shp";
+pub const POLYGONZ_PATH: &str = "./tests/data/polygonz.shp";
 
-const MULTIPOINT_PATH: &str = "./tests/data/multipoint.shp";
-const MULTIPOINTZ_PATH: &str = "./tests/data/multipointz.shp";
+pub const MULTIPOINT_PATH: &str = "./tests/data/multipoint.shp";
+pub const MULTIPOINTZ_PATH: &str = "./tests/data/multipointz.shp";
 
-const MULTIPATCH_PATH: &str = "./tests/data/multipatch.shp";
+pub const MULTIPATCH_PATH: &str = "./tests/data/multipatch.shp";
 
-#[test]
-fn read_line_header() {
-    let mut file = File::open(LINE_PATH).unwrap();
-    let header = shapefile::header::Header::read_from(&mut file).unwrap();
-
-    assert_eq!(header.shape_type, shapefile::ShapeType::Polyline);
+pub fn check_line_first_shape(shape: &shapefile::Shape) {
+    if let shapefile::Shape::Polyline(shp) = shape {
+        assert_eq!(shp.bbox.xmin, 1.0);
+        assert_eq!(shp.bbox.ymin, 1.0);
+        assert_eq!(shp.bbox.xmax, 5.0);
+        assert_eq!(shp.bbox.ymax, 6.0);
+        assert_eq!(shp.parts, vec![0, 5]);
+        assert_eq!(shp.xs, vec![1.0, 5.0, 5.0, 3.0, 1.0, 3.0, 2.0]);
+        assert_eq!(shp.ys, vec![5.0, 5.0, 1.0, 3.0, 1.0, 2.0, 6.0]);
+    } else {
+        assert!(false, "The shape is not a Polyline");
+    }
 }
 
+
 fn check_line<T: Read>(reader: shapefile::Reader<T>) {
-   {
+    {
         let header = reader.header();
         assert_eq!(header.file_length, 136);
         assert_eq!(header.shape_type, shapefile::ShapeType::Polyline);
         assert_eq!(header.point_min, [1.0, 1.0, 0.0]);
         assert_eq!(header.point_max, [5.0, 6.0, 0.0]);
         assert_eq!(header.m_range, [0.0, 0.0]);
-   }
+    }
 
     let shapes = reader.read().unwrap();
 
@@ -49,17 +56,7 @@ fn check_line<T: Read>(reader: shapefile::Reader<T>) {
         _ => { assert!(false); }
     }
 
-    if let shapefile::Shape::Polyline(shape) = &shapes[0] {
-        assert_eq!(shape.bbox.xmin, 1.0);
-        assert_eq!(shape.bbox.ymin, 1.0);
-        assert_eq!(shape.bbox.xmax, 5.0);
-        assert_eq!(shape.bbox.ymax, 6.0);
-        assert_eq!(shape.parts, vec![0, 5]);
-        assert_eq!(shape.xs, vec![1.0, 5.0, 5.0, 3.0, 1.0, 3.0, 2.0]);
-        assert_eq!(shape.ys, vec![5.0, 5.0, 1.0, 3.0, 1.0, 2.0, 6.0]);
-    } else {
-        assert!(false, "The shape is not a Polyline");
-    }
+    check_line_first_shape(&shapes[0]);
 }
 
 fn check_linem<T: Read>(reader: shapefile::Reader<T>) {
@@ -144,6 +141,26 @@ fn check_point<T: Read>(reader: shapefile::Reader<T>) {
     assert_eq!(point.y, 37.0);
 }
 
+pub fn check_first_point_m(shape: &shapefile::Shape) {
+    if let shapefile::Shape::PointM(shp) = shape {
+        assert_eq!(shp.x, 160477.9000324604);
+        assert_eq!(shp.y, 5403959.561417906);
+        assert_eq!(shp.m, 0.0);
+    } else {
+        assert!(false, "The first shape is not a PointZ");
+    }
+}
+
+pub fn check_second_point_m(shape: &shapefile::Shape) {
+    if let shapefile::Shape::PointM(shp) = shape {
+        assert_eq!(shp.x, 160467.63787299366);
+        assert_eq!(shp.y, 5403971.985031904);
+        assert_eq!(shp.m, 0.0);
+    } else {
+        assert!(false, "The second shape is not a PointZ");
+    }
+}
+
 fn check_pointm<T: Read>(reader: shapefile::Reader<T>) {
     {
         let header = reader.header();
@@ -156,21 +173,8 @@ fn check_pointm<T: Read>(reader: shapefile::Reader<T>) {
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 2, "Wrong number of shapes");
 
-    if let shapefile::Shape::PointM(shp) = &shapes[0] {
-        assert_eq!(shp.x, 160477.9000324604);
-        assert_eq!(shp.y, 5403959.561417906);
-        assert_eq!(shp.m, 0.0);
-    } else {
-        assert!(false, "The first shape is not a PointZ");
-    }
-
-    if let shapefile::Shape::PointM(shp) = &shapes[1] {
-        assert_eq!(shp.x, 160467.63787299366);
-        assert_eq!(shp.y, 5403971.985031904);
-        assert_eq!(shp.m, 0.0);
-    } else {
-        assert!(false, "The second shape is not a PointZ");
-    }
+    check_first_point_m(&shapes[0]);
+    check_second_point_m(&shapes[1]);
 }
 
 fn check_pointz<T: Read>(reader: shapefile::Reader<T>) {
@@ -426,5 +430,5 @@ read_write_read_test!(read_write_read_multipoint, to_vec_of_multipoint, check_mu
 read_write_read_test!(read_write_read_multipointz, to_vec_of_multipointz, check_multipointz, MULTIPOINTZ_PATH);
 
 /* Read-Write-Read tests on Multipoint */
-use shapefile::record::{to_vec_of_multipatch};
+use shapefile::record::to_vec_of_multipatch;
 read_write_read_test!(read_write_read_multipatch, to_vec_of_multipatch, check_multipatch, MULTIPATCH_PATH);

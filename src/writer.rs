@@ -6,17 +6,13 @@ use header;
 use std::fs::File;
 use std::path::Path;
 
-
-
-pub struct Writer<T: Write> {
-    pub dest: T,
-}
+use reader::ShapeIndex;
+use byteorder::{BigEndian, WriteBytesExt};
 
 fn f64_min(a: f64, b: f64) -> f64 {
     if a < b {
         a
-    }
-    else {
+    } else {
         b
     }
 }
@@ -24,15 +20,38 @@ fn f64_min(a: f64, b: f64) -> f64 {
 fn f64_max(a: f64, b: f64) -> f64 {
     if a > b {
         a
-    }
-    else {
+    } else {
         b
     }
 }
 
+
+fn write_index_file<T: Write>(mut dest: &mut T, shapefile_header: &header::Header, shapes_index: Vec<ShapeIndex>) -> Result<(), std::io::Error> {
+    let mut header = shapefile_header.clone();
+    let content_len = shapes_index.len() * 2 * std::mem::size_of::<i32>();
+    header.file_length = header::SHP_HEADER_SIZE + content_len as i32;
+    header.file_length /= 2;
+
+    header.write_to(&mut dest)?;
+    for shape_index in shapes_index {
+        dest.write_i32::<BigEndian>(shape_index.offset)?;
+        dest.write_i32::<BigEndian>(shape_index.record_size)?;
+    }
+    Ok(())
+}
+
+pub struct Writer<T: Write> {
+    pub dest: T,
+    index_dest: Option<T>,
+}
+
 impl<T: Write> Writer<T> {
     pub fn new(dest: T) -> Self {
-        Self{dest}
+        Self { dest, index_dest: None }
+    }
+
+    pub fn add_index_dest(&mut self, dest: T) {
+        self.index_dest = Some(dest);
     }
 
     //TODO This method should move (take mut self) as calling it twice would produce a shitty file
@@ -49,8 +68,8 @@ impl<T: Write> Writer<T> {
             panic!("To big"); //TODO convert in proper error
         }
 
-        let mut point_min= [std::f64::MAX, std::f64::MAX, std::f64::MAX];
-        let mut point_max= [std::f64::MIN, std::f64::MIN, std::f64::MIN];
+        let mut point_min = [std::f64::MAX, std::f64::MAX, std::f64::MAX];
+        let mut point_max = [std::f64::MIN, std::f64::MIN, std::f64::MIN];
         let mut m_range = [0.0, 0.0];
         for shape in &shapes {
             let bbox = shape.bbox();
@@ -76,31 +95,41 @@ impl<T: Write> Writer<T> {
             point_max[2] = 0.0;
         }
 
-        let file_length= file_length as i32;
+        let file_length = file_length as i32;
         let shapetype = *&shapes[0].shapetype();
         let header = header::Header {
             file_length,
             point_min,
             point_max,
             m_range,
-            shape_type:shapetype,
+            shape_type: shapetype,
             version: 1000,
         };
 
+        let mut pos = header::SHP_HEADER_SIZE;
         header.write_to(&mut self.dest)?;
-
+        let mut shapes_index = Vec::<ShapeIndex>::with_capacity(shapes.len());
         for (i, shape) in shapes.into_iter().enumerate() {
 
             //TODO Check record size < i32_max ?
             let record_size = (shape.size_in_bytes() + std::mem::size_of::<i32>()) / 2;
-            let rc_hdr = RecordHeader{
+            let rc_hdr = RecordHeader {
                 record_number: i as i32,
                 record_size: record_size as i32,
             };
+
+            shapes_index.push(ShapeIndex{offset: pos, record_size: record_size as i32});
+
             rc_hdr.write_to(&mut self.dest)?;
             shape.shapetype().write_to(&mut self.dest)?;
             shape.write_to(&mut self.dest)?;
+            pos += (record_size * 2) as i32;
         }
+
+        if let Some(ref mut shx_dest) = &mut self.index_dest {
+            write_index_file(shx_dest, &header, shapes_index)?;
+        }
+
         Ok(())
     }
 }
@@ -109,6 +138,6 @@ impl Writer<BufWriter<File>> {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let file = File::create(path)?;
         let dest = BufWriter::new(file);
-         Ok(Self::new( dest))
+        Ok(Self::new(dest))
     }
 }
