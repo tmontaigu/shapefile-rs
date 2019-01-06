@@ -12,7 +12,7 @@ use super::{ShapeType, Error};
 
 pub use record::poly::{Polyline, PolylineM, PolylineZ, Polygon, PolygonM, PolygonZ};
 pub use record::point::{Point, PointM, PointZ};
-pub use record::multipoint::{Multipoint, MultipointZ};
+pub use record::multipoint::{Multipoint, MultipointM, MultipointZ};
 pub use record::multipatch::{Multipatch, PatchType};
 
 pub const NO_DATA: f64 = -10e38;
@@ -20,7 +20,6 @@ pub const NO_DATA: f64 = -10e38;
 fn is_no_data(val: f64) -> bool {
     return val <= NO_DATA;
 }
-
 
 pub fn min_and_max_of_f64_slice(slice: &[f64]) -> (f64, f64) {
     slice.iter().fold(
@@ -57,6 +56,7 @@ pub enum Shape {
     PolygonM(PolygonM),
     PolygonZ(PolygonZ),
     Multipoint(Multipoint),
+    MultipointM(MultipointM),
     MultipointZ(MultipointZ),
     Multipatch(Multipatch),
 }
@@ -74,9 +74,10 @@ impl Shape {
             ShapeType::PolygonM => Shape::PolygonM(PolygonM::read_from(&mut source)?),
             ShapeType::PolygonZ => Shape::PolygonZ(PolygonZ::read_from(&mut source)?),
             ShapeType::Multipoint => Shape::Multipoint(Multipoint::read_from(&mut source)?),
+            ShapeType::MultipointM => Shape::MultipointM(MultipointM::read_from(&mut source)?),
             ShapeType::MultipointZ => Shape::MultipointZ(MultipointZ::read_from(&mut source)?),
             ShapeType::Multipatch => Shape::Multipatch(Multipatch::read_from(&mut source)?),
-            _ => { unimplemented!() }
+            ShapeType::NullShape => Shape::NullShape,
         };
         Ok(shape)
     }
