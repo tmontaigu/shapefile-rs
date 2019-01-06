@@ -1,5 +1,4 @@
 use std::io::{Read, Write};
-use Error;
 use byteorder::{ReadBytesExt, WriteBytesExt, LittleEndian};
 
 use std::mem::size_of;
@@ -7,7 +6,7 @@ use std::mem::size_of;
 use record::io::*;
 use record::BBox;
 use record::EsriShape;
-use ShapeType;
+use {ShapeType, Error, all_have_same_len, have_same_len_as};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PatchType {
@@ -98,16 +97,23 @@ impl EsriShape for Multipatch {
     }
 
     fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
-        self.bbox.write_to(&mut dest)?;
-        dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
-        dest.write_i32::<LittleEndian>(self.xs.len() as i32)?;
-        write_parts(&mut dest, &self.parts)?;
-        let part_types: Vec<i32> = self.parts_type.into_iter().map(|t| t as i32 ).collect();
-        write_parts(&mut dest, &part_types)?;
-        write_points(&mut dest, &self.xs, &self.ys)?;
-        write_range_and_vec(&mut dest, &self.z_range, &self.zs)?;
-        write_range_and_vec(&mut dest, &self.m_range, &self.ms)?;
-        Ok(())
+        if all_have_same_len!(self.xs, self.ys, self.zs, self.ms) &&
+           all_have_same_len!(self.parts, self.parts_type)
+        {
+            self.bbox.write_to(&mut dest)?;
+            dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
+            dest.write_i32::<LittleEndian>(self.xs.len() as i32)?;
+            write_parts(&mut dest, &self.parts)?;
+            let part_types: Vec<i32> = self.parts_type.into_iter().map(|t| t as i32 ).collect();
+            write_parts(&mut dest, &part_types)?;
+            write_points(&mut dest, &self.xs, &self.ys)?;
+            write_range_and_vec(&mut dest, &self.z_range, &self.zs)?;
+            write_range_and_vec(&mut dest, &self.m_range, &self.ms)?;
+            Ok(())
+        }
+        else {
+            Err(Error::MalformedShape)
+        }
     }
 
     fn bbox(&self) -> BBox {

@@ -6,7 +6,7 @@ use std::mem::size_of;
 
 
 use byteorder::{ReadBytesExt, LittleEndian, WriteBytesExt};
-use {ShapeType, Error};
+use {ShapeType, Error, all_have_same_len, have_same_len_as};
 
 pub struct Multipoint {
     pub bbox: BBox,
@@ -43,10 +43,16 @@ impl EsriShape for Multipoint {
     }
 
     fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
-        self.bbox.write_to(&mut dest)?;
-        dest.write_i32::<LittleEndian>(self.xs.len() as i32)?;
-        write_points(&mut dest, &self.xs, &self.ys)?;
-        Ok(())
+        if all_have_same_len!(self.xs, self.ys) {
+            self.bbox.write_to(&mut dest)?;
+            dest.write_i32::<LittleEndian>(self.xs.len() as i32)?;
+            write_points(&mut dest, &self.xs, &self.ys)?;
+            Ok(())
+        }
+        else {
+            Err(Error::MalformedShape)
+        }
+
     }
 
     fn bbox(&self) -> BBox {
@@ -74,7 +80,6 @@ impl MultipointZ {
 
     pub fn new_with_m(xs: Vec<f64>, ys: Vec<f64>, zs: Vec<f64>, ms: Vec<f64>) -> Self {
         let bbox = BBox::from_xys(&xs, &ys);
-        let num_pts = xs.len();
         let (z_min, z_max) = min_and_max_of_f64_slice(&zs);
         let (m_min, m_max) = min_and_max_of_f64_slice(&ms);
         Self { bbox, xs, ys, z_range: [z_min, z_max], zs, m_range: [m_min, m_max], ms }
@@ -108,12 +113,17 @@ impl EsriShape for MultipointZ {
     }
 
     fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
-        self.bbox.write_to(&mut dest)?;
-        dest.write_i32::<LittleEndian>(self.xs.len() as i32)?;
-        write_points(&mut dest, &self.xs, &self.ys)?;
-        write_range_and_vec(&mut dest, &self.z_range, &self.zs)?;
-        write_range_and_vec(&mut dest, &self.m_range, &self.ms)?;
-        Ok(())
+        if all_have_same_len!(self.xs, self.ys, self.zs, self.ms) {
+            self.bbox.write_to(&mut dest)?;
+            dest.write_i32::<LittleEndian>(self.xs.len() as i32)?;
+            write_points(&mut dest, &self.xs, &self.ys)?;
+            write_range_and_vec(&mut dest, &self.z_range, &self.zs)?;
+            write_range_and_vec(&mut dest, &self.m_range, &self.ms)?;
+            Ok(())
+        }
+        else {
+            Err(Error::MalformedShape)
+        }
     }
 
     fn bbox(&self) -> BBox {

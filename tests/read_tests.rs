@@ -1,6 +1,5 @@
 extern crate shapefile;
 
-use std::fs::File;
 use std::io::Read;
 use std::io::Cursor;
 use std::io::Seek;

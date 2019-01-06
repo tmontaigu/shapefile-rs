@@ -8,7 +8,7 @@ pub mod writer;
 use std::io::Read;
 use std::io::Write;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::convert::{From};
+use std::convert::From;
 use std::fmt;
 
 pub use record::{NO_DATA, Shape, PatchType};
@@ -52,7 +52,7 @@ pub enum ShapeType {
     PolygonM = 25,
     MultipointM = 28,
 
-    Multipatch = 31
+    Multipatch = 31,
 }
 
 impl ShapeType {
@@ -159,6 +159,24 @@ impl TryFrom<i32> for ShapeType {
 }
 */
 
+#[macro_export]
+macro_rules! have_same_len_as {
+    ($val:expr, $y:expr) => (
+        $val == $y.len()
+    );
+    ($val:expr, $x:expr, $($y:expr),+) => (
+        ($x.len() == $val) &&  have_same_len_as!($val, $($y),+)
+    );
+}
+
+
+#[macro_export]
+macro_rules! all_have_same_len {
+    ($x:expr, $($y:expr),+) => (
+        have_same_len_as!($x.len(), $($y),+)
+    )
+}
+
 pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
     let reader = Reader::from_path(path)?;
     reader.read()
@@ -167,9 +185,27 @@ pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn shape_type_from_wrong_code() {
-        assert!(ShapeType::from(128).is_none());
+        assert_eq!(ShapeType::from(128), None);
     }
 
+    #[test]
+    fn they_do_not_have_same_len() {
+        let x = vec![0, 0, 0, 0];
+        let y = vec![0, 0, 0, 0];
+        let z = vec![0, 0, 0, 0, 0];
+
+        assert_eq!(all_have_same_len!(x, y, z), false);
+    }
+    
+    #[test]
+    fn they_have_same_len() {
+        let x = vec![0, 0, 0, 0];
+        let y = vec![0, 0, 0, 0];
+        let z = vec![0, 0, 0, 0];
+
+        assert_eq!(all_have_same_len!(x, y, z), true);
+    }
 }

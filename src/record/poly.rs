@@ -2,10 +2,10 @@ use std::io::{Read, Write};
 
 use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};
 
-use ShapeType;
+
 use record::{EsriShape, min_and_max_of_f64_slice};
 use record::BBox;
-use Error;
+use {ShapeType, Error, all_have_same_len, have_same_len_as};
 use record::io::*;
 
 use std::mem::size_of;
@@ -115,14 +115,19 @@ impl EsriShape for Polyline {
     }
 
     fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
-        self.bbox.write_to(&mut dest)?;
+        if all_have_same_len!(self.xs, self.ys) {
+            self.bbox.write_to(&mut dest)?;
 
-        dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
-        dest.write_i32::<LittleEndian>(self.xs.len() as i32)?;
+            dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
+            dest.write_i32::<LittleEndian>(self.xs.len() as i32)?;
 
-        write_parts(&mut dest, &self.parts)?;
-        write_points(&mut dest, &self.xs, &self.ys)?;
-        Ok(())
+            write_parts(&mut dest, &self.parts)?;
+            write_points(&mut dest, &self.xs, &self.ys)?;
+            Ok(())
+        } else {
+            Err(Error::MalformedShape)
+        }
+
     }
 
     fn bbox(&self) -> BBox {
@@ -222,14 +227,19 @@ impl EsriShape for PolylineM {
     }
 
     fn write_to<T: Write>(mut self, mut dest: &mut T) -> Result<(), Error> {
-        let m_range = std::mem::replace(&mut self.m_range, [0.0, 0.0]);
-        let ms = std::mem::replace(&mut self.ms, Vec::<f64>::new());
-        let poly = Polyline::from(self);
-        poly.write_to(&mut dest)?;
+        if all_have_same_len!(self.xs, self.ys, self.ms) {
+            let m_range = std::mem::replace(&mut self.m_range, [0.0, 0.0]);
+            let ms = std::mem::replace(&mut self.ms, Vec::<f64>::new());
+            let poly = Polyline::from(self);
+            poly.write_to(&mut dest)?;
 
-        write_range_and_vec(&mut dest, &m_range, &ms)?;
+            write_range_and_vec(&mut dest, &m_range, &ms)?;
 
-        Ok(())
+            Ok(())
+        } else {
+            Err(Error::MalformedShape)
+        }
+
     }
 
     fn bbox(&self) -> BBox {
@@ -317,18 +327,21 @@ impl EsriShape for PolylineZ {
     }
 
     fn write_to<T: Write>(mut self, mut dest: &mut T) -> Result<(), Error> {
-        let m_range = std::mem::replace(&mut self.m_range, [0.0, 0.0]);
-        let ms = std::mem::replace(&mut self.ms, Vec::<f64>::new());
-        let z_range = std::mem::replace(&mut self.z_range, [0.0, 0.0]);
-        let zs = std::mem::replace(&mut self.zs, Vec::<f64>::new());
+        if all_have_same_len!(self.xs, self.ys, self.zs, self.ms) {
+            let m_range = std::mem::replace(&mut self.m_range, [0.0, 0.0]);
+            let ms = std::mem::replace(&mut self.ms, Vec::<f64>::new());
+            let z_range = std::mem::replace(&mut self.z_range, [0.0, 0.0]);
+            let zs = std::mem::replace(&mut self.zs, Vec::<f64>::new());
 
-        let poly = Polyline::from(PolylineM::from(self)); //FIXME
-        poly.write_to(&mut dest)?;
+            let poly = Polyline::from(PolylineM::from(self)); //FIXME
+            poly.write_to(&mut dest)?;
 
-        write_range_and_vec(&mut dest, &z_range, &zs)?;
-        write_range_and_vec(&mut dest, &m_range, &ms)?;
-
-        Ok(())
+            write_range_and_vec(&mut dest, &z_range, &zs)?;
+            write_range_and_vec(&mut dest, &m_range, &ms)?;
+            Ok(())
+        } else {
+            Err(Error::MalformedShape)
+        }
     }
 
     fn bbox(&self) -> BBox {

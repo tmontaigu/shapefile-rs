@@ -3,11 +3,10 @@ use header;
 use {Error, ShapeType, Shape};
 
 
-use std::path::Path;
 use std::fs::File;
 use std::io::{BufReader, Read, SeekFrom, Seek};
 use byteorder::{BigEndian, ReadBytesExt};
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 
 const INDEX_RECORD_SIZE: usize = 2 * std::mem::size_of::<i32>();
 
@@ -19,7 +18,6 @@ pub struct ShapeIndex {
 
 fn read_index_file<T: Read>(mut source: T) -> Result<Vec<ShapeIndex>, Error> {
     let header = header::Header::read_from(&mut source)?;
-    let mut pos = header::SHP_HEADER_SIZE as usize;
 
     let num_shapes = ((header.file_length * 2) - header::SHP_HEADER_SIZE) / INDEX_RECORD_SIZE as i32;
     let mut shapes_index = Vec::<ShapeIndex>::with_capacity(num_shapes as usize);
@@ -67,8 +65,6 @@ impl<T: Read> Reader<T> {
 
 impl Reader<BufReader<File>> {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
-        let index_path = path.as_ref().with_extension("shx");
-
         let file = File::open(path)?;
         let source = BufReader::new(file);
         Self::new(source)
@@ -123,6 +119,7 @@ impl<T: Read> Iterator for Reader<T> {
     }
 }
 
+/*
 #[allow(dead_code)]
 enum SourceType<T: Read> {
     Path(PathBuf),
@@ -132,7 +129,7 @@ enum SourceType<T: Read> {
 struct ReaderBuilder {
     shape: PathBuf,
     index_path: Option<PathBuf>,
-}
+}*/
 
 pub struct FileReaderBuilder {
     shape_path: PathBuf,
@@ -166,9 +163,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn lol() {
+    fn test_builder() {
         let reader = FileReaderBuilder::new("mdr.shp")
             .with_index()
             .build();
+        assert_eq!(reader.is_err(), true);
     }
 }

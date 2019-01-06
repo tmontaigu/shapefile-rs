@@ -2,8 +2,6 @@ extern crate shapefile;
 
 mod read_tests;
 
-use shapefile::Reader;
-
 
 #[test]
 fn test_line() {
