@@ -8,6 +8,7 @@ const SHP_FILE_CODE: i32 = 9994;
 const SIZE_OF_SKIP: usize = std::mem::size_of::<i32>() * 5;
 
 //TODO replace  pointmin/max with bbox + z_range
+#[derive(Copy, Clone)]
 pub struct Header {
     pub file_length: i32,
     pub point_min: [f64; 3],
@@ -65,7 +66,7 @@ impl Header {
         Ok(hdr)
     }
 
-    pub fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
+    pub fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), std::io::Error> {
         dest.write_i32::<BigEndian>(SHP_FILE_CODE)?;
 
         let skip: [u8; SIZE_OF_SKIP] = [0; SIZE_OF_SKIP];
