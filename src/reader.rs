@@ -69,25 +69,19 @@ impl<T: Read> Reader<T> {
 
         let mut shapes = Vec::<S::ActualShape>::new();
         while self.pos < (self.header.file_length * 2) as usize {
-            let hdr = record::RecordHeader::read_from(&mut self.source)?;
-
-            self.pos += std::mem::size_of::<i32>() * 2;
-
-            let shapetype = ShapeType::read_from(&mut self.source)?;
+            let (record_size, shapetype) = self.read_record_size_and_shapetype()?;
 
             if shapetype != self.header.shape_type {
                 return Err(Error::MixedShapeType);
             }
 
-            if shapetype != requested_shapetype {
+            if shapetype != ShapeType::NullShape && shapetype != requested_shapetype {
                 let error = Error::MismatchShapeType {
                     requested: requested_shapetype, actual: shapetype };
                 return Err(error);
             }
 
-            let pos_diff = (hdr.record_size as usize + std::mem::size_of::<i32>()) * 2;
-            self.pos += pos_diff;
-
+            self.pos += record_size as usize * 2;
             shapes.push(S::read_from(&mut self.source)?);
         }
         Ok(shapes)
@@ -95,6 +89,15 @@ impl<T: Read> Reader<T> {
 
     pub fn header(&self) -> &header::Header {
         &self.header
+    }
+
+    fn read_record_size_and_shapetype(&mut self) -> Result<(i32, ShapeType), Error> {
+        let hdr = record::RecordHeader::read_from(&mut self.source)?;
+        self.pos += std::mem::size_of::<i32>() * 2;
+
+        let shapetype = ShapeType::read_from(&mut self.source)?;
+
+        Ok((hdr.record_size, shapetype))
     }
 }
 
@@ -132,24 +135,16 @@ impl<T: Read> Iterator for Reader<T> {
             return None;
         }
 
-        let hdr = match record::RecordHeader::read_from(&mut self.source) {
-            Ok(hdr) => hdr,
+        let (record_size, shapetype) =  match self.read_record_size_and_shapetype() {
             Err(e) => return Some(Err(e)),
-        };
-        self.pos += std::mem::size_of::<i32>() * 2;
-
-        let shapetype = match ShapeType::read_from(&mut self.source) {
-            Ok(shapetype) => shapetype,
-            Err(e) => return Some(Err(e)),
+            Ok(t) => t
         };
 
         if shapetype != ShapeType::NullShape && shapetype != self.header.shape_type {
             println!("Mixing shape types, this is not allowed");
         }
 
-        let pos_diff = (hdr.record_size as usize + std::mem::size_of::<i32>()) * 2;
-        self.pos += pos_diff;
-
+        self.pos += record_size as usize * 2;
         Some(Shape::read_from(&mut self.source, shapetype))
     }
 }
