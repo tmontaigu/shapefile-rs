@@ -5,8 +5,10 @@ use std::mem::size_of;
 
 use record::io::*;
 use record::BBox;
-use record::EsriShape;
+use record::{EsriShape, ReadableShape};
 use {ShapeType, Error, all_have_same_len, have_same_len_as};
+
+use std::fmt;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PatchType {
@@ -49,8 +51,20 @@ pub struct Multipatch {
     pub ms: Vec<f64>,
 }
 
-impl Multipatch {
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Self, Error> {
+impl fmt::Display for Multipatch {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Multipatch({} points, {} parts)", self.xs.len(), self.parts.len())
+    }
+}
+
+impl ReadableShape for Multipatch {
+    type ActualShape = Self;
+
+    fn shapetype() -> ShapeType {
+        ShapeType::Multipatch
+    }
+
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -98,20 +112,19 @@ impl EsriShape for Multipatch {
 
     fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
         if all_have_same_len!(self.xs, self.ys, self.zs, self.ms) &&
-           all_have_same_len!(self.parts, self.parts_type)
+            all_have_same_len!(self.parts, self.parts_type)
         {
             self.bbox.write_to(&mut dest)?;
             dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
             dest.write_i32::<LittleEndian>(self.xs.len() as i32)?;
             write_parts(&mut dest, &self.parts)?;
-            let part_types: Vec<i32> = self.parts_type.into_iter().map(|t| t as i32 ).collect();
+            let part_types: Vec<i32> = self.parts_type.into_iter().map(|t| t as i32).collect();
             write_parts(&mut dest, &part_types)?;
             write_points(&mut dest, &self.xs, &self.ys)?;
             write_range_and_vec(&mut dest, &self.z_range, &self.zs)?;
             write_range_and_vec(&mut dest, &self.m_range, &self.ms)?;
             Ok(())
-        }
-        else {
+        } else {
             Err(Error::MalformedShape)
         }
     }

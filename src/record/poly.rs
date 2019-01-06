@@ -2,21 +2,26 @@ use std::io::{Read, Write};
 
 use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};
 
-
-use record::{EsriShape, min_and_max_of_f64_slice};
-use record::BBox;
+use record::{BBox, EsriShape, ReadableShape, min_and_max_of_f64_slice};
 use {ShapeType, Error, all_have_same_len, have_same_len_as};
 use record::io::*;
 
 use std::mem::size_of;
 use NO_DATA;
 
+use std::fmt;
 
 pub struct Polyline {
     pub bbox: BBox,
     pub parts: Vec<i32>,
     pub xs: Vec<f64>,
     pub ys: Vec<f64>,
+}
+
+impl fmt::Display for Polyline {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Polyline({} points, {} parts)", self.xs.len(), self.parts.len())
+    }
 }
 
 impl Polyline {
@@ -29,7 +34,27 @@ impl Polyline {
         }
     }
 
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Polyline, std::io::Error> {
+    fn size_of_record(num_points: usize, num_parts: usize) -> usize {
+        let mut size = 0 as usize;
+        size += size_of::<f64>() * 4;
+        size += size_of::<i32>(); // num parts
+        size += size_of::<i32>(); //num points
+        size += size_of::<i32>() * num_parts;
+        size += size_of::<f64>() * num_points;
+        size += size_of::<f64>() * num_points;
+
+        size
+    }
+}
+
+impl ReadableShape for Polyline {
+    type ActualShape = Self;
+
+    fn shapetype() -> ShapeType {
+        ShapeType::Polyline
+    }
+
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -47,19 +72,8 @@ impl Polyline {
             ys,
         })
     }
-
-    fn size_of_record(num_points: usize, num_parts: usize) -> usize {
-        let mut size = 0 as usize;
-        size += size_of::<f64>() * 4;
-        size += size_of::<i32>(); // num parts
-        size += size_of::<i32>(); //num points
-        size += size_of::<i32>() * num_parts;
-        size += size_of::<f64>() * num_points;
-        size += size_of::<f64>() * num_points;
-
-        size
-    }
 }
+
 
 impl Default for Polyline {
     fn default() -> Self {
@@ -127,11 +141,10 @@ impl EsriShape for Polyline {
         } else {
             Err(Error::MalformedShape)
         }
-
     }
 
     fn bbox(&self) -> BBox {
-       self.bbox
+        self.bbox
     }
 }
 
@@ -143,6 +156,12 @@ pub struct PolylineM {
     pub ys: Vec<f64>,
     pub m_range: [f64; 2],
     pub ms: Vec<f64>,
+}
+
+impl fmt::Display for PolylineM {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PolylineM({} points, {} parts)", self.xs.len(), self.parts.len())
+    }
 }
 
 impl PolylineM {
@@ -170,7 +189,22 @@ impl PolylineM {
         }
     }
 
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<PolylineM, std::io::Error> {
+    pub fn size_of_record(num_points: usize, num_parts: usize) -> usize {
+        let mut size = Polyline::size_of_record(num_points, num_parts);
+        size += size_of::<f64>() * 2;
+        size += size_of::<f64>() * num_points;
+        size
+    }
+}
+
+impl ReadableShape for PolylineM {
+    type ActualShape = Self;
+
+    fn shapetype() -> ShapeType {
+        ShapeType::PolylineM
+    }
+
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let poly = Polyline::read_from(&mut source)?;
         let (m_range, ms) = read_m_dimension(&mut source, poly.xs.len() as i32)?;
         Ok(Self {
@@ -181,13 +215,6 @@ impl PolylineM {
             m_range,
             ms,
         })
-    }
-
-    pub fn size_of_record(num_points: usize, num_parts: usize) -> usize {
-        let mut size = Polyline::size_of_record(num_points, num_parts);
-        size += size_of::<f64>() * 2;
-        size += size_of::<f64>() * num_points;
-        size
     }
 }
 
@@ -239,7 +266,6 @@ impl EsriShape for PolylineM {
         } else {
             Err(Error::MalformedShape)
         }
-
     }
 
     fn bbox(&self) -> BBox {
@@ -260,6 +286,12 @@ pub struct PolylineZ {
     pub zs: Vec<f64>,
     pub m_range: [f64; 2],
     pub ms: Vec<f64>,
+}
+
+impl fmt::Display for PolylineZ {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PolylineZ({} points, {} parts)", self.xs.len(), self.parts.len())
+    }
 }
 
 impl PolylineZ {
@@ -299,8 +331,16 @@ impl PolylineZ {
         size += size_of::<f64>() * num_points;
         size
     }
+}
 
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<PolylineZ, Error> {
+impl ReadableShape for PolylineZ {
+    type ActualShape = Self;
+
+    fn shapetype() -> ShapeType {
+        ShapeType::PolylineZ
+    }
+
+    fn read_from<T: Read>(mut source: &mut T) -> Result<<Self as ReadableShape>::ActualShape, Error> {
         let poly = Polyline::read_from(&mut source)?;
         let (z_range, zs) = read_z_dimension(&mut source, poly.xs.len() as i32)?;
         let (m_range, ms) = read_m_dimension(&mut source, poly.xs.len() as i32)?;
@@ -418,7 +458,7 @@ impl EsriShape for Polygon {
     }
 
     fn bbox(&self) -> BBox {
-       self.bbox
+        self.bbox
     }
 }
 
@@ -466,8 +506,16 @@ impl PolygonM {
     pub fn new_with_ms(xs: Vec<f64>, ys: Vec<f64>, parts: Vec<i32>, ms: Vec<f64>) -> Self {
         PolylineM::new_with_ms(xs, ys, parts, ms).into()
     }
+}
 
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Self, std::io::Error> {
+impl ReadableShape for PolygonM {
+    type ActualShape = Self;
+
+    fn shapetype() -> ShapeType {
+        ShapeType::PolygonM
+    }
+
+    fn read_from<T: Read>(mut source: &mut T) -> Result<<Self as ReadableShape>::ActualShape, Error> {
         let poly = PolylineM::read_from(&mut source)?;
         Ok(Self::from(poly))
     }
@@ -531,15 +579,22 @@ impl From<PolylineZ> for PolygonZ {
 
 impl PolygonZ {
     pub fn new(xs: Vec<f64>, ys: Vec<f64>, zs: Vec<f64>, parts: Vec<i32>) -> Self {
-       PolylineZ::new(xs, ys, parts, zs).into()
+        PolylineZ::new(xs, ys, parts, zs).into()
     }
 
     pub fn new_with_ms(xs: Vec<f64>, ys: Vec<f64>, parts: Vec<i32>, zs: Vec<f64>, ms: Vec<f64>) -> Self {
         PolylineZ::new_with_ms(xs, ys, parts, zs, ms).into()
     }
+}
 
+impl ReadableShape for PolygonZ {
+    type ActualShape = Self;
 
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Self, Error> {
+    fn shapetype() -> ShapeType {
+        ShapeType::PolygonZ
+    }
+
+    fn read_from<T: Read>(mut source: &mut T) -> Result<<Self as ReadableShape>::ActualShape, Error> {
         let poly = PolylineZ::read_from(&mut source)?;
         Ok(poly.into())
     }

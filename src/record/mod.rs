@@ -44,6 +44,13 @@ pub trait EsriShape {
 
 }
 
+pub trait ReadableShape {
+    type ActualShape;
+
+    fn shapetype() -> ShapeType;
+    fn read_from<T: Read>(source: &mut T) -> Result<Self::ActualShape, Error>;
+}
+
 pub enum Shape {
     NullShape,
     Point(Point),
@@ -165,6 +172,7 @@ shape_vector_conversion!(to_vec_of_polygonm, PolygonM, Shape::PolygonM(shp), shp
 shape_vector_conversion!(to_vec_of_polygonz, PolygonZ, Shape::PolygonZ(shp), shp);
 
 shape_vector_conversion!(to_vec_of_multipoint, Multipoint, Shape::Multipoint(shp), shp);
+shape_vector_conversion!(to_vec_of_multipointm, MultipointM, Shape::MultipointM(shp), shp);
 shape_vector_conversion!(to_vec_of_multipointz, MultipointZ, Shape::MultipointZ(shp), shp);
 
 shape_vector_conversion!(to_vec_of_multipatch, Multipatch, Shape::Multipatch(shp), shp);

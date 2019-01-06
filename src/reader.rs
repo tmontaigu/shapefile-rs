@@ -6,6 +6,7 @@ use {Error, ShapeType, Shape};
 use std::fs::File;
 use std::io::{BufReader, Read, SeekFrom, Seek};
 use byteorder::{BigEndian, ReadBytesExt};
+use record::ReadableShape;
 use std::path::{PathBuf, Path};
 
 const INDEX_RECORD_SIZE: usize = 2 * std::mem::size_of::<i32>();
@@ -58,8 +59,45 @@ impl<T: Read> Reader<T> {
         Ok(shapes)
     }
 
+    pub fn read_as<S: ReadableShape>(mut self) -> Result<Vec<S::ActualShape>, Error> {
+        let requested_shapetype = S::shapetype();
+        if self.header.shape_type != requested_shapetype {
+            let error = Error::MismatchShapeType {
+                requested: requested_shapetype, actual: self.header.shape_type };
+            return Err(error);
+        }
+
+        let mut shapes = Vec::<S::ActualShape>::new();
+        while self.pos < (self.header.file_length * 2) as usize {
+            let (record_size, shapetype) = self.read_record_size_and_shapetype()?;
+
+            if shapetype != self.header.shape_type {
+                return Err(Error::MixedShapeType);
+            }
+
+            if shapetype != ShapeType::NullShape && shapetype != requested_shapetype {
+                let error = Error::MismatchShapeType {
+                    requested: requested_shapetype, actual: shapetype };
+                return Err(error);
+            }
+
+            self.pos += record_size as usize * 2;
+            shapes.push(S::read_from(&mut self.source)?);
+        }
+        Ok(shapes)
+    }
+
     pub fn header(&self) -> &header::Header {
         &self.header
+    }
+
+    fn read_record_size_and_shapetype(&mut self) -> Result<(i32, ShapeType), Error> {
+        let hdr = record::RecordHeader::read_from(&mut self.source)?;
+        self.pos += std::mem::size_of::<i32>() * 2;
+
+        let shapetype = ShapeType::read_from(&mut self.source)?;
+
+        Ok((hdr.record_size, shapetype))
     }
 }
 
@@ -75,10 +113,10 @@ impl Reader<BufReader<File>> {
 impl<T: Read + Seek> Reader<T> {
     pub fn read_nth_shape(&mut self, index: usize) -> Option<Result<Shape, Error>> {
         let offset =
-        {
-            let shape_idx = self.shapes_index.get(index)?;
-            (shape_idx.offset * 2) as u64
-        };
+            {
+                let shape_idx = self.shapes_index.get(index)?;
+                (shape_idx.offset * 2) as u64
+            };
 
         match self.source.seek(SeekFrom::Start(offset)) {
             Err(e) => return Some(Err(Error::IoError(e))),
@@ -97,24 +135,16 @@ impl<T: Read> Iterator for Reader<T> {
             return None;
         }
 
-        let hdr = match record::RecordHeader::read_from(&mut self.source) {
-            Ok(hdr) => hdr,
+        let (record_size, shapetype) =  match self.read_record_size_and_shapetype() {
             Err(e) => return Some(Err(e)),
-        };
-        self.pos += std::mem::size_of::<i32>() * 2;
-
-        let shapetype = match ShapeType::read_from(&mut self.source) {
-            Ok(shapetype) => shapetype,
-            Err(e) => return Some(Err(e)),
+            Ok(t) => t
         };
 
         if shapetype != ShapeType::NullShape && shapetype != self.header.shape_type {
             println!("Mixing shape types, this is not allowed");
         }
 
-        let pos_diff = (hdr.record_size as usize + std::mem::size_of::<i32>()) * 2;
-        self.pos += pos_diff;
-
+        self.pos += record_size as usize * 2;
         Some(Shape::read_from(&mut self.source, shapetype))
     }
 }

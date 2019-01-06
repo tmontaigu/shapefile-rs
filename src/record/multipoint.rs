@@ -1,9 +1,9 @@
-use record::{BBox, EsriShape, min_and_max_of_f64_slice, NO_DATA};
+use record::{BBox, EsriShape, min_and_max_of_f64_slice, NO_DATA, ReadableShape};
 use std::io::{Read, Write};
 
 use record::io::*;
 use std::mem::size_of;
-
+use std::fmt;
 
 use byteorder::{ReadBytesExt, LittleEndian, WriteBytesExt};
 use {ShapeType, Error, all_have_same_len, have_same_len_as};
@@ -14,17 +14,23 @@ pub struct Multipoint {
     pub ys: Vec<f64>,
 }
 
-impl Multipoint {
-    pub fn new(xs: Vec<f64>, ys: Vec<f64>) -> Self {
-        let bbox = BBox::from_xys(&xs, &xs);
-        Self { bbox, xs, ys }
+impl fmt::Display for Multipoint {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Multipoint({} points)", self.xs.len())
+    }
+}
+
+impl ReadableShape for Multipoint {
+    type ActualShape = Self;
+
+    fn shapetype() -> ShapeType {
+        ShapeType::Multipatch
     }
 
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Multipoint, std::io::Error> {
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
         let (xs, ys) = read_points(&mut source, num_points)?;
-
         Ok(Multipoint { bbox, xs, ys })
     }
 }
@@ -80,8 +86,23 @@ impl MultipointM {
         let (m_min, m_max) = min_and_max_of_f64_slice(&ms);
         Self { bbox, xs, ys, m_range: [m_min, m_max], ms }
     }
+}
 
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Self, std::io::Error> {
+
+impl fmt::Display for MultipointM {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "MultipointM({} points)", self.xs.len())
+    }
+}
+
+impl ReadableShape for MultipointM {
+    type ActualShape = Self;
+
+    fn shapetype() -> ShapeType {
+        ShapeType::MultipointM
+    }
+
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
         let (xs, ys) = read_points(&mut source, num_points)?;
@@ -137,6 +158,12 @@ pub struct MultipointZ {
     pub ms: Vec<f64>,
 }
 
+impl fmt::Display for MultipointZ {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "MultipointZ({} points)", self.xs.len())
+    }
+}
+
 impl MultipointZ {
     pub fn new(xs: Vec<f64>, ys: Vec<f64>, zs: Vec<f64>) -> Self {
         let bbox = BBox::from_xys(&xs, &ys);
@@ -151,8 +178,16 @@ impl MultipointZ {
         let (m_min, m_max) = min_and_max_of_f64_slice(&ms);
         Self { bbox, xs, ys, z_range: [z_min, z_max], zs, m_range: [m_min, m_max], ms }
     }
+}
 
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Self, std::io::Error> {
+impl ReadableShape for MultipointZ {
+    type ActualShape = Self;
+
+    fn shapetype() -> ShapeType {
+        ShapeType::MultipointZ
+    }
+
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
         let (xs, ys) = read_points(&mut source, num_points)?;

@@ -119,6 +119,10 @@ fn check_linez<T: Read>(reader: shapefile::Reader<T>) {
     }
 }
 
+fn check_first_point(point: &shapefile::Point) {
+    assert_eq!(point.x, 122.0);
+    assert_eq!(point.y, 37.0);
+}
 
 fn check_point<T: Read>(reader: shapefile::Reader<T>) {
     {
@@ -135,26 +139,32 @@ fn check_point<T: Read>(reader: shapefile::Reader<T>) {
     let points = shapefile::record::to_vec_of_point(shapes).unwrap();
     assert_eq!(points.len(), 1, "Wrong number of points");
 
-    let point = &points[0];
-    assert_eq!(point.x, 122.0);
-    assert_eq!(point.y, 37.0);
+    check_first_point(&points[0]);
+}
+
+fn _check_first_point_m(point: &shapefile::PointM) {
+    assert_eq!(point.x, 160477.9000324604);
+    assert_eq!(point.y, 5403959.561417906);
+    assert_eq!(point.m, 0.0);
 }
 
 pub fn check_first_point_m(shape: &shapefile::Shape) {
     if let shapefile::Shape::PointM(shp) = shape {
-        assert_eq!(shp.x, 160477.9000324604);
-        assert_eq!(shp.y, 5403959.561417906);
-        assert_eq!(shp.m, 0.0);
+        _check_first_point_m(shp);
     } else {
         assert!(false, "The first shape is not a PointZ");
     }
 }
 
+fn _check_second_point_m(point: &shapefile::PointM) {
+    assert_eq!(point.x, 160467.63787299366);
+    assert_eq!(point.y, 5403971.985031904);
+    assert_eq!(point.m, 0.0);
+}
+
 pub fn check_second_point_m(shape: &shapefile::Shape) {
     if let shapefile::Shape::PointM(shp) = shape {
-        assert_eq!(shp.x, 160467.63787299366);
-        assert_eq!(shp.y, 5403971.985031904);
-        assert_eq!(shp.m, 0.0);
+        _check_second_point_m(shp);
     } else {
         assert!(false, "The second shape is not a PointZ");
     }
@@ -176,6 +186,20 @@ fn check_pointm<T: Read>(reader: shapefile::Reader<T>) {
     check_second_point_m(&shapes[1]);
 }
 
+fn _check_first_point_z(point: &shapefile::PointZ) {
+    assert_eq!(point.x, 1422464.3681007193);
+    assert_eq!(point.y, 4188962.3364355816);
+    assert_eq!(point.z, 72.40956470558095);
+    assert_eq!(point.m, shapefile::NO_DATA);
+}
+
+fn _check_second_point_z(point: &shapefile::PointZ) {
+    assert_eq!(point.x, 1422459.0908050265);
+    assert_eq!(point.y, 4188942.211755641);
+    assert_eq!(point.z, 72.58286959604922);
+    assert_eq!(point.m, shapefile::NO_DATA);
+}
+
 fn check_pointz<T: Read>(reader: shapefile::Reader<T>) {
     {
         let header = reader.header();
@@ -189,19 +213,13 @@ fn check_pointz<T: Read>(reader: shapefile::Reader<T>) {
     assert_eq!(shapes.len(), 2, "Wrong number of shapes");
 
     if let shapefile::Shape::PointZ(shp) = &shapes[0] {
-        assert_eq!(shp.x, 1422464.3681007193);
-        assert_eq!(shp.y, 4188962.3364355816);
-        assert_eq!(shp.z, 72.40956470558095);
-        assert_eq!(shp.m, shapefile::NO_DATA);
+        _check_first_point_z(shp);
     } else {
         assert!(false, "The first shape is not a PointZ");
     }
 
     if let shapefile::Shape::PointZ(shp) = &shapes[1] {
-        assert_eq!(shp.x, 1422459.0908050265);
-        assert_eq!(shp.y, 4188942.211755641);
-        assert_eq!(shp.z, 72.58286959604922);
-        assert_eq!(shp.m, shapefile::NO_DATA);
+        _check_second_point_z(shp);
     } else {
         assert!(false, "The second shape is not a PointZ");
     }
@@ -431,3 +449,52 @@ read_write_read_test!(read_write_read_multipointz, to_vec_of_multipointz, check_
 /* Read-Write-Read tests on Multipoint */
 use shapefile::record::to_vec_of_multipatch;
 read_write_read_test!(read_write_read_multipatch, to_vec_of_multipatch, check_multipatch, MULTIPATCH_PATH);
+
+#[test]
+fn read_as_point() {
+    let points = shapefile::read_as::<&str, shapefile::Point>(POINT_PATH);
+    assert_eq!(points.is_ok(), true);
+
+    let points = points.unwrap();
+    assert_eq!(points.len(), 1);
+    check_first_point(&points[0]);
+}
+
+#[test]
+fn read_as_point_m() {
+    let points_m = shapefile::read_as::<&str, shapefile::PointM>(POINTM_PATH);
+    assert_eq!(points_m.is_ok(), true);
+
+    let points_m = points_m.unwrap();
+    assert_eq!(points_m.len(), 2);
+    _check_first_point_m(&points_m[0]);
+    _check_second_point_m(&points_m[1]);
+
+}
+
+#[test]
+fn read_as_point_z() {
+    let points_z = shapefile::read_as::<&str, shapefile::PointZ>(POINTZ_PATH);
+    assert_eq!(points_z.is_ok(), true);
+
+    let points_z = points_z.unwrap();
+    assert_eq!(points_z.len(), 2);
+    _check_first_point_z(&points_z[0]);
+    _check_second_point_z(&points_z[1]);
+}
+
+#[test]
+fn read_point_as_wrong_type() {
+    use shapefile::{Error, ShapeType};
+    let points = shapefile::read_as::<&str, shapefile::PointM>(POINT_PATH);
+
+    if let Err(error) = points {
+        match error {
+            Error::MismatchShapeType {requested: ShapeType::PointM, actual: ShapeType::Point} => {},
+            _ => assert!(false)
+        }
+    }
+    else {
+        assert!(false);
+    }
+}
