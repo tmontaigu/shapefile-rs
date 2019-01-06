@@ -2,13 +2,14 @@ use super::{ShapeType, Error};
 
 use std::io::{Read, Write};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::cmp::PartialEq;
 
 pub const SHP_HEADER_SIZE: i32 = 100;
 const SHP_FILE_CODE: i32 = 9994;
 const SIZE_OF_SKIP: usize = std::mem::size_of::<i32>() * 5;
 
 //TODO replace  pointmin/max with bbox + z_range
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Header {
     pub file_length: i32,
     pub point_min: [f64; 3],

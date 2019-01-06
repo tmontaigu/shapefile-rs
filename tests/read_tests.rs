@@ -5,36 +5,10 @@ use std::io::Cursor;
 use std::io::Seek;
 use std::io::SeekFrom;
 
-pub const LINE_PATH: &str = "./tests/data/line.shp";
-pub const LINEM_PATH: &str = "./tests/data/linem.shp";
-pub const LINEZ_PATH: &str = "./tests/data/linez.shp";
+mod testfiles;
 
-pub const POINT_PATH: &str = "./tests/data/point.shp";
-pub const POINTM_PATH: &str = "./tests/data/pointm.shp";
-pub const POINTZ_PATH: &str = "./tests/data/pointz.shp";
 
-pub const POLYGON_PATH: &str = "./tests/data/polygon.shp";
-pub const POLYGONM_PATH: &str = "./tests/data/polygonm.shp";
-pub const POLYGONZ_PATH: &str = "./tests/data/polygonz.shp";
 
-pub const MULTIPOINT_PATH: &str = "./tests/data/multipoint.shp";
-pub const MULTIPOINTZ_PATH: &str = "./tests/data/multipointz.shp";
-
-pub const MULTIPATCH_PATH: &str = "./tests/data/multipatch.shp";
-
-pub fn check_line_first_shape(shape: &shapefile::Shape) {
-    if let shapefile::Shape::Polyline(shp) = shape {
-        assert_eq!(shp.bbox.xmin, 1.0);
-        assert_eq!(shp.bbox.ymin, 1.0);
-        assert_eq!(shp.bbox.xmax, 5.0);
-        assert_eq!(shp.bbox.ymax, 6.0);
-        assert_eq!(shp.parts, vec![0, 5]);
-        assert_eq!(shp.xs, vec![1.0, 5.0, 5.0, 3.0, 1.0, 3.0, 2.0]);
-        assert_eq!(shp.ys, vec![5.0, 5.0, 1.0, 3.0, 1.0, 2.0, 6.0]);
-    } else {
-        assert!(false, "The shape is not a Polyline");
-    }
-}
 
 
 fn check_line<T: Read>(reader: shapefile::Reader<T>) {
@@ -55,7 +29,7 @@ fn check_line<T: Read>(reader: shapefile::Reader<T>) {
         _ => { assert!(false); }
     }
 
-    check_line_first_shape(&shapes[0]);
+    testfiles::check_line_first_shape(&shapes[0]);
 }
 
 fn check_linem<T: Read>(reader: shapefile::Reader<T>) {
@@ -364,7 +338,7 @@ fn check_multipatch<T: Read>(reader: shapefile::Reader<T>) {
 }
 
 macro_rules! read_test {
-    ($func:ident, $check_func:ident, $src_file:ident) => {
+    ($func:ident, $check_func:ident, $src_file:expr) => {
         #[test]
         fn $func() {
             let reader = shapefile::Reader::from_path($src_file).unwrap();
@@ -375,7 +349,7 @@ macro_rules! read_test {
 
 
 macro_rules! read_write_read_test {
-    ($func:ident, $convert_func:ident, $check_func:ident, $src_file:ident) => {
+    ($func:ident, $convert_func:ident, $check_func:ident, $src_file:expr) => {
         #[test]
         fn $func() {
             let reader = shapefile::Reader::from_path($src_file).unwrap();
@@ -402,57 +376,57 @@ macro_rules! read_write_read_test {
 }
 
 /* Read tests on Polylines */
-read_test!(read_line, check_line, LINE_PATH);
-read_test!(read_linem, check_linem, LINEM_PATH);
-read_test!(read_linez, check_linez, LINEZ_PATH);
+read_test!(read_line, check_line, testfiles::LINE_PATH);
+read_test!(read_linem, check_linem, testfiles::LINEM_PATH);
+read_test!(read_linez, check_linez, testfiles::LINEZ_PATH);
 
 /* Read tests on Points */
-read_test!(read_point, check_point, POINT_PATH);
-read_test!(read_pointm, check_pointm, POINTM_PATH);
-read_test!(read_pointz, check_pointz, POINTZ_PATH);
+read_test!(read_point, check_point, testfiles::POINT_PATH);
+read_test!(read_pointm, check_pointm, testfiles::POINTM_PATH);
+read_test!(read_pointz, check_pointz, testfiles::POINTZ_PATH);
 
 /* Read tests on Polygon */
-read_test!(read_polygon, check_polygon, POLYGON_PATH);
-read_test!(read_polygonm, check_polygonm, POLYGONM_PATH);
-read_test!(read_polygonz, check_polygonz, POLYGONZ_PATH);
+read_test!(read_polygon, check_polygon, testfiles::POLYGON_PATH);
+read_test!(read_polygonm, check_polygonm, testfiles::POLYGONM_PATH);
+read_test!(read_polygonz, check_polygonz, testfiles::POLYGONZ_PATH);
 
 /* Read tests on Multipoint */
-read_test!(read_multipoint, check_multipoint, MULTIPOINT_PATH);
-read_test!(read_multipointz, check_multipointz, MULTIPOINTZ_PATH);
+read_test!(read_multipoint, check_multipoint, testfiles::MULTIPOINT_PATH);
+read_test!(read_multipointz, check_multipointz, testfiles::MULTIPOINTZ_PATH);
 
 /* Read tests on Multipatch */
-read_test!(read_multipatch, check_multipatch, MULTIPATCH_PATH);
+read_test!(read_multipatch, check_multipatch, testfiles::MULTIPATCH_PATH);
 
 /* Read-Write-Read tests on Polylines */
 use shapefile::record::{to_vec_of_polyline, to_vec_of_polylinem, to_vec_of_polylinez};
-read_write_read_test!(read_write_read_line, to_vec_of_polyline, check_line, LINE_PATH);
-read_write_read_test!(read_write_read_linem, to_vec_of_polylinem, check_linem, LINEM_PATH);
-read_write_read_test!(read_write_read_linez, to_vec_of_polylinez, check_linez, LINEZ_PATH);
+read_write_read_test!(read_write_read_line, to_vec_of_polyline, check_line, testfiles::LINE_PATH);
+read_write_read_test!(read_write_read_linem, to_vec_of_polylinem, check_linem, testfiles::LINEM_PATH);
+read_write_read_test!(read_write_read_linez, to_vec_of_polylinez, check_linez, testfiles::LINEZ_PATH);
 
 /* Read-Write-Read tests on Points */
 use shapefile::record::{to_vec_of_point, to_vec_of_pointm, to_vec_of_pointz};
-read_write_read_test!(read_write_read_point, to_vec_of_point, check_point, POINT_PATH);
-read_write_read_test!(read_write_read_pointm, to_vec_of_pointm, check_pointm, POINTM_PATH);
-read_write_read_test!(read_write_read_pointz, to_vec_of_pointz, check_pointz, POINTZ_PATH);
+read_write_read_test!(read_write_read_point, to_vec_of_point, check_point, testfiles::POINT_PATH);
+read_write_read_test!(read_write_read_pointm, to_vec_of_pointm, check_pointm, testfiles::POINTM_PATH);
+read_write_read_test!(read_write_read_pointz, to_vec_of_pointz, check_pointz, testfiles::POINTZ_PATH);
 
 /* Read-Write-Read tests on Polygons */
 use shapefile::record::{to_vec_of_polygon, to_vec_of_polygonm, to_vec_of_polygonz};
-read_write_read_test!(read_write_read_polygon, to_vec_of_polygon, check_polygon, POLYGON_PATH);
-read_write_read_test!(read_write_read_polygonm, to_vec_of_polygonm, check_polygonm, POLYGONM_PATH);
-read_write_read_test!(read_write_read_polygonz, to_vec_of_polygonz, check_polygonz, POLYGONZ_PATH);
+read_write_read_test!(read_write_read_polygon, to_vec_of_polygon, check_polygon, testfiles::POLYGON_PATH);
+read_write_read_test!(read_write_read_polygonm, to_vec_of_polygonm, check_polygonm, testfiles::POLYGONM_PATH);
+read_write_read_test!(read_write_read_polygonz, to_vec_of_polygonz, check_polygonz, testfiles::POLYGONZ_PATH);
 
 /* Read-Write-Read tests on Multipoint */
 use shapefile::record::{to_vec_of_multipoint, to_vec_of_multipointz};
-read_write_read_test!(read_write_read_multipoint, to_vec_of_multipoint, check_multipoint, MULTIPOINT_PATH);
-read_write_read_test!(read_write_read_multipointz, to_vec_of_multipointz, check_multipointz, MULTIPOINTZ_PATH);
+read_write_read_test!(read_write_read_multipoint, to_vec_of_multipoint, check_multipoint, testfiles::MULTIPOINT_PATH);
+read_write_read_test!(read_write_read_multipointz, to_vec_of_multipointz, check_multipointz, testfiles::MULTIPOINTZ_PATH);
 
 /* Read-Write-Read tests on Multipoint */
 use shapefile::record::to_vec_of_multipatch;
-read_write_read_test!(read_write_read_multipatch, to_vec_of_multipatch, check_multipatch, MULTIPATCH_PATH);
+read_write_read_test!(read_write_read_multipatch, to_vec_of_multipatch, check_multipatch, testfiles::MULTIPATCH_PATH);
 
 #[test]
 fn read_as_point() {
-    let points = shapefile::read_as::<&str, shapefile::Point>(POINT_PATH);
+    let points = shapefile::read_as::<&str, shapefile::Point>(testfiles::POINT_PATH);
     assert_eq!(points.is_ok(), true);
 
     let points = points.unwrap();
@@ -462,7 +436,7 @@ fn read_as_point() {
 
 #[test]
 fn read_as_point_m() {
-    let points_m = shapefile::read_as::<&str, shapefile::PointM>(POINTM_PATH);
+    let points_m = shapefile::read_as::<&str, shapefile::PointM>(testfiles::POINTM_PATH);
     assert_eq!(points_m.is_ok(), true);
 
     let points_m = points_m.unwrap();
@@ -474,7 +448,7 @@ fn read_as_point_m() {
 
 #[test]
 fn read_as_point_z() {
-    let points_z = shapefile::read_as::<&str, shapefile::PointZ>(POINTZ_PATH);
+    let points_z = shapefile::read_as::<&str, shapefile::PointZ>(testfiles::POINTZ_PATH);
     assert_eq!(points_z.is_ok(), true);
 
     let points_z = points_z.unwrap();
@@ -486,7 +460,7 @@ fn read_as_point_z() {
 #[test]
 fn read_point_as_wrong_type() {
     use shapefile::{Error, ShapeType};
-    let points = shapefile::read_as::<&str, shapefile::PointM>(POINT_PATH);
+    let points = shapefile::read_as::<&str, shapefile::PointM>(testfiles::POINT_PATH);
 
     if let Err(error) = points {
         match error {
