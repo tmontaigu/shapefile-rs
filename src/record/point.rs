@@ -6,21 +6,27 @@ use ShapeType;
 use std::mem::size_of;
 
 use super::Error;
-use record::BBox;
-use record::is_no_data;
+use record::{is_no_data, ReadableShape, BBox};
 
 pub struct Point {
     pub x: f64,
     pub y: f64,
 }
 
-impl Point {
-    pub fn read_from<T: Read>(source: &mut T) -> Result<Self, std::io::Error> {
+impl ReadableShape for Point {
+    type ActualShape = Self;
+
+    fn shapetype() -> ShapeType {
+        ShapeType::Point
+    }
+
+    fn read_from<T: Read>(source: &mut T) -> Result<Self::ActualShape, Error> {
         let x = source.read_f64::<LittleEndian>()?;
         let y = source.read_f64::<LittleEndian>()?;
         Ok(Self { x, y })
     }
 }
+
 
 impl EsriShape for Point {
     fn shapetype(&self) -> ShapeType {
@@ -38,11 +44,11 @@ impl EsriShape for Point {
     }
 
     fn bbox(&self) -> BBox {
-        BBox{
+        BBox {
             xmin: self.x,
             ymin: self.y,
             xmax: self.x,
-            ymax: self.y
+            ymax: self.y,
         }
     }
 }
@@ -62,8 +68,15 @@ pub struct PointM {
     pub m: f64,
 }
 
-impl PointM {
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Self, std::io::Error> {
+
+impl ReadableShape for PointM {
+    type ActualShape = Self;
+
+    fn shapetype() -> ShapeType {
+        ShapeType::PointM
+    }
+
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let point = Point::read_from(&mut source)?;
         let m = source.read_f64::<LittleEndian>()?;
         Ok(Self {
@@ -91,19 +104,18 @@ impl EsriShape for PointM {
     }
 
     fn bbox(&self) -> BBox {
-        BBox{
+        BBox {
             xmin: self.x,
             ymin: self.y,
             xmax: self.x,
-            ymax: self.y
+            ymax: self.y,
         }
     }
 
     fn m_range(&self) -> [f64; 2] {
         if is_no_data(self.m) {
             [0.0, 0.0]
-        }
-        else {
+        } else {
             [self.m, self.m]
         }
     }
@@ -117,8 +129,14 @@ pub struct PointZ {
     pub m: f64,
 }
 
-impl PointZ {
-    pub fn read_from<T: Read>(mut source: &mut T) -> Result<Self, std::io::Error> {
+impl ReadableShape for PointZ {
+    type ActualShape = Self;
+
+    fn shapetype() -> ShapeType {
+        ShapeType::PointZ
+    }
+
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let point = Point::read_from(&mut source)?;
         let z = source.read_f64::<LittleEndian>()?;
         let m = source.read_f64::<LittleEndian>()?;
@@ -149,12 +167,12 @@ impl EsriShape for PointZ {
     }
 
     fn bbox(&self) -> BBox {
-       BBox{
-           xmin: self.x,
-           ymin: self.y,
-           xmax: self.x,
-           ymax: self.y
-       }
+        BBox {
+            xmin: self.x,
+            ymin: self.y,
+            xmax: self.x,
+            ymax: self.y,
+        }
     }
 
     fn z_range(&self) -> [f64; 2] {
@@ -164,8 +182,7 @@ impl EsriShape for PointZ {
     fn m_range(&self) -> [f64; 2] {
         if is_no_data(self.m) {
             [0.0, 0.0]
-        }
-        else {
+        } else {
             [self.m, self.m]
         }
     }

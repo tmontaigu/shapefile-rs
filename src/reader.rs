@@ -6,6 +6,7 @@ use {Error, ShapeType, Shape};
 use std::fs::File;
 use std::io::{BufReader, Read, SeekFrom, Seek};
 use byteorder::{BigEndian, ReadBytesExt};
+use record::ReadableShape;
 use std::path::{PathBuf, Path};
 
 const INDEX_RECORD_SIZE: usize = 2 * std::mem::size_of::<i32>();
@@ -58,6 +59,40 @@ impl<T: Read> Reader<T> {
         Ok(shapes)
     }
 
+    pub fn read_as<S: ReadableShape>(mut self) -> Result<Vec<S::ActualShape>, Error> {
+        let requested_shapetype = S::shapetype();
+        if self.header.shape_type != requested_shapetype {
+            let error = Error::MismatchShapeType {
+                requested: requested_shapetype, actual: self.header.shape_type };
+            return Err(error);
+        }
+
+        let mut shapes = Vec::<S::ActualShape>::new();
+        while self.pos < (self.header.file_length * 2) as usize {
+            let hdr = record::RecordHeader::read_from(&mut self.source)?;
+
+            self.pos += std::mem::size_of::<i32>() * 2;
+
+            let shapetype = ShapeType::read_from(&mut self.source)?;
+
+            if shapetype != self.header.shape_type {
+                return Err(Error::MixedShapeType);
+            }
+
+            if shapetype != requested_shapetype {
+                let error = Error::MismatchShapeType {
+                    requested: requested_shapetype, actual: shapetype };
+                return Err(error);
+            }
+
+            let pos_diff = (hdr.record_size as usize + std::mem::size_of::<i32>()) * 2;
+            self.pos += pos_diff;
+
+            shapes.push(S::read_from(&mut self.source)?);
+        }
+        Ok(shapes)
+    }
+
     pub fn header(&self) -> &header::Header {
         &self.header
     }
@@ -75,10 +110,10 @@ impl Reader<BufReader<File>> {
 impl<T: Read + Seek> Reader<T> {
     pub fn read_nth_shape(&mut self, index: usize) -> Option<Result<Shape, Error>> {
         let offset =
-        {
-            let shape_idx = self.shapes_index.get(index)?;
-            (shape_idx.offset * 2) as u64
-        };
+            {
+                let shape_idx = self.shapes_index.get(index)?;
+                (shape_idx.offset * 2) as u64
+            };
 
         match self.source.seek(SeekFrom::Start(offset)) {
             Err(e) => return Some(Err(Error::IoError(e))),

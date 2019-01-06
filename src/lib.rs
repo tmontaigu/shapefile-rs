@@ -5,15 +5,21 @@ pub mod reader;
 pub mod record;
 pub mod writer;
 
-use std::io::Read;
-use std::io::Write;
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::io::{Read, Write};
 use std::convert::From;
 use std::fmt;
-
-pub use record::{NO_DATA, Shape, PatchType};
-pub use reader::Reader;
 use std::path::Path;
+
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+
+pub use record::{NO_DATA, Shape, PatchType, ReadableShape};
+pub use record::{Point, PointM, PointZ};
+pub use record::{Polyline, PolylineM, PolylineZ};
+pub use record::{Polygon, PolygonM, PolygonZ};
+pub use record::{Multipoint, MultipointM, MultipointZ};
+pub use record::{Multipatch};
+pub use reader::Reader;
+
 
 //TODO use std::num::FromPrimitive ?
 //https://stackoverflow.com/questions/28028854/how-do-i-match-enum-values-with-an-integer
@@ -26,6 +32,7 @@ pub enum Error {
     InvalidPatchType(i32),
     MixedShapeType,
     MalformedShape,
+    MismatchShapeType{requested: ShapeType, actual: ShapeType},
 }
 
 impl From<std::io::Error> for Error {
@@ -180,6 +187,11 @@ macro_rules! all_have_same_len {
 pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
     let reader = Reader::from_path(path)?;
     reader.read()
+}
+
+pub fn read_as<T: AsRef<Path>, S: ReadableShape>(path: T) -> Result<Vec<S::ActualShape>, Error> {
+    let reader = Reader::from_path(path)?;
+    reader.read_as::<S>()
 }
 
 #[cfg(test)]

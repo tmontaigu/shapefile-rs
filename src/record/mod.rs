@@ -44,6 +44,13 @@ pub trait EsriShape {
 
 }
 
+pub trait ReadableShape {
+    type ActualShape;
+
+    fn shapetype() -> ShapeType;
+    fn read_from<T: Read>(source: &mut T) -> Result<Self::ActualShape, Error>;
+}
+
 pub enum Shape {
     NullShape,
     Point(Point),
