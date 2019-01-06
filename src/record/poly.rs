@@ -430,6 +430,12 @@ impl Polygon {
     }
 }
 
+impl fmt::Display for Polygon {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Polygon({} points, {} parts)", self.xs.len(), self.parts.len())
+    }
+}
+
 impl From<Polyline> for Polygon {
     fn from(p: Polyline) -> Self {
         Self {
@@ -508,6 +514,13 @@ impl PolygonM {
     }
 }
 
+impl fmt::Display for PolygonM {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PolygonM({} points, {} parts)", self.xs.len(), self.parts.len())
+    }
+}
+
+
 impl ReadableShape for PolygonM {
     type ActualShape = Self;
 
@@ -520,6 +533,7 @@ impl ReadableShape for PolygonM {
         Ok(Self::from(poly))
     }
 }
+
 
 impl EsriShape for PolygonM {
     fn shapetype(&self) -> ShapeType {
@@ -576,6 +590,13 @@ impl From<PolylineZ> for PolygonZ {
         }
     }
 }
+impl fmt::Display for PolygonZ {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PolygonZ({} points, {} parts)", self.xs.len(), self.parts.len())
+    }
+}
+
+
 
 impl PolygonZ {
     pub fn new(xs: Vec<f64>, ys: Vec<f64>, zs: Vec<f64>, parts: Vec<i32>) -> Self {
