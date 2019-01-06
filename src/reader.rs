@@ -67,19 +67,22 @@ impl<T: Read> Reader<T> {
 
 impl Reader<BufReader<File>> {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        let index_path = path.as_ref().with_extension("shx");
+
         let file = File::open(path)?;
         let source = BufReader::new(file);
         Self::new(source)
     }
 }
 
+
 impl<T: Read + Seek> Reader<T> {
     pub fn read_nth_shape(&mut self, index: usize) -> Option<Result<Shape, Error>> {
         let offset =
-            {
-                let shape_idx = self.shapes_index.get(index)?;
-                (shape_idx.offset * 2) as u64
-            };
+        {
+            let shape_idx = self.shapes_index.get(index)?;
+            (shape_idx.offset * 2) as u64
+        };
 
         match self.source.seek(SeekFrom::Start(offset)) {
             Err(e) => return Some(Err(Error::IoError(e))),
