@@ -21,18 +21,32 @@ pub use record::{Multipatch};
 pub use reader::Reader;
 
 
-//TODO use std::num::FromPrimitive ?
-//https://stackoverflow.com/questions/28028854/how-do-i-match-enum-values-with-an-integer
-
+/// All Errors that can happen when using this library
 #[derive(Debug)]
 pub enum Error {
-    InvalidFileCode(i32),
+    /// Wrapper around standard io::Error that might occur when reading/writing
     IoError(std::io::Error),
+    /// The file read had an invalid File code (meaning it's not a Shapefile)
+    InvalidFileCode(i32),
+    /// The file read had an invalid [ShapeType](enum.ShapeType.html) code
+    /// (either in the file header or any record type)
     InvalidShapeType(i32),
+    /// The Multipatch shape read from the file had an invalid [PatchType](enum.PatchType.html) code
     InvalidPatchType(i32),
+    /// Emitted when the file read mixes [ShapeType](enum.ShapeType.html)
+    /// Which is not allowed by the specification (expect for NullShape)
     MixedShapeType,
+    /// Error emitted when you try to write a malformed Shape
+    /// For example: a mismatch between the number of x and z coordinates
     MalformedShape,
-    MismatchShapeType{requested: ShapeType, actual: ShapeType},
+    /// Error returned when trying to read the shape records as a certain shape type
+    /// but the actual shape type does not correspond to the one asked
+    MismatchShapeType{
+        /// The requested ShapeType
+        requested: ShapeType,
+        /// The actual type of the shape
+        actual: ShapeType
+    },
 }
 
 impl From<std::io::Error> for Error {
@@ -41,6 +55,8 @@ impl From<std::io::Error> for Error {
     }
 }
 
+/// The enum for the ShapeType as defined in the
+/// specification
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ShapeType {
     NullShape = 0,
@@ -63,16 +79,24 @@ pub enum ShapeType {
 }
 
 impl ShapeType {
-    pub fn read_from<T: Read>(source: &mut T) -> Result<ShapeType, Error> {
+    pub(crate) fn read_from<T: Read>(source: &mut T) -> Result<ShapeType, Error> {
         let code = source.read_i32::<LittleEndian>()?;
         Self::from(code).ok_or(Error::InvalidShapeType(code))
     }
 
-    pub fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), std::io::Error> {
+    pub(crate) fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), std::io::Error> {
         dest.write_i32::<LittleEndian>(*self as i32)?;
         Ok(())
     }
 
+    /// Returns the ShapeType corresponding to the input code
+    /// if the code is valid
+    /// ```
+    /// use shapefile::ShapeType;
+    ///
+    /// assert_eq!(ShapeType::from(25), Some(ShapeType::PolygonM));
+    /// assert_eq!(ShapeType::from(60), None);
+    /// ```
     pub fn from(code: i32) -> Option<ShapeType> {
         match code {
             00 => Some(ShapeType::NullShape),
@@ -93,6 +117,7 @@ impl ShapeType {
         }
     }
 
+    /// Returns whether the ShapeType has the third dimension Z
     pub fn has_z(&self) -> bool {
         match self {
             ShapeType::PointZ |
@@ -103,6 +128,7 @@ impl ShapeType {
         }
     }
 
+    /// Returns whether the ShapeType has the optional measure dimension
     pub fn has_m(&self) -> bool {
         match self {
             ShapeType::PointZ |
@@ -166,6 +192,7 @@ impl TryFrom<i32> for ShapeType {
 }
 */
 
+
 #[macro_export]
 macro_rules! have_same_len_as {
     ($val:expr, $y:expr) => (
@@ -184,11 +211,27 @@ macro_rules! all_have_same_len {
     )
 }
 
+/// Function to read all the Shapes in a file.
+///
+/// Returns a `Vec<Shape>` which means that you will have to `match`
+/// the individual [Shape](enum.Shape.html) contained inside the `Vec` to get the actual `struct`
+///
+/// Useful if you don't know in advance (at compile time) which kind of
+/// shape the file contains
 pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
     let reader = Reader::from_path(path)?;
     reader.read()
 }
 
+/// Function to read all the Shapes in a file as a certain type
+///
+/// Fails and return `Err(Error:MismatchShapeType)`
+///
+/// For example if you try to `read_as::<shapefile::PolylineZ>("polylines.shp")`
+/// when the "polylines.shp" file Only contains `Polyline` the function will fail.
+///
+/// If the reading is successful Returned `Vec<S:ActualShape>>`is a vector of actual structs
+/// Useful if you know in at compile time which kind of shape you expect the file to have
 pub fn read_as<T: AsRef<Path>, S: ReadableShape>(path: T) -> Result<Vec<S::ActualShape>, Error> {
     let reader = Reader::from_path(path)?;
     reader.read_as::<S>()

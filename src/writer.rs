@@ -29,7 +29,7 @@ fn f64_max(a: f64, b: f64) -> f64 {
 fn write_index_file<T: Write>(mut dest: &mut T, shapefile_header: &header::Header, shapes_index: Vec<ShapeIndex>) -> Result<(), std::io::Error> {
     let mut header = shapefile_header.clone();
     let content_len = shapes_index.len() * 2 * std::mem::size_of::<i32>();
-    header.file_length = header::SHP_HEADER_SIZE + content_len as i32;
+    header.file_length = header::HEADER_SIZE + content_len as i32;
     header.file_length /= 2;
 
     header.write_to(&mut dest)?;
@@ -56,7 +56,7 @@ impl<T: Write> Writer<T> {
 
     //TODO This method should move (take mut self) as calling it twice would produce a shitty file
     pub fn write_shapes<S: EsriShape>(&mut self, shapes: Vec<S>) -> Result<(), Error> {
-        let mut file_length = header::SHP_HEADER_SIZE as usize;
+        let mut file_length = header::HEADER_SIZE as usize;
         for shape in &shapes {
             file_length += 2 * std::mem::size_of::<i32>(); // record_header
             file_length += std::mem::size_of::<i32>(); // shape_type
@@ -106,7 +106,7 @@ impl<T: Write> Writer<T> {
             version: 1000,
         };
 
-        let mut pos = header::SHP_HEADER_SIZE;
+        let mut pos = header::HEADER_SIZE;
         header.write_to(&mut self.dest)?;
         let mut shapes_index = Vec::<ShapeIndex>::with_capacity(shapes.len());
         for (i, shape) in shapes.into_iter().enumerate() {

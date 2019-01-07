@@ -15,6 +15,7 @@ pub use record::point::{Point, PointM, PointZ};
 pub use record::multipoint::{Multipoint, MultipointM, MultipointZ};
 pub use record::multipatch::{Multipatch, PatchType};
 
+/// Value inferior to this are considered as NO_DATA
 pub const NO_DATA: f64 = -10e38;
 
 fn is_no_data(val: f64) -> bool {
@@ -43,13 +44,20 @@ pub trait EsriShape {
     }
 }
 
+/// Trait implemented by all the Shapes that can be read
 pub trait ReadableShape {
+    /// The type of shapes that will be returned when read
     type ActualShape;
 
+    /// The type of the shape that the implementer will try to read
     fn shapetype() -> ShapeType;
+
+    /// Function that actually reads the `ActualShape` from the source
+    ///and returns it
     fn read_from<T: Read>(source: &mut T) -> Result<Self::ActualShape, Error>;
 }
 
+/// enum of Shapes that can be read of written to a shapefile
 pub enum Shape {
     NullShape,
     Point(Point),

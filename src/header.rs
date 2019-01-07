@@ -4,18 +4,27 @@ use std::io::{Read, Write};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::PartialEq;
 
-pub const SHP_HEADER_SIZE: i32 = 100;
-const SHP_FILE_CODE: i32 = 9994;
+pub(crate) const HEADER_SIZE: i32 = 100;
+const FILE_CODE: i32 = 9994;
 const SIZE_OF_SKIP: usize = std::mem::size_of::<i32>() * 5;
 
+/// struct representing the Header of a shapefile
+/// can be retrieved via the reader used to read
 //TODO replace  pointmin/max with bbox + z_range
 #[derive(Copy, Clone, PartialEq)]
 pub struct Header {
+    /// Total file length (Header + Shapes) in 16bit word
     pub file_length: i32,
+    /// min values of x, y, z for all the shapes
     pub point_min: [f64; 3],
+    /// max values of x, y, z for all the shapes
     pub point_max: [f64; 3],
+    /// min and max values for the measure dimension
     pub m_range: [f64; 2],
+    /// Type of all the shapes in the file
+    /// (as mixing shapes is not allowed)
     pub shape_type: ShapeType,
+    /// Version of the shapefile specification
     pub version: i32,
 }
 
@@ -26,7 +35,7 @@ impl Default for Header {
             point_max: [0.0; 3],
             m_range: [0.0; 2],
             shape_type: ShapeType::NullShape,
-            file_length: SHP_HEADER_SIZE,
+            file_length: HEADER_SIZE,
             version: 1000,
         }
     }
@@ -36,7 +45,7 @@ impl Header {
     pub fn read_from<T: Read>(mut source: &mut T) -> Result<Header, Error> {
         let file_code = source.read_i32::<BigEndian>()?;
 
-        if file_code != SHP_FILE_CODE {
+        if file_code != FILE_CODE {
             return Err(Error::InvalidFileCode(file_code));
         }
 
@@ -67,8 +76,8 @@ impl Header {
         Ok(hdr)
     }
 
-    pub fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), std::io::Error> {
-        dest.write_i32::<BigEndian>(SHP_FILE_CODE)?;
+    pub(crate) fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), std::io::Error> {
+        dest.write_i32::<BigEndian>(FILE_CODE)?;
 
         let skip: [u8; SIZE_OF_SKIP] = [0; SIZE_OF_SKIP];
         dest.write(&skip)?;

@@ -20,7 +20,7 @@ pub struct ShapeIndex {
 fn read_index_file<T: Read>(mut source: T) -> Result<Vec<ShapeIndex>, Error> {
     let header = header::Header::read_from(&mut source)?;
 
-    let num_shapes = ((header.file_length * 2) - header::SHP_HEADER_SIZE) / INDEX_RECORD_SIZE as i32;
+    let num_shapes = ((header.file_length * 2) - header::HEADER_SIZE) / INDEX_RECORD_SIZE as i32;
     let mut shapes_index = Vec::<ShapeIndex>::with_capacity(num_shapes as usize);
     for _ in 0..num_shapes {
         let offset = source.read_i32::<BigEndian>()?;
@@ -43,7 +43,7 @@ impl<T: Read> Reader<T> {
     pub fn new(mut source: T) -> Result<Reader<T>, Error> {
         let header = header::Header::read_from(&mut source)?;
 
-        Ok(Reader { source, header, pos: header::SHP_HEADER_SIZE as usize, shapes_index: Vec::<ShapeIndex>::new() })
+        Ok(Reader { source, header, pos: header::HEADER_SIZE as usize, shapes_index: Vec::<ShapeIndex>::new() })
     }
 
     pub fn add_index_source(&mut self, source: T) -> Result<(), Error> {
@@ -71,7 +71,7 @@ impl<T: Read> Reader<T> {
         while self.pos < (self.header.file_length * 2) as usize {
             let (record_size, shapetype) = self.read_record_size_and_shapetype()?;
 
-            if shapetype != self.header.shape_type {
+            if shapetype != ShapeType::NullShape && shapetype != self.header.shape_type {
                 return Err(Error::MixedShapeType);
             }
 
