@@ -11,11 +11,10 @@ use std::path::{PathBuf, Path};
 
 const INDEX_RECORD_SIZE: usize = 2 * std::mem::size_of::<i32>();
 
-pub struct ShapeIndex {
+pub(crate) struct ShapeIndex {
     pub offset: i32,
     pub record_size: i32,
 }
-
 
 fn read_index_file<T: Read>(mut source: T) -> Result<Vec<ShapeIndex>, Error> {
     let header = header::Header::read_from(&mut source)?;
@@ -31,6 +30,7 @@ fn read_index_file<T: Read>(mut source: T) -> Result<Vec<ShapeIndex>, Error> {
 }
 
 
+/// struct that reads the content of a shapefile
 pub struct Reader<T: Read> {
     source: T,
     header: header::Header,
@@ -40,17 +40,38 @@ pub struct Reader<T: Read> {
 
 
 impl<T: Read> Reader<T> {
+    /// Created a new Reader from a source that implements the `Read` trait
+    ///
+    /// The Shapefile header is read upon creation (but no reading of the Shapes is done)
+    ///
+    /// # Errors
+    ///
+    /// Will forward any `std::io::Error`
+    ///
+    /// Will also return an error if the data is not a shapefile (Wrong file code)
+    ///
+    /// Will also return an error if the shapetype read from the input source is invalid
     pub fn new(mut source: T) -> Result<Reader<T>, Error> {
         let header = header::Header::read_from(&mut source)?;
 
         Ok(Reader { source, header, pos: header::HEADER_SIZE as usize, shapes_index: Vec::<ShapeIndex>::new() })
     }
 
+    /// Returns a non-mutable reference to the header read
+    pub fn header(&self) -> &header::Header {
+        &self.header
+    }
+
+    /// Reads the index file from the source
+    /// This allows to later read shapes by given their index without reading the whole file
+    ///
+    /// (see `Reader::read_nth_shape()`)
     pub fn add_index_source(&mut self, source: T) -> Result<(), Error> {
         self.shapes_index = read_index_file(source)?;
         Ok(())
     }
 
+    /// Reads all the shapes and returns them
     pub fn read(self) -> Result<Vec<Shape>, Error> {
         let mut shapes = Vec::<record::Shape>::new();
         for shape in self {
@@ -87,9 +108,6 @@ impl<T: Read> Reader<T> {
         Ok(shapes)
     }
 
-    pub fn header(&self) -> &header::Header {
-        &self.header
-    }
 
     fn read_record_size_and_shapetype(&mut self) -> Result<(i32, ShapeType), Error> {
         let hdr = record::RecordHeader::read_from(&mut self.source)?;
@@ -111,18 +129,25 @@ impl Reader<BufReader<File>> {
 
 
 impl<T: Read + Seek> Reader<T> {
+    /// Reads the `n`th shape of the shapefile
+    ///
+    /// # Returns
+    /// None if the index is out of range or if no index file was added prior to
+    /// calling this function
+    ///
     pub fn read_nth_shape(&mut self, index: usize) -> Option<Result<Shape, Error>> {
         let offset =
-            {
-                let shape_idx = self.shapes_index.get(index)?;
-                (shape_idx.offset * 2) as u64
-            };
+        {
+            let shape_idx = self.shapes_index.get(index)?;
+            (shape_idx.offset * 2) as u64
+        };
 
-        match self.source.seek(SeekFrom::Start(offset)) {
-            Err(e) => return Some(Err(Error::IoError(e))),
-            Ok(_) => {}
+
+        if let Err(e)  = self.source.seek(SeekFrom::Start(offset)) {
+            return Some(Err(Error::IoError(e)));
         }
-        self.into_iter().next()
+
+        self.next()
     }
 }
 

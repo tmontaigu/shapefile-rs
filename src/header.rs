@@ -35,7 +35,7 @@ impl Default for Header {
             point_max: [0.0; 3],
             m_range: [0.0; 2],
             shape_type: ShapeType::NullShape,
-            file_length: HEADER_SIZE,
+            file_length: HEADER_SIZE / 2,
             version: 1000,
         }
     }
@@ -80,7 +80,7 @@ impl Header {
         dest.write_i32::<BigEndian>(FILE_CODE)?;
 
         let skip: [u8; SIZE_OF_SKIP] = [0; SIZE_OF_SKIP];
-        dest.write(&skip)?;
+        dest.write_all(&skip)?;
 
         dest.write_i32::<BigEndian>(self.file_length)?;
         dest.write_i32::<LittleEndian>(self.version)?;

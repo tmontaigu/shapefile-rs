@@ -8,9 +8,6 @@ use std::io::SeekFrom;
 mod testfiles;
 
 
-
-
-
 fn check_line<T: Read>(reader: shapefile::Reader<T>) {
     {
         let header = reader.header();
