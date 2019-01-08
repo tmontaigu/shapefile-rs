@@ -96,7 +96,7 @@ impl<T: Write> Writer<T> {
         }
 
         let file_length = file_length as i32;
-        let shapetype = *&shapes[0].shapetype();
+        let shapetype = S::shapetype();
         let header = header::Header {
             file_length,
             point_min,
@@ -118,10 +118,10 @@ impl<T: Write> Writer<T> {
                 record_size: record_size as i32,
             };
 
-            shapes_index.push(ShapeIndex{offset: pos, record_size: record_size as i32});
+            shapes_index.push(ShapeIndex { offset: pos, record_size: record_size as i32 });
 
             rc_hdr.write_to(&mut self.dest)?;
-            shape.shapetype().write_to(&mut self.dest)?;
+            shapetype.write_to(&mut self.dest)?;
             shape.write_to(&mut self.dest)?;
             pos += (record_size * 2) as i32;
         }

@@ -2,7 +2,6 @@ use super::{ShapeType, Error};
 
 use std::io::{Read, Write};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::cmp::PartialEq;
 
 pub(crate) const HEADER_SIZE: i32 = 100;
 const FILE_CODE: i32 = 9994;

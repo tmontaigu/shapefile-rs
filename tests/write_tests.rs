@@ -1,7 +1,7 @@
 extern crate shapefile;
 
 use std::io::Cursor;
-
+/*
 #[test]
 fn write_polyline() {
     let mut polys = Vec::<shapefile::record::Polyline>::with_capacity(1);
@@ -11,4 +11,4 @@ fn write_polyline() {
     let cursor = Cursor::new(v);
     let mut writer = shapefile::writer::Writer::new(cursor);
     writer.write_shapes(polys).unwrap();
-}
+}*/

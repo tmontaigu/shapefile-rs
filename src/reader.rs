@@ -84,7 +84,9 @@ impl<T: Read> Reader<T> {
         let requested_shapetype = S::shapetype();
         if self.header.shape_type != requested_shapetype {
             let error = Error::MismatchShapeType {
-                requested: requested_shapetype, actual: self.header.shape_type };
+                requested: requested_shapetype,
+                actual: self.header.shape_type,
+            };
             return Err(error);
         }
 
@@ -98,7 +100,9 @@ impl<T: Read> Reader<T> {
 
             if shapetype != ShapeType::NullShape && shapetype != requested_shapetype {
                 let error = Error::MismatchShapeType {
-                    requested: requested_shapetype, actual: shapetype };
+                    requested: requested_shapetype,
+                    actual: shapetype,
+                };
                 return Err(error);
             }
 
@@ -137,13 +141,13 @@ impl<T: Read + Seek> Reader<T> {
     ///
     pub fn read_nth_shape(&mut self, index: usize) -> Option<Result<Shape, Error>> {
         let offset =
-        {
-            let shape_idx = self.shapes_index.get(index)?;
-            (shape_idx.offset * 2) as u64
-        };
+            {
+                let shape_idx = self.shapes_index.get(index)?;
+                (shape_idx.offset * 2) as u64
+            };
 
 
-        if let Err(e)  = self.source.seek(SeekFrom::Start(offset)) {
+        if let Err(e) = self.source.seek(SeekFrom::Start(offset)) {
             return Some(Err(Error::IoError(e)));
         }
 
@@ -160,7 +164,7 @@ impl<T: Read> Iterator for Reader<T> {
             return None;
         }
 
-        let (record_size, shapetype) =  match self.read_record_size_and_shapetype() {
+        let (record_size, shapetype) = match self.read_record_size_and_shapetype() {
             Err(e) => return Some(Err(e)),
             Ok(t) => t
         };

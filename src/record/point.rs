@@ -7,20 +7,29 @@ use std::mem::size_of;
 
 
 use super::Error;
-use record::{is_no_data, ReadableShape, BBox};
+use record::{is_no_data, ReadableShape, HasShapeType, WritableShape, BBox};
 use std::fmt;
 
+#[derive(PartialEq, Debug, Default, Copy, Clone)]
 pub struct Point {
     pub x: f64,
     pub y: f64,
 }
 
-impl ReadableShape for Point {
-    type ActualShape = Self;
+impl Point {
+    pub fn new(x: f64, y: f64) -> Self {
+        Self {x, y}
+    }
+}
 
+impl HasShapeType for Point {
     fn shapetype() -> ShapeType {
         ShapeType::Point
     }
+}
+
+impl ReadableShape for Point {
+    type ActualShape = Self;
 
     fn read_from<T: Read>(source: &mut T) -> Result<Self::ActualShape, Error> {
         let x = source.read_f64::<LittleEndian>()?;
@@ -29,12 +38,7 @@ impl ReadableShape for Point {
     }
 }
 
-
-impl EsriShape for Point {
-    fn shapetype(&self) -> ShapeType {
-        ShapeType::Point
-    }
-
+impl WritableShape for Point {
     fn size_in_bytes(&self) -> usize {
         2 * size_of::<f64>()
     }
@@ -44,7 +48,9 @@ impl EsriShape for Point {
         dest.write_f64::<LittleEndian>(self.y)?;
         Ok(())
     }
+}
 
+impl EsriShape for Point {
     fn bbox(&self) -> BBox {
         BBox {
             xmin: self.x,
@@ -61,28 +67,32 @@ impl fmt::Display for Point {
     }
 }
 
-impl Default for Point {
-    fn default() -> Self {
-        Self {
-            x: 0.0,
-            y: 0.0,
-        }
-    }
-}
 
+/*
+ * PointM
+ */
+
+#[derive(PartialEq, Debug, Default, Copy, Clone)]
 pub struct PointM {
     pub x: f64,
     pub y: f64,
     pub m: f64,
 }
 
+impl PointM {
+    pub fn new(x: f64, y: f64, m: f64) -> Self {
+        Self {x, y, m}
+    }
+}
 
-impl ReadableShape for PointM {
-    type ActualShape = Self;
-
+impl HasShapeType for PointM {
     fn shapetype() -> ShapeType {
         ShapeType::PointM
     }
+}
+
+impl ReadableShape for PointM {
+    type ActualShape = Self;
 
     fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let point = Point::read_from(&mut source)?;
@@ -95,17 +105,7 @@ impl ReadableShape for PointM {
     }
 }
 
-impl fmt::Display for PointM {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Point(x: {}, y: {}, m: {})", self.x, self.y, self.m)
-    }
-}
-
-impl EsriShape for PointM {
-    fn shapetype(&self) -> ShapeType {
-        ShapeType::PointM
-    }
-
+impl WritableShape for PointM {
     fn size_in_bytes(&self) -> usize {
         3 * size_of::<f64>()
     }
@@ -116,7 +116,15 @@ impl EsriShape for PointM {
         dest.write_f64::<LittleEndian>(self.m)?;
         Ok(())
     }
+}
 
+impl fmt::Display for PointM {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Point(x: {}, y: {}, m: {})", self.x, self.y, self.m)
+    }
+}
+
+impl EsriShape for PointM {
     fn bbox(&self) -> BBox {
         BBox {
             xmin: self.x,
@@ -141,6 +149,12 @@ impl fmt::Display for PointZ {
     }
 }
 
+
+/*
+ * PointZ
+ */
+
+#[derive(PartialEq, Debug, Default, Copy, Clone)]
 pub struct PointZ {
     pub x: f64,
     pub y: f64,
@@ -148,12 +162,21 @@ pub struct PointZ {
     pub m: f64,
 }
 
-impl ReadableShape for PointZ {
-    type ActualShape = Self;
+impl PointZ {
+    pub fn new(x: f64, y: f64, z: f64, m: f64) -> Self {
+        Self {x, y, z, m}
+    }
+}
 
+
+impl HasShapeType for PointZ {
     fn shapetype() -> ShapeType {
         ShapeType::PointZ
     }
+}
+
+impl ReadableShape for PointZ {
+    type ActualShape = Self;
 
     fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let point = Point::read_from(&mut source)?;
@@ -168,11 +191,7 @@ impl ReadableShape for PointZ {
     }
 }
 
-impl EsriShape for PointZ {
-    fn shapetype(&self) -> ShapeType {
-        ShapeType::PointZ
-    }
-
+impl WritableShape for PointZ {
     fn size_in_bytes(&self) -> usize {
         4 * size_of::<f64>()
     }
@@ -184,7 +203,9 @@ impl EsriShape for PointZ {
         dest.write_f64::<LittleEndian>(self.m)?;
         Ok(())
     }
+}
 
+impl EsriShape for PointZ {
     fn bbox(&self) -> BBox {
         BBox {
             xmin: self.x,
@@ -206,3 +227,4 @@ impl EsriShape for PointZ {
         }
     }
 }
+

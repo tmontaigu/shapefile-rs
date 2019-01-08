@@ -17,7 +17,7 @@ pub use record::{Point, PointM, PointZ};
 pub use record::{Polyline, PolylineM, PolylineZ};
 pub use record::{Polygon, PolygonM, PolygonZ};
 pub use record::{Multipoint, MultipointM, MultipointZ};
-pub use record::{Multipatch};
+pub use record::Multipatch;
 pub use reader::Reader;
 
 
@@ -41,11 +41,11 @@ pub enum Error {
     MalformedShape,
     /// Error returned when trying to read the shape records as a certain shape type
     /// but the actual shape type does not correspond to the one asked
-    MismatchShapeType{
+    MismatchShapeType {
         /// The requested ShapeType
         requested: ShapeType,
         /// The actual type of the shape
-        actual: ShapeType
+        actual: ShapeType,
     },
 }
 
@@ -254,7 +254,7 @@ mod tests {
 
         assert_eq!(all_have_same_len!(x, y, z), false);
     }
-    
+
     #[test]
     fn they_have_same_len() {
         let x = vec![0, 0, 0, 0];

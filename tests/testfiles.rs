@@ -1,4 +1,8 @@
 #![allow(dead_code)]
+extern crate shapefile;
+
+use shapefile::record::{MultipartShape, MultipointShape};
+use shapefile::Point;
 
 pub const LINE_PATH: &str = "./tests/data/line.shp";
 pub const LINEM_PATH: &str = "./tests/data/linem.shp";
@@ -24,9 +28,17 @@ pub fn check_line_first_shape(shape: &shapefile::Shape) {
         assert_eq!(shp.bbox.ymin, 1.0);
         assert_eq!(shp.bbox.xmax, 5.0);
         assert_eq!(shp.bbox.ymax, 6.0);
-        assert_eq!(shp.parts, vec![0, 5]);
-        assert_eq!(shp.xs, vec![1.0, 5.0, 5.0, 3.0, 1.0, 3.0, 2.0]);
-        assert_eq!(shp.ys, vec![5.0, 5.0, 1.0, 3.0, 1.0, 2.0, 6.0]);
+        assert_eq!(shp.parts(), vec![0, 5].as_slice());
+        let expected_point = vec![
+            Point{ x: 1.0, y: 5.0 },
+            Point{ x: 5.0, y: 5.0 },
+            Point{ x: 5.0, y: 1.0 },
+            Point{ x: 3.0, y: 3.0 },
+            Point{ x: 1.0, y: 1.0 },
+            Point{ x: 3.0, y: 2.0 },
+            Point{ x: 2.0, y: 6.0 },
+        ];
+        assert_eq!(shp.points(), expected_point.as_slice());
     } else {
         assert!(false, "The shape is not a Polyline");
     }

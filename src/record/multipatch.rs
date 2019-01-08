@@ -5,10 +5,11 @@ use std::mem::size_of;
 
 use record::io::*;
 use record::BBox;
-use record::{EsriShape, ReadableShape};
-use {ShapeType, Error, all_have_same_len, have_same_len_as};
+use record::{EsriShape, ReadableShape, MultipointShape, MultipartShape, WritableShape, HasShapeType, PointZ};
+use {ShapeType, Error};
 
 use std::fmt;
+use record::is_parts_array_valid;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PatchType {
@@ -39,40 +40,58 @@ impl PatchType {
     }
 }
 
+
 pub struct Multipatch {
     pub bbox: BBox,
-    pub parts: Vec<i32>,
+    points: Vec<PointZ>,
+    parts: Vec<i32>,
     pub parts_type: Vec<PatchType>,
-    pub xs: Vec<f64>,
-    pub ys: Vec<f64>,
     pub z_range: [f64; 2],
-    pub zs: Vec<f64>,
     pub m_range: [f64; 2],
-    pub ms: Vec<f64>,
+}
+
+impl Multipatch {
+    pub fn new(points: Vec<PointZ>, parts: Vec<i32>, parts_type: Vec<PatchType>) -> Self {
+        let bbox = BBox::from_points(&points);
+        let m_range = calc_m_range(&points);
+        let z_range = calc_z_range(&points);
+        Self{bbox, points, parts, parts_type, z_range, m_range}
+    }
 }
 
 impl fmt::Display for Multipatch {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Multipatch({} points, {} parts)", self.xs.len(), self.parts.len())
+        write!(f, "Multipatch({} points, {} parts)", self.points.len(), self.parts.len())
+    }
+}
+
+impl MultipointShape<PointZ> for Multipatch {
+    fn points(&self) -> &[PointZ] {
+        &self.points
+    }
+}
+
+impl MultipartShape<PointZ> for Multipatch {
+    fn parts(&self) -> &[i32] {
+        &self.parts
+    }
+}
+
+impl HasShapeType for Multipatch {
+    fn shapetype() -> ShapeType {
+        ShapeType::Multipatch
     }
 }
 
 impl ReadableShape for Multipatch {
     type ActualShape = Self;
 
-    fn shapetype() -> ShapeType {
-        ShapeType::Multipatch
-    }
-
     fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
 
-        let mut parts = Vec::<i32>::with_capacity(num_parts as usize);
-        for _ in 0..num_parts {
-            parts.push(source.read_i32::<LittleEndian>()?);
-        }
+        let parts = read_parts(&mut source, num_parts)?;
 
         let mut parts_type = Vec::<PatchType>::with_capacity(num_parts as usize);
         for _ in 0..num_parts {
@@ -82,19 +101,19 @@ impl ReadableShape for Multipatch {
                 None => return Err(Error::InvalidPatchType(code)),
             }
         }
+        let mut points = read_xys_into_pointz_vec(&mut source, num_points)?;
 
-        let (xs, ys) = read_points(&mut source, num_points)?;
-        let (z_range, zs) = read_z_dimension(&mut source, num_points)?;
-        let (m_range, ms) = read_m_dimension(&mut source, num_points)?;
-        Ok(Self { bbox, parts, parts_type, xs, ys, z_range, zs, m_range, ms })
+        let z_range = read_range(&mut source)?;
+        read_zs_into(&mut source, &mut points)?;
+
+        let m_range = read_range(&mut source)?;
+        read_ms_into(&mut source, &mut points)?;
+
+        Ok(Self { bbox, parts, parts_type, points, z_range, m_range })
     }
 }
 
-impl EsriShape for Multipatch {
-    fn shapetype(&self) -> ShapeType {
-        ShapeType::Multipatch
-    }
-
+impl WritableShape for Multipatch {
     fn size_in_bytes(&self) -> usize {
         let mut size = 0usize;
         size += 4 * size_of::<f64>();
@@ -102,33 +121,35 @@ impl EsriShape for Multipatch {
         size += size_of::<i32>();
         size += size_of::<i32>() * self.parts.len();
         size += size_of::<i32>() * self.parts_type.len();
-        size += 2 * size_of::<f64>() * self.xs.len();
+        size += 4 * size_of::<f64>() * self.points.len();
         size += 2 * size_of::<f64>();
-        size += size_of::<f64>() * self.xs.len();
         size += 2 * size_of::<f64>();
-        size += size_of::<f64>() * self.xs.len();
         size
     }
 
     fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
-        if all_have_same_len!(self.xs, self.ys, self.zs, self.ms) &&
-            all_have_same_len!(self.parts, self.parts_type)
-        {
-            self.bbox.write_to(&mut dest)?;
-            dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
-            dest.write_i32::<LittleEndian>(self.xs.len() as i32)?;
-            write_parts(&mut dest, &self.parts)?;
-            let part_types: Vec<i32> = self.parts_type.into_iter().map(|t| t as i32).collect();
-            write_parts(&mut dest, &part_types)?;
-            write_points(&mut dest, &self.xs, &self.ys)?;
-            write_range_and_vec(&mut dest, &self.z_range, &self.zs)?;
-            write_range_and_vec(&mut dest, &self.m_range, &self.ms)?;
-            Ok(())
-        } else {
-            Err(Error::MalformedShape)
+        if !is_parts_array_valid(&self) {
+            return Err(Error::MalformedShape)
         }
-    }
+        self.bbox.write_to(&mut dest)?;
+        dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
+        dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
+        write_parts(&mut dest, &self.parts)?;
+        let part_types: Vec<i32> = self.parts_type.iter().map(|t| *t as i32).collect();
+        write_parts(&mut dest, &part_types)?;
 
+        write_points(&mut dest, &self.points)?;
+
+        write_range(&mut dest, self.z_range())?;
+        write_zs(&mut dest, &self.points)?;
+
+        write_range(&mut dest, self.m_range())?;
+        write_ms(&mut dest, &self.points)?;
+        Ok(())
+    }
+}
+
+impl EsriShape for Multipatch {
     fn bbox(&self) -> BBox {
         self.bbox
     }
