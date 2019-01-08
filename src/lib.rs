@@ -12,7 +12,8 @@ use std::path::Path;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-pub use record::{NO_DATA, Shape, PatchType, ReadableShape};
+pub use record::{NO_DATA, Shape, PatchType};
+pub use record::{HasShapeType, ReadableShape, MultipartShape, MultipointShape};
 pub use record::{Point, PointM, PointZ};
 pub use record::{Polyline, PolylineM, PolylineZ};
 pub use record::{Polygon, PolygonM, PolygonZ};
@@ -164,34 +165,6 @@ impl fmt::Display for ShapeType {
         }
     }
 }
-
-/* When TryFrom is stabilized */
-/*
-impl TryFrom<i32> for ShapeType {
-    type Error = ShpError;
-
-    fn try_from(code: i32) -> Result<ShapeType, ShpError> {
-        match code {
-            0 => ok(shapetype::nullshape),
-            1 => ok(shapetype::point),
-            3 => ok(shapetype::polyline),
-            5 => ok(shapetype::polygon),
-            8 => ok(shapetype::multipoint),
-            11 => ok(shapetype::pointz),
-            13 => ok(shapetype::polylinez),
-            15 => ok(shapetype::polygonz),
-            18 => ok(shapetype::multipointz),
-            21 => ok(shapetype::pointz),
-            23 => ok(shapetype::polylinez),
-            25 => ok(shapetype::polygonz),
-            28 => ok(shapetype::multipointz),
-            31 => ok(shapetype::multipatch),
-            _ => err(shperror::invalidshapetype(code))
-        }
-    }
-}
-*/
-
 
 #[macro_export]
 macro_rules! have_same_len_as {

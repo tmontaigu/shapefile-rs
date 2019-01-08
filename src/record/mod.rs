@@ -3,15 +3,15 @@ use std::io::{Read, Write};
 use std::fmt;
 
 mod io;
-mod poly;
-mod point;
-mod multipoint;
-mod multipatch;
+pub mod poly;
+pub mod point;
+pub mod multipoint;
+pub mod multipatch;
 
 use super::{ShapeType, Error};
-
-pub use record::poly::{Polyline, PolylineM, PolylineZ, Polygon, PolygonM, PolygonZ};
 pub use record::point::{Point, PointM, PointZ};
+pub use record::poly::{Polyline, PolylineM, PolylineZ};
+pub use record::poly::{Polygon, PolygonM, PolygonZ};
 pub use record::multipoint::{Multipoint, MultipointM, MultipointZ};
 pub use record::multipatch::{Multipatch, PatchType};
 
@@ -43,11 +43,12 @@ pub trait MultipointShape<PointType> {
 /// Trait for the Shapes that may have multiple parts
 pub trait MultipartShape<PointType>: MultipointShape<PointType> {
     /// Returns a non mutable slice of the parts as written in the file:
+    ///
     /// `An array of length NumParts. Stores, for each PolyLine, the index of its`
     /// `first point in the points array. Array indexes are with respect to 0`
     fn parts(&self) -> &[i32];
 
-    /// Returns the slice of points corresponding to part n°ìndex` if the shape
+    /// Returns the slice of points corresponding to part n°`ìndex` if the shape
     /// actually has multiple parts
     fn part(&self, index: usize) -> Option<&[PointType]> {
         let parts = self.parts();
@@ -182,9 +183,6 @@ impl_from_concrete_shape!(Shape::MultipointZ, MultipointZ);
 impl_from_concrete_shape!(Shape::Multipatch, Multipatch);
 
 
-
-
-
 #[derive(Copy, Clone)]
 pub struct BBox {
     pub xmin: f64,
@@ -307,7 +305,7 @@ mod tests {
         let points = vec![Point::default(), Point::default()];
         let parts = Vec::<i32>::new();
 
-        let shapes = vec![Shape::from(Polyline::new(points.clone(), parts.clone())), Shape::from(Polyline::new(points, parts))];
+        let shapes = vec![Shape::from(Polyline::new(points.clone(),parts.clone())), Shape::from(Polyline::new(points, parts))];
 
         assert!(to_vec_of_polyline(shapes).is_ok());
     }
