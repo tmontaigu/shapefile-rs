@@ -19,7 +19,7 @@ pub use record::{Polyline, PolylineM, PolylineZ};
 pub use record::{Polygon, PolygonM, PolygonZ};
 pub use record::{Multipoint, MultipointM, MultipointZ};
 pub use record::Multipatch;
-pub use reader::Reader;
+pub use reader::{Reader, FileReaderBuilder};
 
 
 /// All Errors that can happen when using this library

@@ -72,6 +72,20 @@ impl<T: Read> Reader<T> {
     }
 
     /// Reads all the shapes and returns them
+    ///
+    /// # Examples
+    /// ```
+    /// use shapefile::Reader;
+    /// let mut reader = Reader::from_path("tests/data/multipoint.shp").unwrap();
+    /// let shapes = reader.read().unwrap();
+    /// for shape in shapes {
+    ///     match shape {
+    ///         shapefile::Shape::Multipoint(pts) => println!(" Yay Multipoints: {}", pts),
+    ///         _ => panic!("ups, not multipoints"),
+    ///     }
+    /// }
+    /// ```
+    ///
     pub fn read(self) -> Result<Vec<Shape>, Error> {
         let mut shapes = Vec::<record::Shape>::new();
         for shape in self {
@@ -79,6 +93,30 @@ impl<T: Read> Reader<T> {
         }
         Ok(shapes)
     }
+
+
+    /// Reads all the shape as shape of a certain type
+    /// To be used if you know in advance which shape type the file contains
+    ///
+    /// # Errors
+    ///
+    /// The function will fail if the shape type you asked to be read does not match the
+    /// actual shape type in the file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shapefile::Reader;
+    /// let mut reader = Reader::from_path("tests/data/linem.shp").unwrap();
+    /// let polylines_m = reader.read_as::<shapefile::PolylineM>().unwrap(); // we ask for the correct type
+    /// ```
+    ///
+    /// ```
+    /// use shapefile::Reader;
+    /// let mut reader = Reader::from_path("tests/data/linem.shp").unwrap();
+    /// let polylines = reader.read_as::<shapefile::Polyline>(); // we ask for the wrong type
+    /// assert_eq!(polylines.is_err(), true);
+    /// ```
 
     pub fn read_as<S: ReadableShape>(mut self) -> Result<Vec<S::ActualShape>, Error> {
         let requested_shapetype = S::shapetype();
@@ -124,6 +162,15 @@ impl<T: Read> Reader<T> {
 }
 
 impl Reader<BufReader<File>> {
+    /// Creates a reader from a path to a file
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shapefile::Reader;
+    /// let mut reader = Reader::from_path("tests/data/line.shp").unwrap();
+    /// let polylines = reader.read_as::<shapefile::Polyline>().unwrap();
+    /// ```
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let file = File::open(path)?;
         let source = BufReader::new(file);
@@ -136,9 +183,29 @@ impl<T: Read + Seek> Reader<T> {
     /// Reads the `n`th shape of the shapefile
     ///
     /// # Returns
-    /// None if the index is out of range or if no index file was added prior to
+    ///
+    /// `None` if the index is out of range or if no index file was added prior to
     /// calling this function
     ///
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shapefile::FileReaderBuilder;
+    /// let mut reader = FileReaderBuilder::new("tests/data/line.shp").with_index().build().unwrap();
+    /// let shape = reader.read_nth_shape(117);
+    /// assert_eq!(shape.is_none(), true);
+    ///
+    /// let shape = reader.read_nth_shape(0);
+    /// assert_eq!(shape.is_some(), true)
+    /// ```
+    ///
+    /// ```
+    /// use shapefile::Reader;
+    /// let mut reader = Reader::from_path("tests/data/line.shp").unwrap();
+    /// let shape = reader.read_nth_shape(0);
+    /// assert_eq!(shape.is_none(), true); // We didn't give the shx file
+    /// ```
     pub fn read_nth_shape(&mut self, index: usize) -> Option<Result<Shape, Error>> {
         let offset =
             {
