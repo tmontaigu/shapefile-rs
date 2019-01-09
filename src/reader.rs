@@ -40,7 +40,7 @@ pub struct Reader<T: Read> {
 
 
 impl<T: Read> Reader<T> {
-    /// Created a new Reader from a source that implements the `Read` trait
+    /// Creates a new Reader from a source that implements the `Read` trait
     ///
     /// The Shapefile header is read upon creation (but no reading of the Shapes is done)
     ///
@@ -117,7 +117,6 @@ impl<T: Read> Reader<T> {
     /// let polylines = reader.read_as::<shapefile::Polyline>(); // we ask for the wrong type
     /// assert_eq!(polylines.is_err(), true);
     /// ```
-
     pub fn read_as<S: ReadableShape>(mut self) -> Result<Vec<S::ActualShape>, Error> {
         let requested_shapetype = S::shapetype();
         if self.header.shape_type != requested_shapetype {

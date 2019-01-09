@@ -46,6 +46,7 @@ pub struct Writer<T: Write> {
 }
 
 impl<T: Write> Writer<T> {
+    /// Creates a writer that can be sued to write a new shapefile.
     pub fn new(dest: T) -> Self {
         Self { dest, index_dest: None }
     }
@@ -55,6 +56,7 @@ impl<T: Write> Writer<T> {
     }
 
     //TODO This method should move (take mut self) as calling it twice would produce a shitty file
+    /// Writes the given shapes to the file given when the reader was created
     pub fn write_shapes<S: EsriShape>(&mut self, shapes: Vec<S>) -> Result<(), Error> {
         let mut file_length = header::HEADER_SIZE as usize;
         for shape in &shapes {
@@ -135,6 +137,13 @@ impl<T: Write> Writer<T> {
 }
 
 impl Writer<BufWriter<File>> {
+    /// Creates a new writer from a path
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let writer = shapefile::Writer::from_path("/dev/null");
+    /// ```
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let file = File::create(path)?;
         let dest = BufWriter::new(file);

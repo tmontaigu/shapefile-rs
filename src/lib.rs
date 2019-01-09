@@ -1,3 +1,6 @@
+//! Read & Write [Shapefile](http://downloads.esri.com/support/whitepapers/mo_/shapefile.pdf) in Rust
+//!
+//!
 extern crate byteorder;
 
 pub mod header;
@@ -20,6 +23,7 @@ pub use record::{Polygon, PolygonM, PolygonZ};
 pub use record::{Multipoint, MultipointM, MultipointZ};
 pub use record::Multipatch;
 pub use reader::{Reader, FileReaderBuilder};
+pub use writer::Writer;
 
 
 /// All Errors that can happen when using this library
@@ -200,8 +204,15 @@ pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
 ///
 /// Fails and return `Err(Error:MismatchShapeType)`
 ///
-/// For example if you try to `read_as::<shapefile::PolylineZ>("polylines.shp")`
-/// when the "polylines.shp" file Only contains `Polyline` the function will fail.
+///  # Examples
+///
+/// ```
+/// let polylines = shapefile::read_as::<&str, shapefile::PolylineZ>("tests/data/polygon.shp");
+/// assert_eq!(polylines.is_err(), true);
+///
+/// let polygons = shapefile::read_as::<&str, shapefile::Polygon>("tests/data/polygon.shp");
+/// assert_eq!(polygons.is_ok(), true);
+/// ```
 ///
 /// If the reading is successful Returned `Vec<S:ActualShape>>`is a vector of actual structs
 /// Useful if you know in at compile time which kind of shape you expect the file to have

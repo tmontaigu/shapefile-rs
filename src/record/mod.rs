@@ -162,7 +162,7 @@ impl fmt::Display for Shape {
 }
 
 macro_rules! impl_from_concrete_shape {
-    (Shape::$ShapeEnumVariant:ident, $ConcreteShape:ident) => {
+    ($ConcreteShape:ident=>Shape::$ShapeEnumVariant:ident) => {
         impl From<$ConcreteShape> for Shape {
             fn from(concrete: $ConcreteShape) -> Self {
                 Shape::$ShapeEnumVariant(concrete)
@@ -171,16 +171,16 @@ macro_rules! impl_from_concrete_shape {
     };
 }
 
-impl_from_concrete_shape!(Shape::Polyline, Polyline);
-impl_from_concrete_shape!(Shape::PolylineM, PolylineM);
-impl_from_concrete_shape!(Shape::PolylineZ, PolylineZ);
-impl_from_concrete_shape!(Shape::Polygon, Polygon);
-impl_from_concrete_shape!(Shape::PolygonM, PolygonM);
-impl_from_concrete_shape!(Shape::PolygonZ, PolygonZ);
-impl_from_concrete_shape!(Shape::Multipoint, Multipoint);
-impl_from_concrete_shape!(Shape::MultipointM, MultipointM);
-impl_from_concrete_shape!(Shape::MultipointZ, MultipointZ);
-impl_from_concrete_shape!(Shape::Multipatch, Multipatch);
+impl_from_concrete_shape!(Polyline => Shape::Polyline);
+impl_from_concrete_shape!(PolylineM => Shape::PolylineM);
+impl_from_concrete_shape!(PolylineZ => Shape::PolylineZ);
+impl_from_concrete_shape!(Polygon => Shape::Polygon);
+impl_from_concrete_shape!(PolygonM => Shape::PolygonM);
+impl_from_concrete_shape!(PolygonZ => Shape::PolygonZ);
+impl_from_concrete_shape!(Multipoint => Shape::Multipoint);
+impl_from_concrete_shape!(MultipointM => Shape::MultipointM);
+impl_from_concrete_shape!(MultipointZ => Shape::MultipointZ);
+impl_from_concrete_shape!(Multipatch => Shape::Multipatch);
 
 
 #[derive(Copy, Clone)]
@@ -244,7 +244,7 @@ impl RecordHeader {
 }
 
 macro_rules! shape_vector_conversion {
-     ($funcname:ident, $ConcreteShapeStruct: ty, Shape::$EnumVariant:ident) => (
+     ($funcname:ident, Shape::$EnumVariant:ident=>$ConcreteShapeStruct:ty) => (
             pub fn $funcname(shapes: Vec<Shape>) -> Result<Vec<$ConcreteShapeStruct>, Error> {
                 let mut shape_structs = Vec::<$ConcreteShapeStruct>::with_capacity(shapes.len());
                 for shape in shapes {
@@ -261,23 +261,23 @@ macro_rules! shape_vector_conversion {
     )
 }
 
-shape_vector_conversion!(to_vec_of_polyline, Polyline, Shape::Polyline);
-shape_vector_conversion!(to_vec_of_polylinem, PolylineM, Shape::PolylineM);
-shape_vector_conversion!(to_vec_of_polylinez, PolylineZ, Shape::PolylineZ);
+shape_vector_conversion!(to_vec_of_polyline, Shape::Polyline => Polyline);
+shape_vector_conversion!(to_vec_of_polylinem, Shape::PolylineM => PolylineM);
+shape_vector_conversion!(to_vec_of_polylinez, Shape::PolylineZ => PolylineZ);
 
-shape_vector_conversion!(to_vec_of_point, Point, Shape::Point);
-shape_vector_conversion!(to_vec_of_pointm, PointM, Shape::PointM);
-shape_vector_conversion!(to_vec_of_pointz, PointZ, Shape::PointZ);
+shape_vector_conversion!(to_vec_of_point, Shape::Point => Point);
+shape_vector_conversion!(to_vec_of_pointm, Shape::PointM => PointM);
+shape_vector_conversion!(to_vec_of_pointz, Shape::PointZ => PointZ);
 
-shape_vector_conversion!(to_vec_of_polygon, Polygon, Shape::Polygon);
-shape_vector_conversion!(to_vec_of_polygonm, PolygonM, Shape::PolygonM);
-shape_vector_conversion!(to_vec_of_polygonz, PolygonZ, Shape::PolygonZ);
+shape_vector_conversion!(to_vec_of_polygon, Shape::Polygon => Polygon);
+shape_vector_conversion!(to_vec_of_polygonm, Shape::PolygonM => PolygonM);
+shape_vector_conversion!(to_vec_of_polygonz, Shape::PolygonZ => PolygonZ);
 
-shape_vector_conversion!(to_vec_of_multipoint, Multipoint, Shape::Multipoint);
-shape_vector_conversion!(to_vec_of_multipointm, MultipointM, Shape::MultipointM);
-shape_vector_conversion!(to_vec_of_multipointz, MultipointZ, Shape::MultipointZ);
+shape_vector_conversion!(to_vec_of_multipoint, Shape::Multipoint =>  Multipoint);
+shape_vector_conversion!(to_vec_of_multipointm, Shape::MultipointM => MultipointM);
+shape_vector_conversion!(to_vec_of_multipointz, Shape::MultipointZ => MultipointZ);
 
-shape_vector_conversion!(to_vec_of_multipatch, Multipatch, Shape::Multipatch);
+shape_vector_conversion!(to_vec_of_multipatch, Shape::Multipatch => Multipatch);
 
 #[cfg(test)]
 mod tests {
