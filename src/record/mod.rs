@@ -2,7 +2,7 @@ use byteorder::{LittleEndian, BigEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Write};
 use std::fmt;
 
-mod io;
+pub mod io;
 pub mod poly;
 pub mod point;
 pub mod multipoint;
@@ -21,7 +21,7 @@ use record::io::HasXY;
 pub const NO_DATA: f64 = -10e38;
 
 fn is_no_data(val: f64) -> bool {
-    return val <= NO_DATA;
+    val <= NO_DATA
 }
 
 
@@ -29,6 +29,15 @@ fn is_no_data(val: f64) -> bool {
 pub trait HasShapeType {
     /// Returns the ShapeType
     fn shapetype() -> ShapeType;
+}
+
+pub trait ConcreteShape {
+    type ActualShape;
+}
+
+// Basically we need Stabilized TryFrom trait
+pub trait ConcreteShapeFromShape: ConcreteShape {
+    fn try_from(shape: Shape) -> Result<Self::ActualShape, Error>;
 }
 
 /// Trait implemented by all the Shapes that are a collections of points
@@ -46,28 +55,60 @@ pub trait MultipartShape<PointType>: MultipointShape<PointType> {
     ///
     /// `An array of length NumParts. Stores, for each PolyLine, the index of its`
     /// `first point in the points array. Array indexes are with respect to 0`
-    fn parts(&self) -> &[i32];
+    fn parts_indices(&self) -> &[i32];
 
     /// Returns the slice of points corresponding to part n°`ìndex` if the shape
     /// actually has multiple parts
     fn part(&self, index: usize) -> Option<&[PointType]> {
-        let parts = self.parts();
+        let parts = self.parts_indices();
         if parts.len() < 2 {
             Some(self.points())
         } else {
+            let end_part_index = usize::max(index + 1, parts.len() -1);
             let first_index = *parts.get(index)? as usize;
-            let last_index = *parts.get(index + 1)? as usize;
+            let last_index = *parts.get(end_part_index)? as usize;
             self.points().get(first_index..last_index)
+        }
+    }
+
+    fn parts(&self) -> PartIterator<PointType, Self> {
+        PartIterator{
+            phantom: std::marker::PhantomData,
+            shape: &self,
+            current_part: 0
+        }
+    }
+}
+
+pub trait IterParts<PointType> : MultipartShape<PointType> {
+    fn iter_parts(&self) -> PartIterator<PointType, Self> {
+        PartIterator{ phantom: std::marker::PhantomData, current_part: 0, shape: &self}
+    }
+}
+
+pub struct PartIterator<'a, PointType, Shape: 'a + MultipartShape<PointType> + ?Sized> {
+    phantom: std::marker::PhantomData<PointType>,
+    shape: &'a Shape,
+    current_part: usize,
+}
+
+impl<'a, PointType: 'a, Shape: 'a + MultipartShape<PointType>> Iterator for PartIterator<'a, PointType, Shape>{
+    type Item = &'a [PointType];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_part >= self.shape.parts_indices().len() {
+            None
+        }
+        else {
+            self.current_part += 1;
+            self.shape.part(self.current_part - 1)
         }
     }
 }
 
 
 /// Trait implemented by all the Shapes that can be read
-pub trait ReadableShape: HasShapeType {
-    /// The type of shapes that will be returned when read
-    type ActualShape;
-
+pub trait ReadableShape: HasShapeType + ConcreteShape {
     /// Function that actually reads the `ActualShape` from the source
     ///and returns it
     fn read_from<T: Read>(source: &mut T) -> Result<Self::ActualShape, Error>;
@@ -95,8 +136,11 @@ pub trait EsriShape: HasShapeType + WritableShape {
 
 
 pub(crate) fn is_parts_array_valid<PointType, ST: MultipartShape<PointType>>(shape: &ST) -> bool {
+    if shape.parts_indices().len() < 1 {
+        return false;
+    }
     let num_points = shape.points().len() as i32;
-    shape.parts().iter().all(|p| (*p >= 0) & (*p < num_points))
+    shape.parts_indices().iter().all(|p| (*p >= 0) & (*p < num_points))
 }
 
 /// enum of Shapes that can be read of written to a shapefile
@@ -161,27 +205,6 @@ impl fmt::Display for Shape {
     }
 }
 
-macro_rules! impl_from_concrete_shape {
-    ($ConcreteShape:ident=>Shape::$ShapeEnumVariant:ident) => {
-        impl From<$ConcreteShape> for Shape {
-            fn from(concrete: $ConcreteShape) -> Self {
-                Shape::$ShapeEnumVariant(concrete)
-            }
-        }
-    };
-}
-
-impl_from_concrete_shape!(Polyline => Shape::Polyline);
-impl_from_concrete_shape!(PolylineM => Shape::PolylineM);
-impl_from_concrete_shape!(PolylineZ => Shape::PolylineZ);
-impl_from_concrete_shape!(Polygon => Shape::Polygon);
-impl_from_concrete_shape!(PolygonM => Shape::PolygonM);
-impl_from_concrete_shape!(PolygonZ => Shape::PolygonZ);
-impl_from_concrete_shape!(Multipoint => Shape::Multipoint);
-impl_from_concrete_shape!(MultipointM => Shape::MultipointM);
-impl_from_concrete_shape!(MultipointZ => Shape::MultipointZ);
-impl_from_concrete_shape!(Multipatch => Shape::Multipatch);
-
 
 #[derive(Copy, Clone)]
 pub struct BBox {
@@ -204,7 +227,7 @@ impl BBox {
             xmax = f64::max(xmax, point.x());
             ymax = f64::max(ymax, point.y());
         }
-        Self{xmin, ymin, xmax, ymax}
+        Self { xmin, ymin, xmax, ymax }
     }
 
     pub fn read_from<T: Read>(mut source: T) -> Result<BBox, std::io::Error> {
@@ -243,41 +266,84 @@ impl RecordHeader {
     }
 }
 
-macro_rules! shape_vector_conversion {
-     ($funcname:ident, Shape::$EnumVariant:ident=>$ConcreteShapeStruct:ty) => (
-            pub fn $funcname(shapes: Vec<Shape>) -> Result<Vec<$ConcreteShapeStruct>, Error> {
-                let mut shape_structs = Vec::<$ConcreteShapeStruct>::with_capacity(shapes.len());
-                for shape in shapes {
-                    match shape {
-                        Shape::NullShape => {},
-                        Shape::$EnumVariant(shp) => shape_structs.push(shp),
-                        _ => {
-                            return Err(Error::MixedShapeType);
-                        },
-                    }
-                }
-                Ok(shape_structs)
-            }
-    )
+
+pub fn convert_shapes_to_vec_of<S: ConcreteShapeFromShape>(shapes: Vec<Shape>) -> Result<Vec<S::ActualShape>, Error> {
+    let mut concrete_shapes = Vec::<S::ActualShape>::with_capacity(shapes.len());
+    for shape in shapes {
+        let concrete = S::try_from(shape)?;
+        concrete_shapes.push(concrete);
+    }
+    Ok(concrete_shapes)
 }
 
-shape_vector_conversion!(to_vec_of_polyline, Shape::Polyline => Polyline);
-shape_vector_conversion!(to_vec_of_polylinem, Shape::PolylineM => PolylineM);
-shape_vector_conversion!(to_vec_of_polylinez, Shape::PolylineZ => PolylineZ);
+macro_rules! impl_concrete_shape_for {
+    ($ConcreteType:ident) => {
+        impl ConcreteShape for $ConcreteType {
+            type ActualShape = $ConcreteType;
+        }
+    };
+}
 
-shape_vector_conversion!(to_vec_of_point, Shape::Point => Point);
-shape_vector_conversion!(to_vec_of_pointm, Shape::PointM => PointM);
-shape_vector_conversion!(to_vec_of_pointz, Shape::PointZ => PointZ);
 
-shape_vector_conversion!(to_vec_of_polygon, Shape::Polygon => Polygon);
-shape_vector_conversion!(to_vec_of_polygonm, Shape::PolygonM => PolygonM);
-shape_vector_conversion!(to_vec_of_polygonz, Shape::PolygonZ => PolygonZ);
+macro_rules! impl_from_concrete_shape {
+    ($ConcreteShape:ident=>Shape::$ShapeEnumVariant:ident) => {
+        impl From<$ConcreteShape> for Shape {
+            fn from(concrete: $ConcreteShape) -> Self {
+                Shape::$ShapeEnumVariant(concrete)
+            }
+        }
+    };
+}
 
-shape_vector_conversion!(to_vec_of_multipoint, Shape::Multipoint =>  Multipoint);
-shape_vector_conversion!(to_vec_of_multipointm, Shape::MultipointM => MultipointM);
-shape_vector_conversion!(to_vec_of_multipointz, Shape::MultipointZ => MultipointZ);
+macro_rules! impl_to_concrete_shape {
+    (Shape::$ShapeEnumVariant:ident=>$ConcreteShape:ident) => {
+        impl ConcreteShapeFromShape for $ConcreteShape {
+            fn try_from(shape: Shape) -> Result<Self::ActualShape, Error> {
+                match shape {
+                    Shape::$ShapeEnumVariant(shp) => Ok(shp),
+                    _ => Err(Error::MixedShapeType),
+                }
+            }
+        }
+    };
+}
 
-shape_vector_conversion!(to_vec_of_multipatch, Shape::Multipatch => Multipatch);
+macro_rules! impl_to_way_conversion {
+    (Shape::$ShapeEnumVariant:ident<=>$ConcreteShape:ident) => {
+        impl_to_concrete_shape!(Shape::$ShapeEnumVariant => $ConcreteShape);
+        impl_from_concrete_shape!($ConcreteShape => Shape::$ShapeEnumVariant);
+    };
+}
+
+
+impl_concrete_shape_for!(Point);
+impl_concrete_shape_for!(PointM);
+impl_concrete_shape_for!(PointZ);
+impl_concrete_shape_for!(Polyline);
+impl_concrete_shape_for!(PolylineM);
+impl_concrete_shape_for!(PolylineZ);
+impl_concrete_shape_for!(Polygon);
+impl_concrete_shape_for!(PolygonM);
+impl_concrete_shape_for!(PolygonZ);
+impl_concrete_shape_for!(Multipoint);
+impl_concrete_shape_for!(MultipointM);
+impl_concrete_shape_for!(MultipointZ);
+impl_concrete_shape_for!(Multipatch);
+
+impl_to_way_conversion!(Shape::Point <=> Point);
+impl_to_way_conversion!(Shape::PointM <=> PointM);
+impl_to_way_conversion!(Shape::PointZ <=> PointZ);
+impl_to_way_conversion!(Shape::Polyline <=> Polyline);
+impl_to_way_conversion!(Shape::PolylineM <=> PolylineM);
+impl_to_way_conversion!(Shape::PolylineZ <=> PolylineZ);
+impl_to_way_conversion!(Shape::Polygon <=> Polygon);
+impl_to_way_conversion!(Shape::PolygonM <=> PolygonM);
+impl_to_way_conversion!(Shape::PolygonZ <=> PolygonZ);
+impl_to_way_conversion!(Shape::Multipoint <=> Multipoint);
+impl_to_way_conversion!(Shape::MultipointM <=> MultipointM);
+impl_to_way_conversion!(Shape::MultipointZ <=> MultipointZ);
+impl_to_way_conversion!(Shape::Multipatch <=> Multipatch);
+
 
 #[cfg(test)]
 mod tests {
@@ -288,7 +354,7 @@ mod tests {
         let points = vec![Point::default(), Point::default()];
         let parts = Vec::<i32>::new();
         let shapes = vec![Shape::Point(Point::default()), Shape::Polyline(Polyline::new(points, parts))];
-        assert!(to_vec_of_polyline(shapes).is_err());
+        assert!(convert_shapes_to_vec_of::<Polyline>(shapes).is_err());
     }
 
     #[test]
@@ -296,7 +362,7 @@ mod tests {
         let points = vec![Point::default(), Point::default()];
         let parts = Vec::<i32>::new();
         let shapes = vec![Shape::Point(Point::default()), Shape::Polyline(Polyline::new(points, parts))];
-        assert!(to_vec_of_point(shapes).is_err());
+        assert!(convert_shapes_to_vec_of::<Point>(shapes).is_err());
     }
 
 
@@ -305,14 +371,14 @@ mod tests {
         let points = vec![Point::default(), Point::default()];
         let parts = Vec::<i32>::new();
 
-        let shapes = vec![Shape::from(Polyline::new(points.clone(),parts.clone())), Shape::from(Polyline::new(points, parts))];
+        let shapes = vec![Shape::from(Polyline::new(points.clone(), parts.clone())), Shape::from(Polyline::new(points, parts))];
 
-        assert!(to_vec_of_polyline(shapes).is_ok());
+        assert!(convert_shapes_to_vec_of::<Polyline>(shapes).is_ok());
     }
 
     #[test]
     fn convert_to_vec_of_point_ok() {
         let shapes = vec!(Shape::Point(Point::default()), Shape::Point(Point::default()));
-        assert!(to_vec_of_point(shapes).is_ok());
+        assert!(convert_shapes_to_vec_of::<Point>(shapes).is_ok());
     }
 }

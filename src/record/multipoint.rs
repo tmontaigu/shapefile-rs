@@ -49,9 +49,6 @@ impl HasShapeType for Multipoint {
 }
 
 impl ReadableShape for Multipoint {
-    type ActualShape = Self;
-
-
     fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -107,9 +104,7 @@ impl HasShapeType for MultipointM {
 
 
 impl ReadableShape for MultipointM {
-    type ActualShape = Self;
-
-    fn read_from<T: Read>(mut source: &mut T) -> Result<<Self as ReadableShape>::ActualShape, Error> {
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
 
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -173,9 +168,7 @@ impl HasShapeType for MultipointZ {
 }
 
 impl ReadableShape for MultipointZ {
-    type ActualShape = Self;
-
-    fn read_from<T: Read>(mut source: &mut T) -> Result<<Self as ReadableShape>::ActualShape, Error> {
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
         let mut points = read_xys_into_pointz_vec(&mut source, num_points)?;

@@ -72,7 +72,7 @@ impl MultipointShape<PointZ> for Multipatch {
 }
 
 impl MultipartShape<PointZ> for Multipatch {
-    fn parts(&self) -> &[i32] {
+    fn parts_indices(&self) -> &[i32] {
         &self.parts
     }
 }
@@ -84,8 +84,6 @@ impl HasShapeType for Multipatch {
 }
 
 impl ReadableShape for Multipatch {
-    type ActualShape = Self;
-
     fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;

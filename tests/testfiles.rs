@@ -28,7 +28,7 @@ pub fn check_line_first_shape(shape: &shapefile::Shape) {
         assert_eq!(shp.bbox.ymin, 1.0);
         assert_eq!(shp.bbox.xmax, 5.0);
         assert_eq!(shp.bbox.ymax, 6.0);
-        assert_eq!(shp.parts(), vec![0, 5].as_slice());
+        assert_eq!(shp.parts_indices(), vec![0, 5].as_slice());
         let expected_point = vec![
             Point{ x: 1.0, y: 5.0 },
             Point{ x: 5.0, y: 5.0 },

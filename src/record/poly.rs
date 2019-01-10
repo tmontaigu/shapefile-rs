@@ -52,8 +52,9 @@ impl<PointType> MultipointShape<PointType> for GenericPolyline<PointType> {
     }
 }
 
+
 impl<PointType> MultipartShape<PointType> for GenericPolyline<PointType> {
-    fn parts(&self) -> &[i32] {
+    fn parts_indices(&self) -> &[i32] {
         &self.parts
     }
 }
@@ -74,9 +75,7 @@ impl HasShapeType for Polyline {
 }
 
 impl ReadableShape for Polyline {
-    type ActualShape = Self;
-
-    fn read_from<T: Read>(mut source: &mut T) -> Result<<Self as ReadableShape>::ActualShape, Error> {
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -138,9 +137,7 @@ impl HasShapeType for PolylineM {
 }
 
 impl ReadableShape for PolylineM {
-    type ActualShape = Self;
-
-    fn read_from<T: Read>(mut source: &mut T) -> Result<<Self as ReadableShape>::ActualShape, Error> {
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -215,9 +212,7 @@ impl HasShapeType for PolylineZ {
 }
 
 impl ReadableShape for PolylineZ {
-    type ActualShape = Self;
-
-    fn read_from<T: Read>(mut source: &mut T) -> Result<<Self as ReadableShape>::ActualShape, Error> {
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -308,7 +303,7 @@ impl<PointType> MultipointShape<PointType> for GenericPolygon<PointType> {
 }
 
 impl<PointType> MultipartShape<PointType> for GenericPolygon<PointType> {
-    fn parts(&self) -> &[i32] {
+    fn parts_indices(&self) -> &[i32] {
         &self.parts
     }
 }
@@ -329,9 +324,7 @@ impl HasShapeType for Polygon {
 }
 
 impl ReadableShape for Polygon {
-    type ActualShape = Self;
-
-    fn read_from<T: Read>(mut source: &mut T) -> Result<<Self as ReadableShape>::ActualShape, Error> {
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let poly = Polyline::read_from(&mut source)?;
         Ok(poly.into())
     }
@@ -381,9 +374,7 @@ impl HasShapeType for PolygonM {
 
 
 impl ReadableShape for PolygonM {
-    type ActualShape = Self;
-
-    fn read_from<T: Read>(mut source: &mut T) -> Result<<Self as ReadableShape>::ActualShape, Error> {
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let poly = PolylineM::read_from(&mut source)?;
         Ok(Self::from(poly))
     }
@@ -436,9 +427,7 @@ impl HasShapeType for PolygonZ {
 
 
 impl ReadableShape for PolygonZ {
-    type ActualShape = Self;
-
-    fn read_from<T: Read>(mut source: &mut T) -> Result<<Self as ReadableShape>::ActualShape, Error> {
+    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let poly = PolylineZ::read_from(&mut source)?;
         Ok(poly.into())
     }

@@ -29,8 +29,6 @@ impl HasShapeType for Point {
 }
 
 impl ReadableShape for Point {
-    type ActualShape = Self;
-
     fn read_from<T: Read>(source: &mut T) -> Result<Self::ActualShape, Error> {
         let x = source.read_f64::<LittleEndian>()?;
         let y = source.read_f64::<LittleEndian>()?;
@@ -92,8 +90,6 @@ impl HasShapeType for PointM {
 }
 
 impl ReadableShape for PointM {
-    type ActualShape = Self;
-
     fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let point = Point::read_from(&mut source)?;
         let m = source.read_f64::<LittleEndian>()?;
@@ -176,8 +172,6 @@ impl HasShapeType for PointZ {
 }
 
 impl ReadableShape for PointZ {
-    type ActualShape = Self;
-
     fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let point = Point::read_from(&mut source)?;
         let z = source.read_f64::<LittleEndian>()?;

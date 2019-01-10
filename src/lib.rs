@@ -147,6 +147,18 @@ impl ShapeType {
             _ => false
         }
     }
+
+    pub fn is_multipart(&self) -> bool {
+        match  self {
+            ShapeType::Point |
+            ShapeType::PointM |
+            ShapeType::PointZ |
+            ShapeType::Multipoint |
+            ShapeType::MultipointM |
+            ShapeType::MultipointZ => false,
+            _ => true
+        }
+    }
 }
 
 impl fmt::Display for ShapeType {
