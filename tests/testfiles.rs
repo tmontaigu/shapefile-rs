@@ -21,7 +21,6 @@ pub const MULTIPOINTZ_PATH: &str = "./tests/data/multipointz.shp";
 
 pub const MULTIPATCH_PATH: &str = "./tests/data/multipatch.shp";
 
-
 pub fn check_line_first_shape(shape: &shapefile::Shape) {
     if let shapefile::Shape::Polyline(shp) = shape {
         assert_eq!(shp.bbox.xmin, 1.0);
@@ -30,13 +29,13 @@ pub fn check_line_first_shape(shape: &shapefile::Shape) {
         assert_eq!(shp.bbox.ymax, 6.0);
         assert_eq!(shp.parts_indices(), vec![0, 5].as_slice());
         let expected_point = vec![
-            Point{ x: 1.0, y: 5.0 },
-            Point{ x: 5.0, y: 5.0 },
-            Point{ x: 5.0, y: 1.0 },
-            Point{ x: 3.0, y: 3.0 },
-            Point{ x: 1.0, y: 1.0 },
-            Point{ x: 3.0, y: 2.0 },
-            Point{ x: 2.0, y: 6.0 },
+            Point { x: 1.0, y: 5.0 },
+            Point { x: 5.0, y: 5.0 },
+            Point { x: 5.0, y: 1.0 },
+            Point { x: 3.0, y: 3.0 },
+            Point { x: 1.0, y: 1.0 },
+            Point { x: 3.0, y: 2.0 },
+            Point { x: 2.0, y: 6.0 },
         ];
         assert_eq!(shp.points(), expected_point.as_slice());
     } else {

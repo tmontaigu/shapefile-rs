@@ -1,16 +1,16 @@
 use std::io::{Read, Write};
 
-use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use record::{BBox, EsriShape, ReadableShape, MultipartShape, MultipointShape, HasShapeType, WritableShape};
-use record::{Point, PointM, PointZ};
-use {ShapeType, Error};
 use record::io::*;
+use record::{BBox, EsriShape, HasShapeType, MultipartShape, MultipointShape, WritableShape};
+use record::{Point, PointM, PointZ};
+use {Error, ShapeType};
 
-use std::mem::size_of;
-use std::fmt;
 use record::is_parts_array_valid;
-
+use record::ConcreteReadableShape;
+use std::fmt;
+use std::mem::size_of;
 
 pub struct GenericPolyline<PointType> {
     pub bbox: BBox,
@@ -21,7 +21,11 @@ pub struct GenericPolyline<PointType> {
 impl<PointType: HasXY> GenericPolyline<PointType> {
     pub fn new(points: Vec<PointType>, parts: Vec<i32>) -> Self {
         let bbox = BBox::from_points(&points);
-        Self{bbox, points, parts}
+        Self {
+            bbox,
+            points,
+            parts,
+        }
     }
 }
 
@@ -45,13 +49,11 @@ impl<PointType> From<GenericPolyline<PointType>> for GenericPolygon<PointType> {
     }
 }
 
-
 impl<PointType> MultipointShape<PointType> for GenericPolyline<PointType> {
     fn points(&self) -> &[PointType] {
         &self.points
     }
 }
-
 
 impl<PointType> MultipartShape<PointType> for GenericPolyline<PointType> {
     fn parts_indices(&self) -> &[i32] {
@@ -59,12 +61,16 @@ impl<PointType> MultipartShape<PointType> for GenericPolyline<PointType> {
     }
 }
 
-
 pub type Polyline = GenericPolyline<Point>;
 
 impl fmt::Display for Polyline {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Polyline({} points, {} parts)", self.points.len(), self.parts.len())
+        write!(
+            f,
+            "Polyline({} points, {} parts)",
+            self.points.len(),
+            self.parts.len()
+        )
     }
 }
 
@@ -74,8 +80,8 @@ impl HasShapeType for Polyline {
     }
 }
 
-impl ReadableShape for Polyline {
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+impl ConcreteReadableShape for Polyline {
+    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -83,7 +89,11 @@ impl ReadableShape for Polyline {
         let parts = read_parts(&mut source, num_parts)?;
         let points = read_xys_into_point_vec(&mut source, num_points)?;
 
-        Ok(Self { bbox, parts, points })
+        Ok(Self {
+            bbox,
+            parts,
+            points,
+        })
     }
 }
 
@@ -100,7 +110,7 @@ impl WritableShape for Polyline {
 
     fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
         if !is_parts_array_valid(&self) {
-            return Err(Error::MalformedShape)
+            return Err(Error::MalformedShape);
         }
         self.bbox.write_to(&mut dest)?;
         dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
@@ -117,7 +127,6 @@ impl EsriShape for Polyline {
     }
 }
 
-
 /*
  * PolylineM
  */
@@ -126,7 +135,12 @@ pub type PolylineM = GenericPolyline<PointM>;
 
 impl fmt::Display for PolylineM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "PolylineM({} points, {} parts)", self.points.len(), self.parts.len())
+        write!(
+            f,
+            "PolylineM({} points, {} parts)",
+            self.points.len(),
+            self.parts.len()
+        )
     }
 }
 
@@ -136,8 +150,8 @@ impl HasShapeType for PolylineM {
     }
 }
 
-impl ReadableShape for PolylineM {
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+impl ConcreteReadableShape for PolylineM {
+    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -149,7 +163,11 @@ impl ReadableShape for PolylineM {
         let _m_range = read_range(&mut source)?;
         read_ms_into(&mut source, &mut points)?;
 
-        Ok(Self { bbox, parts, points })
+        Ok(Self {
+            bbox,
+            parts,
+            points,
+        })
     }
 }
 
@@ -167,7 +185,7 @@ impl WritableShape for PolylineM {
 
     fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
         if !is_parts_array_valid(&self) {
-            return Err(Error::MalformedShape)
+            return Err(Error::MalformedShape);
         }
         self.bbox.write_to(&mut dest)?;
         dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
@@ -191,17 +209,20 @@ impl EsriShape for PolylineM {
     }
 }
 
-
 /*
  * PolylineZ
  */
-
 
 pub type PolylineZ = GenericPolyline<PointZ>;
 
 impl fmt::Display for PolylineZ {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "PolylineZ({} points, {} parts)", self.points.len(), self.parts.len())
+        write!(
+            f,
+            "PolylineZ({} points, {} parts)",
+            self.points.len(),
+            self.parts.len()
+        )
     }
 }
 
@@ -211,8 +232,8 @@ impl HasShapeType for PolylineZ {
     }
 }
 
-impl ReadableShape for PolylineZ {
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+impl ConcreteReadableShape for PolylineZ {
+    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -227,7 +248,11 @@ impl ReadableShape for PolylineZ {
         let _m_range = read_range(&mut source)?;
         read_ms_into(&mut source, &mut points)?;
 
-        Ok(Self { bbox, parts, points })
+        Ok(Self {
+            bbox,
+            parts,
+            points,
+        })
     }
 }
 
@@ -246,7 +271,7 @@ impl WritableShape for PolylineZ {
 
     fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
         if !is_parts_array_valid(&self) {
-            return Err(Error::MalformedShape)
+            return Err(Error::MalformedShape);
         }
         self.bbox.write_to(&mut dest)?;
         dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
@@ -264,7 +289,6 @@ impl WritableShape for PolylineZ {
     }
 }
 
-
 impl EsriShape for PolylineZ {
     fn bbox(&self) -> BBox {
         self.bbox
@@ -278,7 +302,6 @@ impl EsriShape for PolylineZ {
         calc_m_range(&self.points)
     }
 }
-
 
 /*
  * Polygon
@@ -308,12 +331,16 @@ impl<PointType> MultipartShape<PointType> for GenericPolygon<PointType> {
     }
 }
 
-
 pub type Polygon = GenericPolygon<Point>;
 
 impl fmt::Display for Polygon {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Polygon({} points, {} parts)", self.points.len(), self.parts.len())
+        write!(
+            f,
+            "Polygon({} points, {} parts)",
+            self.points.len(),
+            self.parts.len()
+        )
     }
 }
 
@@ -323,9 +350,9 @@ impl HasShapeType for Polygon {
     }
 }
 
-impl ReadableShape for Polygon {
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
-        let poly = Polyline::read_from(&mut source)?;
+impl ConcreteReadableShape for Polygon {
+    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+        let poly = Polyline::read_shape_content(&mut source)?;
         Ok(poly.into())
     }
 }
@@ -347,7 +374,6 @@ impl WritableShape for Polygon {
     }
 }
 
-
 impl EsriShape for Polygon {
     fn bbox(&self) -> BBox {
         self.bbox
@@ -362,7 +388,12 @@ pub type PolygonM = GenericPolygon<PointM>;
 
 impl fmt::Display for PolygonM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "PolygonM({} points, {} parts)", self.points.len(), self.parts.len())
+        write!(
+            f,
+            "PolygonM({} points, {} parts)",
+            self.points.len(),
+            self.parts.len()
+        )
     }
 }
 
@@ -372,10 +403,9 @@ impl HasShapeType for PolygonM {
     }
 }
 
-
-impl ReadableShape for PolygonM {
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
-        let poly = PolylineM::read_from(&mut source)?;
+impl ConcreteReadableShape for PolygonM {
+    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+        let poly = PolylineM::read_shape_content(&mut source)?;
         Ok(Self::from(poly))
     }
 }
@@ -415,7 +445,12 @@ pub type PolygonZ = GenericPolygon<PointZ>;
 
 impl fmt::Display for PolygonZ {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "PolygonZ({} points, {} parts)", self.points.len(), self.parts.len())
+        write!(
+            f,
+            "PolygonZ({} points, {} parts)",
+            self.points.len(),
+            self.parts.len()
+        )
     }
 }
 
@@ -425,10 +460,9 @@ impl HasShapeType for PolygonZ {
     }
 }
 
-
-impl ReadableShape for PolygonZ {
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
-        let poly = PolylineZ::read_from(&mut source)?;
+impl ConcreteReadableShape for PolygonZ {
+    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+        let poly = PolylineZ::read_shape_content(&mut source)?;
         Ok(poly.into())
     }
 }
@@ -460,12 +494,10 @@ impl EsriShape for PolygonZ {
         calc_z_range(&self.points)
     }
 
-
     fn m_range(&self) -> [f64; 2] {
         calc_m_range(&self.points)
     }
 }
-
 
 /*
 #[cfg(test)]

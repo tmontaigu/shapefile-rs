@@ -1,13 +1,13 @@
-use std::io::{Write, BufWriter};
+use std::io::{BufWriter, Write};
 
-use Error;
-use record::{EsriShape, RecordHeader};
 use header;
+use record::{EsriShape, RecordHeader};
 use std::fs::File;
 use std::path::Path;
+use Error;
 
-use reader::ShapeIndex;
 use byteorder::{BigEndian, WriteBytesExt};
+use reader::ShapeIndex;
 
 fn f64_min(a: f64, b: f64) -> f64 {
     if a < b {
@@ -25,9 +25,12 @@ fn f64_max(a: f64, b: f64) -> f64 {
     }
 }
 
-
-fn write_index_file<T: Write>(mut dest: &mut T, shapefile_header: &header::Header, shapes_index: Vec<ShapeIndex>) -> Result<(), std::io::Error> {
-    let mut header = shapefile_header.clone();
+fn write_index_file<T: Write>(
+    mut dest: &mut T,
+    shapefile_header: &header::Header,
+    shapes_index: Vec<ShapeIndex>,
+) -> Result<(), std::io::Error> {
+    let mut header = *shapefile_header;
     let content_len = shapes_index.len() * 2 * std::mem::size_of::<i32>();
     header.file_length = header::HEADER_SIZE + content_len as i32;
     header.file_length /= 2;
@@ -48,11 +51,10 @@ pub struct Writer<T: Write> {
 impl<T: Write> Writer<T> {
     /// Creates a writer that can be sued to write a new shapefile.
     pub fn new(dest: T) -> Self {
-        Self { dest, index_dest: None }
-    }
-
-    pub fn add_index_dest(&mut self, dest: T) {
-        self.index_dest = Some(dest);
+        Self {
+            dest,
+            index_dest: None,
+        }
     }
 
     //TODO This method should move (take mut self) as calling it twice would produce a shitty file
@@ -112,7 +114,6 @@ impl<T: Write> Writer<T> {
         header.write_to(&mut self.dest)?;
         let mut shapes_index = Vec::<ShapeIndex>::with_capacity(shapes.len());
         for (i, shape) in shapes.into_iter().enumerate() {
-
             //TODO Check record size < i32_max ?
             let record_size = (shape.size_in_bytes() + std::mem::size_of::<i32>()) / 2;
             let rc_hdr = RecordHeader {
@@ -120,7 +121,10 @@ impl<T: Write> Writer<T> {
                 record_size: record_size as i32,
             };
 
-            shapes_index.push(ShapeIndex { offset: pos, record_size: record_size as i32 });
+            shapes_index.push(ShapeIndex {
+                offset: pos,
+                record_size: record_size as i32,
+            });
 
             rc_hdr.write_to(&mut self.dest)?;
             shapetype.write_to(&mut self.dest)?;
@@ -134,6 +138,12 @@ impl<T: Write> Writer<T> {
 
         Ok(())
     }
+
+    /// Adds dest as the destination where the index file will be written
+    pub fn add_index_dest(&mut self, dest: T) {
+        self.index_dest = Some(dest);
+    }
+
 }
 
 impl Writer<BufWriter<File>> {

@@ -1,7 +1,7 @@
-use super::{ShapeType, Error};
+use super::{Error, ShapeType};
 
-use std::io::{Read, Write};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::io::{Read, Write};
 
 pub(crate) const HEADER_SIZE: i32 = 100;
 const FILE_CODE: i32 = 9994;
@@ -100,13 +100,12 @@ impl Header {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     use byteorder::WriteBytesExt;
-    use std::io::{SeekFrom, Seek};
+    use std::io::{Seek, SeekFrom};
 
     #[test]
     fn wrong_file_code() {

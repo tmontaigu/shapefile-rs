@@ -4,17 +4,17 @@ use std::mem::size_of;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use {Error, ShapeType};
-use record::{BBox, EsriShape, ReadableShape};
-use record::{Point, PointM, PointZ};
-use record::{HasShapeType, MultipointShape, WritableShape};
 use record::io::*;
+use record::ConcreteReadableShape;
+use record::{BBox, EsriShape};
+use record::{HasShapeType, MultipointShape, WritableShape};
+use record::{Point, PointM, PointZ};
+use {Error, ShapeType};
 
 pub struct GenericMultipoint<PointType> {
     pub bbox: BBox,
     points: Vec<PointType>,
 }
-
 
 impl<PointType> MultipointShape<PointType> for GenericMultipoint<PointType> {
     fn points(&self) -> &[PointType] {
@@ -25,10 +25,9 @@ impl<PointType> MultipointShape<PointType> for GenericMultipoint<PointType> {
 impl<PointType: HasXY> GenericMultipoint<PointType> {
     pub fn new(points: Vec<PointType>) -> Self {
         let bbox = BBox::from_points(&points);
-        Self{bbox, points}
+        Self { bbox, points }
     }
 }
-
 
 /*
  * Multipoint
@@ -48,15 +47,14 @@ impl HasShapeType for Multipoint {
     }
 }
 
-impl ReadableShape for Multipoint {
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+impl ConcreteReadableShape for Multipoint {
+    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
         let points = read_xys_into_point_vec(&mut source, num_points)?;
         Ok(Self { bbox, points })
     }
 }
-
 
 impl WritableShape for Multipoint {
     fn size_in_bytes(&self) -> usize {
@@ -102,9 +100,8 @@ impl HasShapeType for MultipointM {
     }
 }
 
-
-impl ReadableShape for MultipointM {
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+impl ConcreteReadableShape for MultipointM {
+    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
 
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -167,8 +164,8 @@ impl HasShapeType for MultipointZ {
     }
 }
 
-impl ReadableShape for MultipointZ {
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+impl ConcreteReadableShape for MultipointZ {
+    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
         let mut points = read_xys_into_pointz_vec(&mut source, num_points)?;
@@ -223,4 +220,3 @@ impl EsriShape for MultipointZ {
         calc_m_range(&self.points)
     }
 }
-

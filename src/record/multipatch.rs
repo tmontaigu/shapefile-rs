@@ -1,15 +1,16 @@
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Write};
-use byteorder::{ReadBytesExt, WriteBytesExt, LittleEndian};
 
 use std::mem::size_of;
 
 use record::io::*;
 use record::BBox;
-use record::{EsriShape, ReadableShape, MultipointShape, MultipartShape, WritableShape, HasShapeType, PointZ};
-use {ShapeType, Error};
+use record::{EsriShape, HasShapeType, MultipartShape, MultipointShape, PointZ, WritableShape};
+use {Error, ShapeType};
 
-use std::fmt;
 use record::is_parts_array_valid;
+use record::ConcreteReadableShape;
+use std::fmt;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PatchType {
@@ -24,7 +25,7 @@ pub enum PatchType {
 impl PatchType {
     pub fn read_from<T: Read>(source: &mut T) -> Result<PatchType, Error> {
         let code = source.read_i32::<LittleEndian>()?;
-        Self::from(code).ok_or(Error::InvalidPatchType(code))
+        Self::from(code).ok_or_else(|| Error::InvalidPatchType(code))
     }
 
     pub fn from(code: i32) -> Option<PatchType> {
@@ -35,11 +36,10 @@ impl PatchType {
             3 => Some(PatchType::InnerRing),
             4 => Some(PatchType::FirstRing),
             5 => Some(PatchType::Ring),
-            _ => None
+            _ => None,
         }
     }
 }
-
 
 pub struct Multipatch {
     pub bbox: BBox,
@@ -55,13 +55,25 @@ impl Multipatch {
         let bbox = BBox::from_points(&points);
         let m_range = calc_m_range(&points);
         let z_range = calc_z_range(&points);
-        Self{bbox, points, parts, parts_type, z_range, m_range}
+        Self {
+            bbox,
+            points,
+            parts,
+            parts_type,
+            z_range,
+            m_range,
+        }
     }
 }
 
 impl fmt::Display for Multipatch {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Multipatch({} points, {} parts)", self.points.len(), self.parts.len())
+        write!(
+            f,
+            "Multipatch({} points, {} parts)",
+            self.points.len(),
+            self.parts.len()
+        )
     }
 }
 
@@ -83,8 +95,8 @@ impl HasShapeType for Multipatch {
     }
 }
 
-impl ReadableShape for Multipatch {
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+impl ConcreteReadableShape for Multipatch {
+    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -107,7 +119,14 @@ impl ReadableShape for Multipatch {
         let m_range = read_range(&mut source)?;
         read_ms_into(&mut source, &mut points)?;
 
-        Ok(Self { bbox, parts, parts_type, points, z_range, m_range })
+        Ok(Self {
+            bbox,
+            parts,
+            parts_type,
+            points,
+            z_range,
+            m_range,
+        })
     }
 }
 
@@ -127,7 +146,7 @@ impl WritableShape for Multipatch {
 
     fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
         if !is_parts_array_valid(&self) {
-            return Err(Error::MalformedShape)
+            return Err(Error::MalformedShape);
         }
         self.bbox.write_to(&mut dest)?;
         dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;

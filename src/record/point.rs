@@ -1,13 +1,13 @@
 use std::io::{Read, Write};
 
-use byteorder::{ReadBytesExt, LittleEndian, WriteBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use record::EsriShape;
-use ShapeType;
 use std::mem::size_of;
-
+use ShapeType;
 
 use super::Error;
-use record::{is_no_data, ReadableShape, HasShapeType, WritableShape, BBox};
+use record::ConcreteReadableShape;
+use record::{is_no_data, BBox, HasShapeType, WritableShape};
 use std::fmt;
 
 #[derive(PartialEq, Debug, Default, Copy, Clone)]
@@ -18,7 +18,7 @@ pub struct Point {
 
 impl Point {
     pub fn new(x: f64, y: f64) -> Self {
-        Self {x, y}
+        Self { x, y }
     }
 }
 
@@ -28,8 +28,8 @@ impl HasShapeType for Point {
     }
 }
 
-impl ReadableShape for Point {
-    fn read_from<T: Read>(source: &mut T) -> Result<Self::ActualShape, Error> {
+impl ConcreteReadableShape for Point {
+    fn read_shape_content<T: Read>(source: &mut T) -> Result<Self::ActualShape, Error> {
         let x = source.read_f64::<LittleEndian>()?;
         let y = source.read_f64::<LittleEndian>()?;
         Ok(Self { x, y })
@@ -65,7 +65,6 @@ impl fmt::Display for Point {
     }
 }
 
-
 /*
  * PointM
  */
@@ -79,7 +78,7 @@ pub struct PointM {
 
 impl PointM {
     pub fn new(x: f64, y: f64, m: f64) -> Self {
-        Self {x, y, m}
+        Self { x, y, m }
     }
 }
 
@@ -89,9 +88,9 @@ impl HasShapeType for PointM {
     }
 }
 
-impl ReadableShape for PointM {
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
-        let point = Point::read_from(&mut source)?;
+impl ConcreteReadableShape for PointM {
+    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+        let point = Point::read_shape_content(&mut source)?;
         let m = source.read_f64::<LittleEndian>()?;
         Ok(Self {
             x: point.x,
@@ -141,10 +140,13 @@ impl EsriShape for PointM {
 
 impl fmt::Display for PointZ {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Point(x: {}, y: {}, z: {}, m: {})", self.x, self.y, self.z, self.m)
+        write!(
+            f,
+            "Point(x: {}, y: {}, z: {}, m: {})",
+            self.x, self.y, self.z, self.m
+        )
     }
 }
-
 
 /*
  * PointZ
@@ -160,10 +162,9 @@ pub struct PointZ {
 
 impl PointZ {
     pub fn new(x: f64, y: f64, z: f64, m: f64) -> Self {
-        Self {x, y, z, m}
+        Self { x, y, z, m }
     }
 }
-
 
 impl HasShapeType for PointZ {
     fn shapetype() -> ShapeType {
@@ -171,9 +172,9 @@ impl HasShapeType for PointZ {
     }
 }
 
-impl ReadableShape for PointZ {
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
-        let point = Point::read_from(&mut source)?;
+impl ConcreteReadableShape for PointZ {
+    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+        let point = Point::read_shape_content(&mut source)?;
         let z = source.read_f64::<LittleEndian>()?;
         let m = source.read_f64::<LittleEndian>()?;
         Ok(Self {
@@ -221,4 +222,3 @@ impl EsriShape for PointZ {
         }
     }
 }
-

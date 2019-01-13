@@ -1,6 +1,22 @@
 //! Read & Write [Shapefile](http://downloads.esri.com/support/whitepapers/mo_/shapefile.pdf) in Rust
 //!
+//! _.dbf_ files are not currently supported
 //!
+//! As different shapefiles can store different type of shapes
+//! (but one shapefile can only store the same type of shapes)
+//! This library provide two ways of reading the shapes:
+//!
+//! 1) Reading as [Shape](record/enum.Shape.html) and then do a `match` to handle the different shapes
+//! 2) Reading directly as concrete shapes (ie Polyline, PolylineZ, Point, etc) this of course only
+//! works if the file actually contains shapes that matches the requested type
+//!
+//! # Reading
+//! For more details see the [reader](reader/index.html) module
+//!
+//!
+//! # Writing
+//!
+//! To write a file use the [Writer](writer/struct.Writer.html)
 extern crate byteorder;
 
 pub mod header;
@@ -8,23 +24,22 @@ pub mod reader;
 pub mod record;
 pub mod writer;
 
-use std::io::{Read, Write};
 use std::convert::From;
 use std::fmt;
+use std::io::{Read, Write};
 use std::path::Path;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-pub use record::{NO_DATA, Shape, PatchType};
-pub use record::{HasShapeType, ReadableShape, MultipartShape, MultipointShape};
-pub use record::{Point, PointM, PointZ};
-pub use record::{Polyline, PolylineM, PolylineZ};
-pub use record::{Polygon, PolygonM, PolygonZ};
-pub use record::{Multipoint, MultipointM, MultipointZ};
+pub use reader::{FileReaderBuilder, Reader};
 pub use record::Multipatch;
-pub use reader::{Reader, FileReaderBuilder};
+pub use record::{HasShapeType, MultipartShape, MultipointShape, ReadableShape};
+pub use record::{Multipoint, MultipointM, MultipointZ};
+pub use record::{PatchType, Shape, NO_DATA};
+pub use record::{Point, PointM, PointZ};
+pub use record::{Polygon, PolygonM, PolygonZ};
+pub use record::{Polyline, PolylineM, PolylineZ};
 pub use writer::Writer;
-
 
 /// All Errors that can happen when using this library
 #[derive(Debug)]
@@ -86,11 +101,11 @@ pub enum ShapeType {
 impl ShapeType {
     pub(crate) fn read_from<T: Read>(source: &mut T) -> Result<ShapeType, Error> {
         let code = source.read_i32::<LittleEndian>()?;
-        Self::from(code).ok_or(Error::InvalidShapeType(code))
+        Self::from(code).ok_or_else(|| Error::InvalidShapeType(code))
     }
 
-    pub(crate) fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), std::io::Error> {
-        dest.write_i32::<LittleEndian>(*self as i32)?;
+    pub(crate) fn write_to<T: Write>(self, dest: &mut T) -> Result<(), std::io::Error> {
+        dest.write_i32::<LittleEndian>(self as i32)?;
         Ok(())
     }
 
@@ -104,11 +119,11 @@ impl ShapeType {
     /// ```
     pub fn from(code: i32) -> Option<ShapeType> {
         match code {
-            00 => Some(ShapeType::NullShape),
-            01 => Some(ShapeType::Point),
-            03 => Some(ShapeType::Polyline),
-            05 => Some(ShapeType::Polygon),
-            08 => Some(ShapeType::Multipoint),
+            0 => Some(ShapeType::NullShape),
+            1 => Some(ShapeType::Point),
+            3 => Some(ShapeType::Polyline),
+            5 => Some(ShapeType::Polygon),
+            8 => Some(ShapeType::Multipoint),
             11 => Some(ShapeType::PointZ),
             13 => Some(ShapeType::PolylineZ),
             15 => Some(ShapeType::PolygonZ),
@@ -118,45 +133,46 @@ impl ShapeType {
             25 => Some(ShapeType::PolygonM),
             28 => Some(ShapeType::MultipointM),
             31 => Some(ShapeType::Multipatch),
-            _ => None
+            _ => None,
         }
     }
 
     /// Returns whether the ShapeType has the third dimension Z
-    pub fn has_z(&self) -> bool {
+    pub fn has_z(self) -> bool {
         match self {
-            ShapeType::PointZ |
-            ShapeType::PolylineZ |
-            ShapeType::PolygonZ |
-            ShapeType::MultipointZ => true,
-            _ => false
+            ShapeType::PointZ
+            | ShapeType::PolylineZ
+            | ShapeType::PolygonZ
+            | ShapeType::MultipointZ => true,
+            _ => false,
         }
     }
 
     /// Returns whether the ShapeType has the optional measure dimension
-    pub fn has_m(&self) -> bool {
+    pub fn has_m(self) -> bool {
         match self {
-            ShapeType::PointZ |
-            ShapeType::PolylineZ |
-            ShapeType::PolygonZ |
-            ShapeType::MultipointZ |
-            ShapeType::PointM |
-            ShapeType::PolylineM |
-            ShapeType::PolygonM |
-            ShapeType::MultipointM => true,
-            _ => false
+            ShapeType::PointZ
+            | ShapeType::PolylineZ
+            | ShapeType::PolygonZ
+            | ShapeType::MultipointZ
+            | ShapeType::PointM
+            | ShapeType::PolylineM
+            | ShapeType::PolygonM
+            | ShapeType::MultipointM => true,
+            _ => false,
         }
     }
 
-    pub fn is_multipart(&self) -> bool {
-        match  self {
-            ShapeType::Point |
-            ShapeType::PointM |
-            ShapeType::PointZ |
-            ShapeType::Multipoint |
-            ShapeType::MultipointM |
-            ShapeType::MultipointZ => false,
-            _ => true
+    /// Returns true if the shape may have multiple parts
+    pub fn is_multipart(self) -> bool {
+        match self {
+            ShapeType::Point
+            | ShapeType::PointM
+            | ShapeType::PointZ
+            | ShapeType::Multipoint
+            | ShapeType::MultipointM
+            | ShapeType::MultipointZ => false,
+            _ => true,
         }
     }
 }
@@ -177,27 +193,9 @@ impl fmt::Display for ShapeType {
             ShapeType::PolylineM => write!(f, "PolylineM"),
             ShapeType::PolygonM => write!(f, "PolygonM"),
             ShapeType::MultipointM => write!(f, "MultipointM"),
-            ShapeType::Multipatch => write!(f, "Multipatch")
+            ShapeType::Multipatch => write!(f, "Multipatch"),
         }
     }
-}
-
-#[macro_export]
-macro_rules! have_same_len_as {
-    ($val:expr, $y:expr) => (
-        $val == $y.len()
-    );
-    ($val:expr, $x:expr, $($y:expr),+) => (
-        ($x.len() == $val) &&  have_same_len_as!($val, $($y),+)
-    );
-}
-
-
-#[macro_export]
-macro_rules! all_have_same_len {
-    ($x:expr, $($y:expr),+) => (
-        have_same_len_as!($x.len(), $($y),+)
-    )
 }
 
 /// Function to read all the Shapes in a file.
@@ -207,6 +205,13 @@ macro_rules! all_have_same_len {
 ///
 /// Useful if you don't know in advance (at compile time) which kind of
 /// shape the file contains
+///
+/// # Examples
+///
+/// ```
+/// let shapes = shapefile::read("tests/data/multipatch.shp").unwrap();
+/// assert_eq!(shapes.len(), 1);
+/// ```
 pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
     let reader = Reader::from_path(path)?;
     reader.read()
@@ -228,35 +233,7 @@ pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
 ///
 /// If the reading is successful Returned `Vec<S:ActualShape>>`is a vector of actual structs
 /// Useful if you know in at compile time which kind of shape you expect the file to have
-pub fn read_as<T: AsRef<Path>, S: ReadableShape>(path: T) -> Result<Vec<S::ActualShape>, Error> {
+pub fn read_as<T: AsRef<Path>, S: ReadableShape>(path: T) -> Result<Vec<S::ReadShape>, Error> {
     let reader = Reader::from_path(path)?;
     reader.read_as::<S>()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn shape_type_from_wrong_code() {
-        assert_eq!(ShapeType::from(128), None);
-    }
-
-    #[test]
-    fn they_do_not_have_same_len() {
-        let x = vec![0, 0, 0, 0];
-        let y = vec![0, 0, 0, 0];
-        let z = vec![0, 0, 0, 0, 0];
-
-        assert_eq!(all_have_same_len!(x, y, z), false);
-    }
-
-    #[test]
-    fn they_have_same_len() {
-        let x = vec![0, 0, 0, 0];
-        let y = vec![0, 0, 0, 0];
-        let z = vec![0, 0, 0, 0];
-
-        assert_eq!(all_have_same_len!(x, y, z), true);
-    }
 }

@@ -1,13 +1,43 @@
-use record;
+//! Reader module, contains the definitions of the types that a user should use to read a file
+//!
+//! This module proposes two type: a [Reader](struct.Reader.html) and a [FileReaderBuilder](struct.FileReaderBuilder.html)
+//!
+//! The Reader is the struct that actually reads the file from any source as long as it implements the
+//! `Read` Trait (std::fs::File, and std::io::Cursor for example).
+//!
+//! Note that by default the Reader does not read the index file and so the methods
+//! `read_nth_shape_as`and `read_nth_shape` will _not_ work.
+//! If you wish to use them you will have to give to the reader a source for the index file via `add_index_source`
+//!
+//! Or use the [FileReaderBuilder](struct.FileReaderBuilder.html) if you are reading from files (not buffers)
+//!
+//! # Examples
+//!
+//! When reading from a file:
+//!
+//! ```
+//! let reader = shapefile::Reader::from_path("tests/data/pointm.shp").unwrap();
+//! for shape in reader {
+//!     let shape = shape.unwrap();
+//!     println!("{}", shape);
+//! }
+//! ```
+//!
+//! ```
+//! let mut reader = shapefile::FileReaderBuilder::new("tests/data/line.shp").with_index().build().unwrap();
+//! ```
+//!
+
 use header;
-use {Error, ShapeType, Shape};
+use record;
+use {Error, Shape};
 
-
-use std::fs::File;
-use std::io::{BufReader, Read, SeekFrom, Seek};
 use byteorder::{BigEndian, ReadBytesExt};
 use record::ReadableShape;
-use std::path::{PathBuf, Path};
+use std::fs::File;
+use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::iter::FusedIterator;
+use std::path::{Path, PathBuf};
 
 const INDEX_RECORD_SIZE: usize = 2 * std::mem::size_of::<i32>();
 
@@ -24,20 +54,59 @@ fn read_index_file<T: Read>(mut source: T) -> Result<Vec<ShapeIndex>, Error> {
     for _ in 0..num_shapes {
         let offset = source.read_i32::<BigEndian>()?;
         let record_size = source.read_i32::<BigEndian>()?;
-        shapes_index.push(ShapeIndex { offset, record_size });
+        shapes_index.push(ShapeIndex {
+            offset,
+            record_size,
+        });
     }
     Ok(shapes_index)
 }
+
+/// Reads and returns one shape and its header from the source
+fn read_one_shape_as<T: Read, S: ReadableShape>(
+    mut source: &mut T,
+) -> Result<(record::RecordHeader, S::ReadShape), Error> {
+    let hdr = record::RecordHeader::read_from(&mut source)?;
+    let shape = S::read_from(&mut source)?;
+    Ok((hdr, shape))
+}
+
+
+/// Struct that handle iteration over the shapes of a .shp file
+pub struct ShapeIterator<T: Read, S: ReadableShape> {
+    _shape: std::marker::PhantomData<S>,
+    source: T,
+    current_pos: usize,
+    file_length: usize,
+}
+
+impl<T: Read, S: ReadableShape> Iterator for ShapeIterator<T, S> {
+    type Item = Result<S::ReadShape, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_pos >= self.file_length {
+            None
+        } else {
+            let (hdr, shape) = match read_one_shape_as::<T, S>(&mut self.source) {
+                Err(e) => return Some(Err(e)),
+                Ok(hdr_and_shape) => hdr_and_shape,
+            };
+            self.current_pos += record::RecordHeader::SIZE;
+            self.current_pos += hdr.record_size as usize * 2;
+            Some(Ok(shape))
+        }
+    }
+}
+
+impl<T: Read, S: ReadableShape> FusedIterator for ShapeIterator<T, S> {}
 
 
 /// struct that reads the content of a shapefile
 pub struct Reader<T: Read> {
     source: T,
     header: header::Header,
-    pos: usize,
     shapes_index: Vec<ShapeIndex>,
 }
-
 
 impl<T: Read> Reader<T> {
     /// Creates a new Reader from a source that implements the `Read` trait
@@ -54,21 +123,52 @@ impl<T: Read> Reader<T> {
     pub fn new(mut source: T) -> Result<Reader<T>, Error> {
         let header = header::Header::read_from(&mut source)?;
 
-        Ok(Reader { source, header, pos: header::HEADER_SIZE as usize, shapes_index: Vec::<ShapeIndex>::new() })
+        Ok(Reader {
+            source,
+            header,
+            shapes_index: Vec::<ShapeIndex>::new(),
+        })
     }
 
     /// Returns a non-mutable reference to the header read
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let reader = shapefile::Reader::from_path("tests/data/pointz.shp").unwrap();
+    /// let header = reader.header();
+    /// assert_eq!(header.shape_type, shapefile::ShapeType::PointZ);
+    /// ```
     pub fn header(&self) -> &header::Header {
         &self.header
     }
 
-    /// Reads the index file from the source
-    /// This allows to later read shapes by given their index without reading the whole file
+
+
+    /// Reads all the shape as shape of a certain type.
     ///
-    /// (see `Reader::read_nth_shape()`)
-    pub fn add_index_source(&mut self, source: T) -> Result<(), Error> {
-        self.shapes_index = read_index_file(source)?;
-        Ok(())
+    /// To be used if you know in advance which shape type the file contains.
+    ///
+    /// # Errors
+    /// The function has an additional error that is returned if  the shape type you asked to be
+    /// read does not match the actual shape type in the file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shapefile::Reader;
+    /// let mut reader = Reader::from_path("tests/data/linem.shp").unwrap();
+    /// let polylines_m = reader.read_as::<shapefile::PolylineM>().unwrap(); // we ask for the correct type
+    /// ```
+    ///
+    /// ```
+    /// use shapefile::Reader;
+    /// let mut reader = Reader::from_path("tests/data/linem.shp").unwrap();
+    /// let polylines = reader.read_as::<shapefile::Polyline>(); // we ask for the wrong type
+    /// assert_eq!(polylines.is_err(), true);
+    /// ```
+    pub fn read_as<S: ReadableShape>(self) -> Result<Vec<S::ReadShape>, Error> {
+        self.iter_shapes_as::<S>().collect()
     }
 
     /// Reads all the shapes and returns them
@@ -87,76 +187,80 @@ impl<T: Read> Reader<T> {
     /// ```
     ///
     pub fn read(self) -> Result<Vec<Shape>, Error> {
-        let mut shapes = Vec::<record::Shape>::new();
-        for shape in self {
-            shapes.push(shape?);
-        }
-        Ok(shapes)
+        self.into_iter().collect()
     }
 
 
-    /// Reads all the shape as shape of a certain type
-    /// To be used if you know in advance which shape type the file contains
-    ///
-    /// # Errors
-    ///
-    /// The function will fail if the shape type you asked to be read does not match the
-    /// actual shape type in the file.
+    /// Returns an iterator that tries to read the shapes as the specified type
+    /// Will return an error of the type `S` does not match the actual type in the file
     ///
     /// # Examples
     ///
     /// ```
-    /// use shapefile::Reader;
-    /// let mut reader = Reader::from_path("tests/data/linem.shp").unwrap();
-    /// let polylines_m = reader.read_as::<shapefile::PolylineM>().unwrap(); // we ask for the correct type
+    /// let reader = shapefile::Reader::from_path("tests/data/multipoint.shp").unwrap();
+    /// for multipoints in reader.iter_shapes_as::<shapefile::Multipoint>() {
+    ///     let points = multipoints.unwrap();
+    ///     println!("{}", points);
+    /// }
+    /// ```
+    pub fn iter_shapes_as<S: ReadableShape>(self) -> ShapeIterator<T, S> {
+        ShapeIterator {
+            _shape: std::marker::PhantomData,
+            source: self.source,
+            current_pos: header::HEADER_SIZE as usize,
+            file_length: (self.header.file_length * 2) as usize,
+        }
+    }
+
+    /// Returns an iterator that to reads the shapes wraps them in the enum [Shape](enum.Shape.html)
+    /// You do not need to call this method and can iterate over the `Reader` directly
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let reader = shapefile::Reader::from_path("tests/data/multipoint.shp").unwrap();
+    /// for shape in reader.iter_shapes() {
+    ///     match shape.unwrap() {
+    ///         shapefile::Shape::Multipatch(shp) => println!("Multipoint!"),
+    ///         _ => println!("Other type of shape"),
+    ///     }
+    /// }
     /// ```
     ///
     /// ```
-    /// use shapefile::Reader;
-    /// let mut reader = Reader::from_path("tests/data/linem.shp").unwrap();
-    /// let polylines = reader.read_as::<shapefile::Polyline>(); // we ask for the wrong type
-    /// assert_eq!(polylines.is_err(), true);
+    /// let reader = shapefile::Reader::from_path("tests/data/multipoint.shp").unwrap();
+    /// for shape in reader {
+    ///     match shape.unwrap() {
+    ///         shapefile::Shape::Multipatch(shp) => println!("Multipoint!"),
+    ///         _ => println!("Other type of shape"),
+    ///     }
+    /// }
     /// ```
-    pub fn read_as<S: ReadableShape>(mut self) -> Result<Vec<S::ActualShape>, Error> {
-        let requested_shapetype = S::shapetype();
-        if self.header.shape_type != requested_shapetype {
-            let error = Error::MismatchShapeType {
-                requested: requested_shapetype,
-                actual: self.header.shape_type,
-            };
-            return Err(error);
+    pub fn iter_shapes(self) -> ShapeIterator<T, Shape> {
+        ShapeIterator {
+            _shape: std::marker::PhantomData,
+            source: self.source,
+            current_pos: header::HEADER_SIZE as usize,
+            file_length: (self.header.file_length * 2) as usize,
         }
-
-        let mut shapes = Vec::<S::ActualShape>::new();
-        while self.pos < (self.header.file_length * 2) as usize {
-            let (record_size, shapetype) = self.read_record_size_and_shapetype()?;
-
-            if shapetype != ShapeType::NullShape && shapetype != self.header.shape_type {
-                return Err(Error::MixedShapeType);
-            }
-
-            if shapetype != ShapeType::NullShape && shapetype != requested_shapetype {
-                let error = Error::MismatchShapeType {
-                    requested: requested_shapetype,
-                    actual: shapetype,
-                };
-                return Err(error);
-            }
-
-            self.pos += record_size as usize * 2;
-            shapes.push(S::read_from(&mut self.source)?);
-        }
-        Ok(shapes)
     }
 
+    /// Reads the index file from the source
+    /// This allows to later read shapes by giving their index without reading the whole file
+    ///
+    /// (see `Reader::read_nth_shape()`)
+    pub fn add_index_source(&mut self, source: T) -> Result<(), Error> {
+        self.shapes_index = read_index_file(source)?;
+        Ok(())
+    }
+}
 
-    fn read_record_size_and_shapetype(&mut self) -> Result<(i32, ShapeType), Error> {
-        let hdr = record::RecordHeader::read_from(&mut self.source)?;
-        self.pos += std::mem::size_of::<i32>() * 2;
+impl<T: Read> IntoIterator for Reader<T> {
+    type Item = Result<Shape, Error>;
+    type IntoIter = ShapeIterator<T, Shape>;
 
-        let shapetype = ShapeType::read_from(&mut self.source)?;
-
-        Ok((hdr.record_size, shapetype))
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_shapes()
     }
 }
 
@@ -177,8 +281,53 @@ impl Reader<BufReader<File>> {
     }
 }
 
-
 impl<T: Read + Seek> Reader<T> {
+    /// Reads the `n`th shape of the shapefile
+    ///
+    /// # Returns
+    ///
+    /// `None` if the index is out of range or if no index file was added prior to
+    /// calling this function
+    ///
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shapefile::FileReaderBuilder;
+    /// let mut reader = FileReaderBuilder::new("tests/data/line.shp").with_index().build().unwrap();
+    /// let shape = reader.read_nth_shape_as::<shapefile::Polyline>(117);
+    /// assert_eq!(shape.is_none(), true);
+    ///
+    /// let shape = reader.read_nth_shape_as::<shapefile::Polyline>(0);
+    /// assert_eq!(shape.is_some(), true)
+    /// ```
+    pub fn read_nth_shape_as<S: ReadableShape>(
+        &mut self,
+        index: usize,
+    ) -> Option<Result<S::ReadShape, Error>> {
+        let offset = {
+            let shape_idx = self.shapes_index.get(index)?;
+            (shape_idx.offset * 2) as u64
+        };
+
+        if let Err(e) = self.source.seek(SeekFrom::Start(offset)) {
+            return Some(Err(Error::IoError(e)));
+        }
+
+        let (_, shape) = match read_one_shape_as::<T, S>(&mut self.source) {
+            Err(e) => return Some(Err(e)),
+            Ok(hdr_and_shape) => hdr_and_shape,
+        };
+
+        if let Err(e) = self
+            .source
+            .seek(SeekFrom::Start(header::HEADER_SIZE as u64))
+        {
+            return Some(Err(Error::IoError(e)));
+        }
+        Some(Ok(shape))
+    }
+
     /// Reads the `n`th shape of the shapefile
     ///
     /// # Returns
@@ -206,41 +355,7 @@ impl<T: Read + Seek> Reader<T> {
     /// assert_eq!(shape.is_none(), true); // We didn't give the shx file
     /// ```
     pub fn read_nth_shape(&mut self, index: usize) -> Option<Result<Shape, Error>> {
-        let offset =
-            {
-                let shape_idx = self.shapes_index.get(index)?;
-                (shape_idx.offset * 2) as u64
-            };
-
-
-        if let Err(e) = self.source.seek(SeekFrom::Start(offset)) {
-            return Some(Err(Error::IoError(e)));
-        }
-
-        self.next()
-    }
-}
-
-
-impl<T: Read> Iterator for Reader<T> {
-    type Item = Result<Shape, Error>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.pos >= (self.header.file_length * 2) as usize {
-            return None;
-        }
-
-        let (record_size, shapetype) = match self.read_record_size_and_shapetype() {
-            Err(e) => return Some(Err(e)),
-            Ok(t) => t
-        };
-
-        if shapetype != ShapeType::NullShape && shapetype != self.header.shape_type {
-            println!("Mixing shape types, this is not allowed");
-        }
-
-        self.pos += record_size as usize * 2;
-        Some(Shape::read_from(&mut self.source, shapetype))
+        self.read_nth_shape_as::<Shape>(index)
     }
 }
 
@@ -256,23 +371,32 @@ struct ReaderBuilder {
     index_path: Option<PathBuf>,
 }*/
 
+
 pub struct FileReaderBuilder {
     shape_path: PathBuf,
     index_path: Option<PathBuf>,
 }
 
-
 impl FileReaderBuilder {
+    /// Creates a new FileReaderBuilder, with path being the path to the .shp file
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
         let shape_path = path.as_ref().to_path_buf();
-        Self { shape_path, index_path: None }
+        Self {
+            shape_path,
+            index_path: None,
+        }
     }
 
+    /// Tells the builder to also open the .shx corresponding to the .shp given when
+    /// creating the FileReaderBuilder
     pub fn with_index(mut self) -> Self {
         self.index_path = Some(self.shape_path.with_extension("shx"));
         self
     }
 
+    /// Creates the Reader
+    ///
+    /// Forwards error that may happen when opening the files
     pub fn build(self) -> Result<Reader<BufReader<File>>, Error> {
         let mut reader = Reader::from_path(self.shape_path)?;
         if let Some(p) = self.index_path {
@@ -289,9 +413,7 @@ mod tests {
 
     #[test]
     fn test_builder() {
-        let reader = FileReaderBuilder::new("mdr.shp")
-            .with_index()
-            .build();
+        let reader = FileReaderBuilder::new("mdr.shp").with_index().build();
         assert_eq!(reader.is_err(), true);
     }
 }

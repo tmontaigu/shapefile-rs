@@ -1,7 +1,7 @@
 extern crate shapefile;
-
-use std::io::Cursor;
 /*
+use std::io::Cursor;
+
 #[test]
 fn write_polyline() {
     let mut polys = Vec::<shapefile::record::Polyline>::with_capacity(1);
