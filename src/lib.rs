@@ -16,7 +16,7 @@
 //!
 //! # Writing
 //!
-//! To write a file use the [Writer](writer/struct.Writer.html)
+//! To write a file see the [writer](writer/index.html) module
 extern crate byteorder;
 
 pub mod header;
@@ -33,7 +33,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 pub use reader::{FileReaderBuilder, Reader, read, read_as};
 pub use record::Multipatch;
-pub use record::{HasShapeType, MultipartShape, MultipointShape, ReadableShape};
+pub use record::{HasShapeType, MultipartShape, MultipointShape, ReadableShape, convert_shapes_to_vec_of};
 pub use record::{Multipoint, MultipointM, MultipointZ};
 pub use record::{PatchType, Shape, NO_DATA};
 pub use record::{Point, PointM, PointZ};

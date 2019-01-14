@@ -1,3 +1,4 @@
+//! Module for the Multipatch shape
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Write};
 

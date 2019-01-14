@@ -1,3 +1,5 @@
+//! Module with the definition of Point, PointM and PointZ
+
 use std::io::{Read, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};

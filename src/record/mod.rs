@@ -347,7 +347,7 @@ impl BBox {
     }
 }
 
-pub struct RecordHeader {
+pub(crate) struct RecordHeader {
     pub record_number: i32,
     pub record_size: i32,
 }
@@ -371,6 +371,34 @@ impl RecordHeader {
     }
 }
 
+/// Function that can converts a `Vec<Shape>` to a vector of any real struct
+/// (ie [Polyline](poly/type.Polyline.html), [Multipatch]multipatch/struct.Multipatch.html), etc)
+/// if all the `Shapes` in the `Vec` are of the correct corresponding variant.
+///
+/// # Examples
+///
+/// ```
+/// use shapefile::{Polyline, Multipoint, Point, Shape};
+/// use shapefile::convert_shapes_to_vec_of;
+///
+/// // Build a Vec<Shape> with only polylines in it
+/// let points = vec![Point::default(), Point::default()];
+/// let parts = Vec::<i32>::new();
+/// let shapes = vec![
+///     Shape::from(Polyline::new(points.clone(), parts.clone())),
+///     Shape::from(Polyline::new(points, parts)),
+/// ];
+///
+/// // try a conversion to the wrong type
+/// assert_eq!(convert_shapes_to_vec_of::<Multipoint>(shapes).is_ok(), false);
+/// ```
+///
+/// ```
+/// use shapefile::{convert_shapes_to_vec_of, MultipointZ};
+/// let shapes = shapefile::read("tests/data/multipointz.shp").unwrap();
+/// let multipoints = convert_shapes_to_vec_of::<MultipointZ>(shapes);
+/// assert_eq!(multipoints.is_ok(), true);
+/// ```
 pub fn convert_shapes_to_vec_of<S: ConcreteShapeFromShape>(
     shapes: Vec<Shape>,
 ) -> Result<Vec<S::ActualShape>, Error> {

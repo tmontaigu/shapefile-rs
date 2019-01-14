@@ -1,3 +1,4 @@
+//! Module with the definition of Multipoint(M, Z)
 use std::fmt;
 use std::io::{Read, Write};
 use std::mem::size_of;

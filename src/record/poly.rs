@@ -1,3 +1,5 @@
+//! Module with the definition of Polyline(M,Z) and Polygon(M,Z)
+
 use std::io::{Read, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
