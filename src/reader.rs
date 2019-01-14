@@ -3,11 +3,11 @@
 //! This module proposes two type: a [Reader](struct.Reader.html) and a [FileReaderBuilder](struct.FileReaderBuilder.html)
 //!
 //! The Reader is the struct that actually reads the file from any source as long as it implements the
-//! `Read` Trait (std::fs::File, and std::io::Cursor for example).
+//! `Read` Trait (`std::fs::File`, and `std::io::Cursor` for example).
 //!
 //! Note that by default the Reader does not read the index file and so the methods
-//! `read_nth_shape_as`and `read_nth_shape` will _not_ work.
-//! If you wish to use them you will have to give to the reader a source for the index file via `add_index_source`
+//! [read_nth_shape_as](struct.Reader.html#method.read_nth_shape_as) and [read_nth_shape](struct.Reader.html#method.read_nth_shape) will _not_ work.
+//! If you wish to use them you will have to give to the reader a source for the index file via [add_index_source](struct.Reader.html#method.add_index_source)
 //!
 //! Or use the [FileReaderBuilder](struct.FileReaderBuilder.html) if you are reading from files (not buffers)
 //!
@@ -15,6 +15,7 @@
 //!
 //! When reading from a file:
 //!
+//! Creates a reader from a path, then iterate over its `Shapes`, reading one shape each iteration
 //! ```
 //! let reader = shapefile::Reader::from_path("tests/data/pointm.shp").unwrap();
 //! for shape in reader {
@@ -23,10 +24,25 @@
 //! }
 //! ```
 //!
+//! Creates a reader from a path, reads the whole file at once
+//! ```
+//! let reader = shapefile::Reader::from_path("tests/data/pointm.shp").unwrap();
+//! let shapes = reader.read().unwrap();
+//! ```
+//!
 //! ```
 //! let mut reader = shapefile::FileReaderBuilder::new("tests/data/line.shp").with_index().build().unwrap();
 //! ```
 //!
+//! If you know beforehand the exact type that the .shp file is made of,
+//! you can use the different `*_as::<S>()` functions.:
+//! - [read_as](struct.Reader.html#method.read_as) To read all the shapes as the specified type
+//! - [iter_shapes_as](struct.Reader.html#method.iter_shapes_as) To iterate over the shapes as shapes
+//! of the specified type
+//!
+//!
+//! Two functions ([read](fn.read.html) and [read_as](fn.read_as.html)) are provided to read
+//! files with one function call (thus not having to build a `Reader`)
 
 use header;
 use record;
@@ -406,6 +422,47 @@ impl FileReaderBuilder {
         Ok(reader)
     }
 }
+
+/// Function to read all the Shapes in a file.
+///
+/// Returns a `Vec<Shape>` which means that you will have to `match`
+/// the individual [Shape](enum.Shape.html) contained inside the `Vec` to get the actual `struct`
+///
+/// Useful if you don't know in advance (at compile time) which kind of
+/// shape the file contains
+///
+/// # Examples
+///
+/// ```
+/// let shapes = shapefile::read("tests/data/multipatch.shp").unwrap();
+/// assert_eq!(shapes.len(), 1);
+/// ```
+pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
+    let reader = Reader::from_path(path)?;
+    reader.read()
+}
+
+/// Function to read all the Shapes in a file as a certain type
+///
+/// Fails and return `Err(Error:MismatchShapeType)`
+///
+///  # Examples
+///
+/// ```
+/// let polylines = shapefile::read_as::<&str, shapefile::PolylineZ>("tests/data/polygon.shp");
+/// assert_eq!(polylines.is_err(), true);
+///
+/// let polygons = shapefile::read_as::<&str, shapefile::Polygon>("tests/data/polygon.shp");
+/// assert_eq!(polygons.is_ok(), true);
+/// ```
+///
+/// If the reading is successful, the returned `Vec<S:ReadShape>>`is a vector of actual structs
+/// Useful if you know in at compile time which kind of shape you expect the file to have
+pub fn read_as<T: AsRef<Path>, S: ReadableShape>(path: T) -> Result<Vec<S::ReadShape>, Error> {
+    let reader = Reader::from_path(path)?;
+    reader.read_as::<S>()
+}
+
 
 #[cfg(test)]
 mod tests {

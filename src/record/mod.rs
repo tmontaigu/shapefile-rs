@@ -52,25 +52,60 @@ pub trait MultipointShape<PointType> {
 pub trait MultipartShape<PointType>: MultipointShape<PointType> {
     /// Returns a non mutable slice of the parts as written in the file:
     ///
-    /// `An array of length NumParts. Stores, for each PolyLine, the index of its`
-    /// `first point in the points array. Array indexes are with respect to 0`
+    /// > An array of length NumParts. Stores, for each PolyLine, the index of its
+    /// > first point in the points array. Array indexes are with respect to 0
+    ///
+    ///  # Examples
+    ///
+    /// ```
+    /// use shapefile::record::MultipartShape;
+    /// let filepath = "tests/data/linez.shp";
+    /// let polylines_z = shapefile::read_as::<&str, shapefile::PolylineZ>(filepath).unwrap();
+    ///
+    /// let poly_z = &polylines_z[0];
+    /// assert_eq!(poly_z.parts_indices(), &[0, 5, 7]);
+    /// ```
     fn parts_indices(&self) -> &[i32];
 
     /// Returns the slice of points corresponding to part n°`ìndex` if the shape
     /// actually has multiple parts
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shapefile::record::MultipartShape;
+    /// let filepath = "tests/data/linez.shp";
+    /// let polylines_z = shapefile::read_as::<&str, shapefile::PolylineZ>(filepath).unwrap();
+    ///
+    /// let poly_z = &polylines_z[0];
+    /// for points in poly_z.parts() {
+    ///     println!("{} points", points.len());
+    /// }
+    /// ```
     fn part(&self, index: usize) -> Option<&[PointType]> {
         let parts = self.parts_indices();
         if parts.len() < 2 {
             Some(self.points())
         } else {
-            let end_part_index = usize::max(index + 1, parts.len() - 1);
             let first_index = *parts.get(index)? as usize;
-            let last_index = *parts.get(end_part_index)? as usize;
+            let last_index = if index == parts.len() - 1 { self.points().len() } else { *parts.get(index + 1)? as usize };
             self.points().get(first_index..last_index)
         }
     }
 
     /// Returns an iterator over the parts of a MultipartShape
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shapefile::record::MultipartShape;
+    /// let filepath = "tests/data/linez.shp";
+    /// let polylines_z = shapefile::read_as::<&str, shapefile::PolylineZ>(filepath).unwrap();
+    ///
+    /// let poly_z = &polylines_z[0];
+    /// let poly_z_parts: Vec<&[shapefile::PointZ]> = poly_z.parts().collect();
+    /// assert_eq!(poly_z_parts.len(), 3);
+    /// ```
     fn parts(&self) -> PartIterator<PointType, Self> {
         PartIterator {
             phantom: std::marker::PhantomData,
@@ -90,12 +125,12 @@ pub struct PartIterator<'a, PointType, Shape: 'a + MultipartShape<PointType> + ?
 }
 
 impl<'a, PointType: 'a, Shape: 'a + MultipartShape<PointType>> Iterator
-    for PartIterator<'a, PointType, Shape>
+for PartIterator<'a, PointType, Shape>
 {
     type Item = &'a [PointType];
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_part >= self.shape.parts_indices().len() {
+        if self.current_part > self.shape.parts_indices().len() {
             None
         } else {
             self.current_part += 1;
@@ -162,7 +197,7 @@ pub(crate) fn is_parts_array_valid<PointType, ST: MultipartShape<PointType>>(sha
         .all(|p| (*p >= 0) & (*p < num_points))
 }
 
-/// enum of Shapes that can be read of written to a shapefile
+/// enum of Shapes that can be read or written to a shapefile
 pub enum Shape {
     NullShape,
     Point(Point),
