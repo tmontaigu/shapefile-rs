@@ -12,6 +12,7 @@ use record::ConcreteReadableShape;
 use record::{is_no_data, BBox, HasShapeType, WritableShape};
 use std::fmt;
 
+/// Point with only `x` and `y` coordinates
 #[derive(PartialEq, Debug, Default, Copy, Clone)]
 pub struct Point {
     pub x: f64,
@@ -71,6 +72,8 @@ impl fmt::Display for Point {
  * PointM
  */
 
+
+/// Point with `x`, `y`, `m`
 #[derive(PartialEq, Debug, Default, Copy, Clone)]
 pub struct PointM {
     pub x: f64,
@@ -154,6 +157,7 @@ impl fmt::Display for PointZ {
  * PointZ
  */
 
+/// Point with `x`, `y`, `m`, `z`
 #[derive(PartialEq, Debug, Default, Copy, Clone)]
 pub struct PointZ {
     pub x: f64,

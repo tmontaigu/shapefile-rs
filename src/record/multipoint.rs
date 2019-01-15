@@ -1,4 +1,11 @@
 //! Module with the definition of Multipoint(M, Z)
+//!
+//! All three variant of Multipoint Shape (Multipoint, MultipointM, MultipointZ)
+//! are specialization of the `GenericMultipoint`
+//!
+//! The `GenericMultipoint` Shape implements the [MultipointShape](../trait.MultipointShape.html) trait
+//! which means that to access the points of a multipoint you will have to use the
+//! [points](../trait.MultipointShape.html#method.points) method
 use std::fmt;
 use std::io::{Read, Write};
 use std::mem::size_of;
@@ -12,11 +19,12 @@ use record::{HasShapeType, MultipointShape, WritableShape};
 use record::{Point, PointM, PointZ};
 use {Error, ShapeType};
 
+/// Generic struct to create the Multipoint, MultipointM, MultipointZ types
 pub struct GenericMultipoint<PointType> {
+    /// The 2D bounding box
     pub bbox: BBox,
     points: Vec<PointType>,
 }
-
 impl<PointType> MultipointShape<PointType> for GenericMultipoint<PointType> {
     fn points(&self) -> &[PointType] {
         &self.points
@@ -34,6 +42,8 @@ impl<PointType: HasXY> GenericMultipoint<PointType> {
  * Multipoint
  */
 
+/// Specialization of the `GenericMultipoint` struct to represent a `Multipoint` shape
+/// ( collection of [Point](../point/struct.Point.html))
 pub type Multipoint = GenericMultipoint<Point>;
 
 impl fmt::Display for Multipoint {
@@ -87,6 +97,8 @@ impl EsriShape for Multipoint {
  * MultipointM
  */
 
+/// Specialization of the `GenericMultipoint` struct to represent a `MultipointM` shape
+/// ( collection of [PointM](../point/struct.PointM.html))
 pub type MultipointM = GenericMultipoint<PointM>;
 
 impl fmt::Display for MultipointM {
@@ -151,6 +163,8 @@ impl EsriShape for MultipointM {
  * MultipointZ
  */
 
+/// Specialization of the `GenericMultipoint` struct to represent a `MultipointZ` shape
+/// ( collection of [PointZ](../point/struct.PointZ.html))
 pub type MultipointZ = GenericMultipoint<PointZ>;
 
 impl fmt::Display for MultipointZ {

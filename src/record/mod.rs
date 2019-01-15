@@ -39,9 +39,32 @@ pub trait ConcreteShapeFromShape: ConcreteShape {
     fn try_from(shape: Shape) -> Result<Self::ActualShape, Error>;
 }
 
-/// Trait implemented by all the Shapes that are a collections of points
+/// Trait that allows access to the slice of points of shapes that
+/// have multiple points (all the shapes except `Point`, `PointM`, `PoinZ` shapes.
 pub trait MultipointShape<PointType> {
     /// Returns a non mutable slice to the points
+    ///
+    /// # Exmaples
+    ///
+    /// ```
+    /// use shapefile::record::{MultipointShape, Polyline};
+    /// let file_path = "tests/data/line.shp";
+    /// let polylines = shapefile::read_as::<&str, Polyline>(file_path).unwrap();
+    /// let first = &polylines[0];
+    /// for point in first.points() {
+    ///     println!("{}, {}", point.x, point.y);
+    /// }
+    /// ```
+    ///
+    /// ```
+    /// use shapefile::record::{MultipointShape, PolylineZ};
+    /// let file_path = "tests/data/linez.shp";
+    /// let polylines = shapefile::read_as::<&str, PolylineZ>(file_path).unwrap();
+    /// let first = &polylines[0];
+    /// for point in first.points() {
+    ///     println!("{} {} {}", point.x, point.y, point.z);
+    /// }
+    /// ```
     fn points(&self) -> &[PointType];
     /*fn get<I: SliceIndex<[PointType]>>(&self, index: I) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
         self.points().get(index)
