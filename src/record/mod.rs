@@ -16,6 +16,7 @@ pub use record::poly::{Polygon, PolygonM, PolygonZ};
 pub use record::poly::{Polyline, PolylineM, PolylineZ};
 
 use record::io::HasXY;
+use std::slice::SliceIndex;
 
 /// Value inferior to this are considered as NO_DATA
 pub const NO_DATA: f64 = -10e38;
@@ -30,6 +31,7 @@ pub trait HasShapeType {
     fn shapetype() -> ShapeType;
 }
 
+/// Simple Trait to store the type of the shape
 pub trait ConcreteShape {
     type ActualShape;
 }
@@ -42,6 +44,8 @@ pub trait ConcreteShapeFromShape: ConcreteShape {
 /// Trait that allows access to the slice of points of shapes that
 /// have multiple points (all the shapes except `Point`, `PointM`, `PoinZ` shapes.
 pub trait MultipointShape<PointType> {
+    fn point<I: SliceIndex<[PointType]>>(&self, index: I) -> Option<&<I as SliceIndex<[PointType]>>::Output>;
+
     /// Returns a non mutable slice to the points
     ///
     /// # Exmaples
@@ -66,9 +70,6 @@ pub trait MultipointShape<PointType> {
     /// }
     /// ```
     fn points(&self) -> &[PointType];
-    /*fn get<I: SliceIndex<[PointType]>>(&self, index: I) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
-        self.points().get(index)
-    }*/
 }
 
 /// Trait for the Shapes that may have multiple parts
@@ -147,13 +148,15 @@ pub struct PartIterator<'a, PointType, Shape: 'a + MultipartShape<PointType> + ?
     current_part: usize,
 }
 
-impl<'a, PointType: 'a, Shape: 'a + MultipartShape<PointType>> Iterator
-for PartIterator<'a, PointType, Shape>
+impl<'a, PointType, Shape> Iterator for PartIterator<'a, PointType, Shape>
+    where PointType: 'a,
+          Shape: 'a + MultipartShape<PointType>
+
 {
     type Item = &'a [PointType];
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_part > self.shape.parts_indices().len() {
+        if self.current_part >= self.shape.parts_indices().len() {
             None
         } else {
             self.current_part += 1;
@@ -201,14 +204,22 @@ pub trait WritableShape {
 
 pub trait EsriShape: HasShapeType + WritableShape {
     fn bbox(&self) -> BBox;
+    /// Should the Z range of this shape (maybe require computing it)
     fn z_range(&self) -> [f64; 2] {
         [0.0, 0.0]
     }
+    /// Should the M range of this shape (maybe require computing it)
     fn m_range(&self) -> [f64; 2] {
         [0.0, 0.0]
     }
 }
 
+/// Validate the `parts array` of the any `MultipartShape`.
+///
+/// Requirements for a parts array to be valid are
+///
+/// 1) at least one part
+/// 2) indices must be in range [0, num_points[
 pub(crate) fn is_parts_array_valid<PointType, ST: MultipartShape<PointType>>(shape: &ST) -> bool {
     if shape.parts_indices().is_empty() {
         return false;
@@ -277,6 +288,7 @@ impl ReadableShape for Shape {
 }
 
 impl Shape {
+    /// Returns the shapetype
     pub fn shapetype(&self) -> ShapeType {
         match self {
             Shape::Polyline(_) => ShapeType::Polyline,
@@ -319,6 +331,7 @@ impl fmt::Display for Shape {
     }
 }
 
+/// 2D (x, y) Bounding box
 #[derive(Copy, Clone)]
 pub struct BBox {
     pub xmin: f64,
@@ -328,6 +341,8 @@ pub struct BBox {
 }
 
 impl BBox {
+    /// Creates a new bounding box by computing the extent from
+    /// any slice of points that have a x and y coordinates
     pub fn from_points<PointType: HasXY>(points: &[PointType]) -> Self {
         let mut xmin = std::f64::MAX;
         let mut ymin = std::f64::MAX;
@@ -370,6 +385,7 @@ impl BBox {
     }
 }
 
+/// Header of a shape record, present before any shape record
 pub(crate) struct RecordHeader {
     pub record_number: i32,
     pub record_size: i32,
@@ -395,7 +411,7 @@ impl RecordHeader {
 }
 
 /// Function that can converts a `Vec<Shape>` to a vector of any real struct
-/// (ie [Polyline](poly/type.Polyline.html), [Multipatch]multipatch/struct.Multipatch.html), etc)
+/// (ie [Polyline](poly/type.Polyline.html), [Multipatch](multipatch/struct.Multipatch.html), etc)
 /// if all the `Shapes` in the `Vec` are of the correct corresponding variant.
 ///
 /// # Examples
@@ -433,6 +449,8 @@ pub fn convert_shapes_to_vec_of<S: ConcreteShapeFromShape>(
     Ok(concrete_shapes)
 }
 
+/// Macro to have less boiler plate code to write just to implement
+/// the ConcreteShape Trait
 macro_rules! impl_concrete_shape_for {
     ($ConcreteType:ident) => {
         impl ConcreteShape for $ConcreteType {
@@ -441,6 +459,8 @@ macro_rules! impl_concrete_shape_for {
     };
 }
 
+/// macro that implements the From<T> Trait for the Shape enum
+/// where T is any of the ConcreteShape
 macro_rules! impl_from_concrete_shape {
     ($ConcreteShape:ident=>Shape::$ShapeEnumVariant:ident) => {
         impl From<$ConcreteShape> for Shape {
@@ -451,6 +471,8 @@ macro_rules! impl_from_concrete_shape {
     };
 }
 
+/// macro to implement the custom trait ConcreteShapeFromShape
+/// (which should be TryFrom<T> when stabilized)
 macro_rules! impl_to_concrete_shape {
     (Shape::$ShapeEnumVariant:ident=>$ConcreteShape:ident) => {
         impl ConcreteShapeFromShape for $ConcreteShape {

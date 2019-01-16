@@ -12,6 +12,7 @@ use {Error, ShapeType};
 use record::is_parts_array_valid;
 use record::ConcreteReadableShape;
 use std::fmt;
+use std::slice::SliceIndex;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PatchType {
@@ -79,6 +80,9 @@ impl fmt::Display for Multipatch {
 }
 
 impl MultipointShape<PointZ> for Multipatch {
+    fn point<I: SliceIndex<[PointZ]>>(&self, index: I) -> Option<&<I as SliceIndex<[PointZ]>>::Output> {
+        self.points.get(index)
+    }
     fn points(&self) -> &[PointZ] {
         &self.points
     }

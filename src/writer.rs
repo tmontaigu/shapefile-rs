@@ -67,7 +67,7 @@ impl<T: Write> Writer<T> {
     }
 
     //TODO This method should move as calling it twice would produce a shitty file
-    /// Writes the given shapes to the file given when the reader was created
+    /// Writes the shapes to the file
     ///
     /// # Examples
     ///
