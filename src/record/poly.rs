@@ -1,3 +1,5 @@
+//! Module with the definition of Polyline(M,Z) and Polygon(M,Z)
+
 use std::io::{Read, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -11,6 +13,7 @@ use record::is_parts_array_valid;
 use record::ConcreteReadableShape;
 use std::fmt;
 use std::mem::size_of;
+use std::slice::SliceIndex;
 
 pub struct GenericPolyline<PointType> {
     pub bbox: BBox,
@@ -19,6 +22,18 @@ pub struct GenericPolyline<PointType> {
 }
 
 impl<PointType: HasXY> GenericPolyline<PointType> {
+    /// # Examples
+    ///
+    /// Creating a Polyline
+    /// ```
+    /// use shapefile::{Point, Polyline};
+    /// let points = vec![
+    ///     Point::new(1.0, 1.0),
+    ///     Point::new(2.0, 2.0),
+    /// ];
+    /// let poly = Polyline::new(points, vec![0]);
+    /// ```
+    ///
     pub fn new(points: Vec<PointType>, parts: Vec<i32>) -> Self {
         let bbox = BBox::from_points(&points);
         Self {
@@ -50,6 +65,9 @@ impl<PointType> From<GenericPolyline<PointType>> for GenericPolygon<PointType> {
 }
 
 impl<PointType> MultipointShape<PointType> for GenericPolyline<PointType> {
+    fn point<I: SliceIndex<[PointType]>>(&self, index: I) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
+        self.points.get(index)
+    }
     fn points(&self) -> &[PointType] {
         &self.points
     }
@@ -314,12 +332,29 @@ pub struct GenericPolygon<PointType> {
 }
 
 impl<PointType: HasXY> GenericPolygon<PointType> {
+    /// # Examples
+    ///
+    /// Creating a PolygonZ
+    /// ```
+    /// use shapefile::{PointZ, PolygonZ, NO_DATA, MultipointShape};
+    /// let points = vec![
+    ///     PointZ::new(1.0, 1.0, 0.0, NO_DATA),
+    ///     PointZ::new(2.0, 2.0, 17.0, NO_DATA),
+    /// ];
+    /// let poly = PolygonZ::new(points, vec![0]);
+    ///
+    /// assert_eq!(poly.point(1), Some(&PointZ::new(2.0, 2.0, 17.0, NO_DATA)));
+    /// ```
+    ///
     pub fn new(points: Vec<PointType>, parts: Vec<i32>) -> Self {
         Self::from(GenericPolyline::<PointType>::new(points, parts))
     }
 }
 
 impl<PointType> MultipointShape<PointType> for GenericPolygon<PointType> {
+    fn point<I: SliceIndex<[PointType]>>(&self, index: I) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
+        self.points.get(index)
+    }
     fn points(&self) -> &[PointType] {
         &self.points
     }

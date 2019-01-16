@@ -16,7 +16,7 @@
 //!
 //! # Writing
 //!
-//! To write a file use the [Writer](writer/struct.Writer.html)
+//! To write a file see the [writer](writer/index.html) module
 extern crate byteorder;
 
 pub mod header;
@@ -31,9 +31,9 @@ use std::path::Path;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-pub use reader::{FileReaderBuilder, Reader};
+pub use reader::{FileReaderBuilder, Reader, read, read_as};
 pub use record::Multipatch;
-pub use record::{HasShapeType, MultipartShape, MultipointShape, ReadableShape};
+pub use record::{HasShapeType, MultipartShape, MultipointShape, ReadableShape, convert_shapes_to_vec_of};
 pub use record::{Multipoint, MultipointM, MultipointZ};
 pub use record::{PatchType, Shape, NO_DATA};
 pub use record::{Point, PointM, PointZ};
@@ -198,42 +198,3 @@ impl fmt::Display for ShapeType {
     }
 }
 
-/// Function to read all the Shapes in a file.
-///
-/// Returns a `Vec<Shape>` which means that you will have to `match`
-/// the individual [Shape](enum.Shape.html) contained inside the `Vec` to get the actual `struct`
-///
-/// Useful if you don't know in advance (at compile time) which kind of
-/// shape the file contains
-///
-/// # Examples
-///
-/// ```
-/// let shapes = shapefile::read("tests/data/multipatch.shp").unwrap();
-/// assert_eq!(shapes.len(), 1);
-/// ```
-pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
-    let reader = Reader::from_path(path)?;
-    reader.read()
-}
-
-/// Function to read all the Shapes in a file as a certain type
-///
-/// Fails and return `Err(Error:MismatchShapeType)`
-///
-///  # Examples
-///
-/// ```
-/// let polylines = shapefile::read_as::<&str, shapefile::PolylineZ>("tests/data/polygon.shp");
-/// assert_eq!(polylines.is_err(), true);
-///
-/// let polygons = shapefile::read_as::<&str, shapefile::Polygon>("tests/data/polygon.shp");
-/// assert_eq!(polygons.is_ok(), true);
-/// ```
-///
-/// If the reading is successful Returned `Vec<S:ActualShape>>`is a vector of actual structs
-/// Useful if you know in at compile time which kind of shape you expect the file to have
-pub fn read_as<T: AsRef<Path>, S: ReadableShape>(path: T) -> Result<Vec<S::ReadShape>, Error> {
-    let reader = Reader::from_path(path)?;
-    reader.read_as::<S>()
-}

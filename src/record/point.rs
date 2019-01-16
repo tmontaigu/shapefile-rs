@@ -1,3 +1,5 @@
+//! Module with the definition of Point, PointM and PointZ
+
 use std::io::{Read, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -10,6 +12,7 @@ use record::ConcreteReadableShape;
 use record::{is_no_data, BBox, HasShapeType, WritableShape};
 use std::fmt;
 
+/// Point with only `x` and `y` coordinates
 #[derive(PartialEq, Debug, Default, Copy, Clone)]
 pub struct Point {
     pub x: f64,
@@ -17,6 +20,23 @@ pub struct Point {
 }
 
 impl Point {
+    /// Creates a new point
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shapefile::Point;
+    /// let point = Point::new(1.0, 42.0);
+    /// assert_eq!(point.x, 1.0);
+    /// assert_eq!(point.y, 42.0);
+    /// ```
+    ///
+    /// ```
+    /// use shapefile::Point;
+    /// let point = Point::default();
+    /// assert_eq!(point.x, 0.0);
+    /// assert_eq!(point.y, 0.0);
+    /// ```
     pub fn new(x: f64, y: f64) -> Self {
         Self { x, y }
     }
@@ -69,6 +89,8 @@ impl fmt::Display for Point {
  * PointM
  */
 
+
+/// Point with `x`, `y`, `m`
 #[derive(PartialEq, Debug, Default, Copy, Clone)]
 pub struct PointM {
     pub x: f64,
@@ -77,6 +99,17 @@ pub struct PointM {
 }
 
 impl PointM {
+    /// Creates a new pointM
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shapefile::{PointM, NO_DATA};
+    /// let point = PointM::new(1.0, 42.0, NO_DATA);
+    /// assert_eq!(point.x, 1.0);
+    /// assert_eq!(point.y, 42.0);
+    /// assert_eq!(point.m, NO_DATA);
+    /// ```
     pub fn new(x: f64, y: f64, m: f64) -> Self {
         Self { x, y, m }
     }
@@ -152,6 +185,7 @@ impl fmt::Display for PointZ {
  * PointZ
  */
 
+/// Point with `x`, `y`, `m`, `z`
 #[derive(PartialEq, Debug, Default, Copy, Clone)]
 pub struct PointZ {
     pub x: f64,
@@ -161,6 +195,18 @@ pub struct PointZ {
 }
 
 impl PointZ {
+    /// Creates a new pointZ
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shapefile::{PointZ, NO_DATA};
+    /// let point = PointZ::new(1.0, 42.0, 13.37, NO_DATA);
+    /// assert_eq!(point.x, 1.0);
+    /// assert_eq!(point.y, 42.0);
+    /// assert_eq!(point.z, 13.37);
+    /// assert_eq!(point.m, NO_DATA);
+    /// ```
     pub fn new(x: f64, y: f64, z: f64, m: f64) -> Self {
         Self { x, y, z, m }
     }

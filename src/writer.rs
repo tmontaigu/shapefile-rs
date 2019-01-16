@@ -1,3 +1,9 @@
+//! Module with the definition of the [Writer](struct.Writer.html) that allows writing shapefile
+//!
+//! It is recommended to create a `Writer` using its [from_path](struct.Writer.html#method.from_path) method
+//! to ensure that both the .shp and .shx files are created.
+//! Then use its [writes_shapes](struct.Writer.html#method.write_shapes) method to write the files.
+
 use std::io::{BufWriter, Write};
 
 use header;
@@ -43,13 +49,16 @@ fn write_index_file<T: Write>(
     Ok(())
 }
 
+/// struct that writes the shapes
 pub struct Writer<T: Write> {
     pub dest: T,
     index_dest: Option<T>,
 }
 
 impl<T: Write> Writer<T> {
-    /// Creates a writer that can be sued to write a new shapefile.
+    /// Creates a writer that can be used to write a new shapefile.
+    ///
+    /// The `dest` argument is only for the .shp
     pub fn new(dest: T) -> Self {
         Self {
             dest,
@@ -57,8 +66,27 @@ impl<T: Write> Writer<T> {
         }
     }
 
-    //TODO This method should move (take mut self) as calling it twice would produce a shitty file
-    /// Writes the given shapes to the file given when the reader was created
+    //TODO This method should move as calling it twice would produce a shitty file
+    /// Writes the shapes to the file
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shapefile::Point;
+    /// let mut writer = shapefile::Writer::from_path("points.shp").unwrap();
+    /// let points = vec![Point::new(0.0, 0.0), Point::new(1.0, 0.0), Point::new(2.0, 0.0)];
+    ///
+    /// writer.write_shapes(points).unwrap();
+    /// ```
+    ///
+    /// ```
+    /// use shapefile::{Point, Polyline};
+    /// let mut writer = shapefile::Writer::from_path("polylines.shp").unwrap();
+    /// let points = vec![Point::new(0.0, 0.0), Point::new(1.0, 0.0), Point::new(2.0, 0.0)];
+    /// let polyline = Polyline::new(points, vec![0]);
+    ///
+    /// writer.write_shapes(vec![polyline]).unwrap();
+    /// ```
     pub fn write_shapes<S: EsriShape>(&mut self, shapes: Vec<S>) -> Result<(), Error> {
         let mut file_length = header::HEADER_SIZE as usize;
         for shape in &shapes {
@@ -147,7 +175,9 @@ impl<T: Write> Writer<T> {
 }
 
 impl Writer<BufWriter<File>> {
-    /// Creates a new writer from a path
+    /// Creates a new writer from a path.
+    /// Creates both a .shp and .shx files
+    ///
     ///
     /// # Examples
     ///
