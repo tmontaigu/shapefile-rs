@@ -85,6 +85,16 @@ impl<PointType: HasXY> GenericMultipoint<PointType> {
 /// ( collection of [Point](../point/struct.Point.html))
 pub type Multipoint = GenericMultipoint<Point>;
 
+impl Multipoint {
+    pub(crate) fn size_of_record(num_points: i32) -> usize {
+        let mut size = 0usize;
+        size += 4 * size_of::<f64>(); // BBOX
+        size += size_of::<i32>(); // num points
+        size += size_of::<Point>() * num_points as usize;
+        size
+    }
+}
+
 impl fmt::Display for Multipoint {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Multipoint({} points)", self.points.len())
@@ -98,19 +108,24 @@ impl HasShapeType for Multipoint {
 }
 
 impl ConcreteReadableShape for Multipoint {
-    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
-        let points = read_xys_into_point_vec(&mut source, num_points)?;
-        Ok(Self { bbox, points })
+        if record_size == Self::size_of_record(num_points) as i32 {
+            let points = read_xys_into_point_vec(&mut source, num_points)?;
+            Ok(Self { bbox, points })
+        }
+        else {
+            Err(Error::InvalidShapeRecordSize)
+        }
     }
 }
 
 impl WritableShape for Multipoint {
     fn size_in_bytes(&self) -> usize {
         let mut size = 0usize;
-        size += 4 * size_of::<f64>();
-        size += size_of::<i32>();
+        size += 4 * size_of::<f64>(); // BBOX
+        size += size_of::<i32>(); // num points
         size += 2 * size_of::<f64>() * self.points.len();
         size
     }
@@ -140,6 +155,17 @@ impl EsriShape for Multipoint {
 /// ( collection of [PointM](../point/struct.PointM.html))
 pub type MultipointM = GenericMultipoint<PointM>;
 
+impl MultipointM {
+    pub(crate) fn size_of_record(num_points: i32, is_m_used: bool) -> usize {
+        let mut size = Multipoint::size_of_record(num_points);
+        if is_m_used {
+            size += 2 * size_of::<f64>(); // M Range
+            size += size_of::<f64>() * num_points as usize; // M
+        }
+        size
+    }
+}
+
 impl fmt::Display for MultipointM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "MultipointM({} points)", self.points.len())
@@ -153,16 +179,27 @@ impl HasShapeType for MultipointM {
 }
 
 impl ConcreteReadableShape for MultipointM {
-    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
 
         let num_points = source.read_i32::<LittleEndian>()?;
-        let mut points = read_xys_into_pointm_vec(&mut source, num_points)?;
 
-        let _m_range = read_range(&mut source)?;
-        read_ms_into(&mut source, &mut points)?;
+        let size_with_m = Self::size_of_record(num_points, true) as i32;
+        let size_without_m = Self::size_of_record(num_points, false) as i32;
 
-        Ok(Self { bbox, points })
+        if (record_size != size_with_m) & (record_size != size_without_m)  {
+            Err(Error::InvalidShapeRecordSize)
+        } 
+        else {
+            let m_is_used = size_with_m == record_size;
+            let mut points = read_xys_into_pointm_vec(&mut source, num_points)?;
+
+            if m_is_used {
+                let _m_range = read_range(&mut source)?;
+                read_ms_into(&mut source, &mut points)?;
+            }
+            Ok(Self { bbox, points })
+        }
     }
 }
 
@@ -211,6 +248,20 @@ impl fmt::Display for MultipointZ {
         write!(f, "MultipointZ({} points)", self.points.len())
     }
 }
+impl MultipointZ {
+    pub(crate) fn size_of_record(num_points: i32, is_m_used: bool) -> usize {
+        let mut size = Multipoint::size_of_record(num_points);
+        size += 2 * size_of::<f64>(); // Z Range
+        size += size_of::<f64>() * num_points as usize; // Z
+
+        if is_m_used {
+            size += 2 * size_of::<f64>(); // M Range
+            size += size_of::<f64>() * num_points as usize; // M
+        }
+
+        size
+    }
+}
 
 impl HasShapeType for MultipointZ {
     fn shapetype() -> ShapeType {
@@ -219,18 +270,30 @@ impl HasShapeType for MultipointZ {
 }
 
 impl ConcreteReadableShape for MultipointZ {
-    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
-        let mut points = read_xys_into_pointz_vec(&mut source, num_points)?;
+            
+        let size_with_m = Self::size_of_record(num_points, true) as i32;
+        let size_without_m = Self::size_of_record(num_points, false) as i32;
+        
+        if (record_size != size_with_m) & (record_size != size_without_m)  {
+            Err(Error::InvalidShapeRecordSize)
+        }
+        else {
+            let m_is_used = size_with_m == record_size;
+            let mut points = read_xys_into_pointz_vec(&mut source, num_points)?;
 
-        let _z_range = read_range(&mut source)?;
-        read_zs_into(&mut source, &mut points)?;
+            let _z_range = read_range(&mut source)?;
+            read_zs_into(&mut source, &mut points)?;
 
-        let _m_range = read_range(&mut source)?;
-        read_ms_into(&mut source, &mut points)?;
+            if m_is_used {
+                let _m_range = read_range(&mut source)?;
+                read_ms_into(&mut source, &mut points)?;
+            }
 
-        Ok(Self { bbox, points })
+            Ok(Self { bbox, points })
+        }
     }
 }
 

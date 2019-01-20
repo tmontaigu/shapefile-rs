@@ -27,8 +27,6 @@ pub mod writer;
 use std::convert::From;
 use std::fmt;
 use std::io::{Read, Write};
-use std::path::Path;
-
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 pub use reader::{FileReaderBuilder, Reader, read, read_as};
@@ -67,6 +65,7 @@ pub enum Error {
         /// The actual type of the shape
         actual: ShapeType,
     },
+    InvalidShapeRecordSize,
 }
 
 impl From<std::io::Error> for Error {
@@ -175,6 +174,7 @@ impl ShapeType {
             _ => true,
         }
     }
+
 }
 
 impl fmt::Display for ShapeType {

@@ -49,10 +49,16 @@ impl HasShapeType for Point {
 }
 
 impl ConcreteReadableShape for Point {
-    fn read_shape_content<T: Read>(source: &mut T) -> Result<Self::ActualShape, Error> {
-        let x = source.read_f64::<LittleEndian>()?;
-        let y = source.read_f64::<LittleEndian>()?;
-        Ok(Self { x, y })
+    fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+        if record_size == 2 * size_of::<f64>() as i32
+        {
+            let x = source.read_f64::<LittleEndian>()?;
+            let y = source.read_f64::<LittleEndian>()?;
+            Ok(Self { x, y })
+        }
+        else {
+            Err(Error::InvalidShapeRecordSize)
+        }
     }
 }
 
@@ -122,14 +128,20 @@ impl HasShapeType for PointM {
 }
 
 impl ConcreteReadableShape for PointM {
-    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
-        let point = Point::read_shape_content(&mut source)?;
-        let m = source.read_f64::<LittleEndian>()?;
-        Ok(Self {
-            x: point.x,
-            y: point.y,
-            m,
-        })
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+        if record_size == 3 * size_of::<f64>() as i32 {
+            let x = source.read_f64::<LittleEndian>()?; 
+            let y = source.read_f64::<LittleEndian>()?;
+            let m = source.read_f64::<LittleEndian>()?;
+            Ok(Self {
+                x,
+                y,
+                m,
+            })
+        }
+        else {
+            Err(Error::InvalidShapeRecordSize)
+        }
     }
 }
 
@@ -219,16 +231,22 @@ impl HasShapeType for PointZ {
 }
 
 impl ConcreteReadableShape for PointZ {
-    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
-        let point = Point::read_shape_content(&mut source)?;
-        let z = source.read_f64::<LittleEndian>()?;
-        let m = source.read_f64::<LittleEndian>()?;
-        Ok(Self {
-            x: point.x,
-            y: point.y,
-            z,
-            m,
-        })
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+        if record_size == 4 * size_of::<f64>() as i32 {
+            let x = source.read_f64::<LittleEndian>()?;
+            let y = source.read_f64::<LittleEndian>()?;
+            let z = source.read_f64::<LittleEndian>()?;
+            let m = source.read_f64::<LittleEndian>()?;
+            Ok(Self {
+                x,
+                y,
+                z,
+                m,
+            })
+        } 
+        else {
+            Err(Error::InvalidShapeRecordSize)
+        }
     }
 }
 

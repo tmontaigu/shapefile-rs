@@ -81,6 +81,18 @@ impl<PointType> MultipartShape<PointType> for GenericPolyline<PointType> {
 
 pub type Polyline = GenericPolyline<Point>;
 
+impl Polyline {
+    pub(crate) fn size_of_record(num_points: i32, num_parts: i32) -> usize {
+        let mut size = 0usize;
+        size += 4 * size_of::<f64>(); // BBOX
+        size += size_of::<i32>(); // num parts
+        size += size_of::<i32>(); // num points
+        size += size_of::<i32>() * num_parts as usize;
+        size += 2 * size_of::<f64>() * num_points as usize;
+        size
+    }
+}
+
 impl fmt::Display for Polyline {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -99,19 +111,24 @@ impl HasShapeType for Polyline {
 }
 
 impl ConcreteReadableShape for Polyline {
-    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
 
-        let parts = read_parts(&mut source, num_parts)?;
-        let points = read_xys_into_point_vec(&mut source, num_points)?;
+        if record_size == Self::size_of_record(num_points, num_parts) as i32 {
+            Err(Error::InvalidShapeRecordSize)
+        }
+        else {
+            let parts = read_parts(&mut source, num_parts)?;
+            let points = read_xys_into_point_vec(&mut source, num_points)?;
 
-        Ok(Self {
-            bbox,
-            parts,
-            points,
-        })
+            Ok(Self {
+                bbox,
+                parts,
+                points,
+            })
+        }
     }
 }
 
@@ -151,6 +168,17 @@ impl EsriShape for Polyline {
 
 pub type PolylineM = GenericPolyline<PointM>;
 
+impl PolylineM {
+    pub(crate) fn size_of_record(num_points: i32, num_parts: i32, is_m_used: bool) -> usize {
+        let mut size = Polyline::size_of_record(num_points, num_parts);
+        if is_m_used {
+            size += 2 * size_of::<f64>(); // MRange
+            size += num_points as usize * size_of::<f64>(); // M
+        }
+        size
+    }
+}
+
 impl fmt::Display for PolylineM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -169,23 +197,34 @@ impl HasShapeType for PolylineM {
 }
 
 impl ConcreteReadableShape for PolylineM {
-    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
 
         let parts = read_parts(&mut source, num_parts)?;
 
-        let mut points = read_xys_into_pointm_vec(&mut source, num_points)?;
+        let record_size_with_m = Self::size_of_record(num_points, num_parts, true) as i32;
+        let record_size_without_m = Self::size_of_record(num_points, num_parts, false) as i32;
 
-        let _m_range = read_range(&mut source)?;
-        read_ms_into(&mut source, &mut points)?;
+        if (record_size != record_size_with_m) & (record_size != record_size_without_m) {
+            return Err(Error::InvalidShapeRecordSize)
+        }
+        else {
+            let is_m_used = record_size == record_size_with_m;
+            let mut points = read_xys_into_pointm_vec(&mut source, num_points)?;
 
-        Ok(Self {
-            bbox,
-            parts,
-            points,
-        })
+            if is_m_used {
+                let _m_range = read_range(&mut source)?;
+                read_ms_into(&mut source, &mut points)?;
+            }
+
+            Ok(Self {
+                bbox,
+                parts,
+                points,
+            })
+        }
     }
 }
 
@@ -233,6 +272,19 @@ impl EsriShape for PolylineM {
 
 pub type PolylineZ = GenericPolyline<PointZ>;
 
+impl PolylineZ {
+    pub(crate) fn size_of_record(num_points: i32, num_parts: i32, is_m_used: bool) -> usize {
+        let mut size = Polyline::size_of_record(num_points, num_parts);
+        size += 2 * size_of::<f64>(); // ZRange
+        size += num_points as usize * size_of::<f64>(); // Z
+        if is_m_used {
+            size += 2 * size_of::<f64>(); // MRange
+            size += num_points as usize * size_of::<f64>(); // M
+        }
+        size
+    }
+}
+
 impl fmt::Display for PolylineZ {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -251,26 +303,42 @@ impl HasShapeType for PolylineZ {
 }
 
 impl ConcreteReadableShape for PolylineZ {
-    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
 
-        let parts = read_parts(&mut source, num_parts)?;
+        let record_size_with_m = Self::size_of_record(num_points, num_parts, true) as i32;
+        let record_size_without_m = Self::size_of_record(num_points, num_parts, false) as i32;
 
-        let mut points = read_xys_into_pointz_vec(&mut source, num_points)?;
 
-        let _z_range = read_range(&mut source)?;
-        read_zs_into(&mut source, &mut points)?;
+        if (record_size != record_size_with_m) & (record_size != record_size_without_m) {
+            return Err(Error::InvalidShapeRecordSize)
+        }
+        else {
+            let is_m_used = record_size == record_size_with_m;
+            let parts = read_parts(&mut source, num_parts)?;
 
-        let _m_range = read_range(&mut source)?;
-        read_ms_into(&mut source, &mut points)?;
+            let mut points = read_xys_into_pointz_vec(&mut source, num_points)?;
 
-        Ok(Self {
-            bbox,
-            parts,
-            points,
-        })
+            let _z_range = read_range(&mut source)?;
+            read_zs_into(&mut source, &mut points)?;
+
+            if is_m_used {
+                let _m_range = read_range(&mut source)?;
+                read_ms_into(&mut source, &mut points)?;
+            }
+            else {
+
+                println!("\nRCSDF: {}, withm: {} withoutm: {}", record_size, record_size_with_m, record_size_without_m);
+            }
+
+            Ok(Self {
+                bbox,
+                parts,
+                points,
+            })
+        }
     }
 }
 
@@ -386,8 +454,8 @@ impl HasShapeType for Polygon {
 }
 
 impl ConcreteReadableShape for Polygon {
-    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
-        let poly = Polyline::read_shape_content(&mut source)?;
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+        let poly = Polyline::read_shape_content(&mut source, record_size)?;
         Ok(poly.into())
     }
 }
@@ -439,8 +507,8 @@ impl HasShapeType for PolygonM {
 }
 
 impl ConcreteReadableShape for PolygonM {
-    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
-        let poly = PolylineM::read_shape_content(&mut source)?;
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+        let poly = PolylineM::read_shape_content(&mut source, record_size)?;
         Ok(Self::from(poly))
     }
 }
@@ -496,8 +564,8 @@ impl HasShapeType for PolygonZ {
 }
 
 impl ConcreteReadableShape for PolygonZ {
-    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
-        let poly = PolylineZ::read_shape_content(&mut source)?;
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+        let poly = PolylineZ::read_shape_content(&mut source, record_size)?;
         Ok(poly.into())
     }
 }

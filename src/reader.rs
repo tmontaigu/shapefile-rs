@@ -83,7 +83,8 @@ fn read_one_shape_as<T: Read, S: ReadableShape>(
     mut source: &mut T,
 ) -> Result<(record::RecordHeader, S::ReadShape), Error> {
     let hdr = record::RecordHeader::read_from(&mut source)?;
-    let shape = S::read_from(&mut source)?;
+    let record_size = hdr.record_size * 2;
+    let shape = S::read_from(&mut source, record_size)?;
     Ok((hdr, shape))
 }
 

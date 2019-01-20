@@ -167,22 +167,23 @@ impl<'a, PointType, Shape> Iterator for PartIterator<'a, PointType, Shape>
 
 pub trait ConcreteReadableShape: ConcreteShape + HasShapeType {
     /// Function that actually reads the `ActualShape` from the source
-    ///and returns it
-    fn read_shape_content<T: Read>(source: &mut T) -> Result<Self::ActualShape, Error>;
+    /// and returns it
+    fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error>;
 }
 
 /// Trait implemented by all the Shapes that can be read
 pub trait ReadableShape {
     type ReadShape;
-    fn read_from<T: Read>(source: &mut T) -> Result<Self::ReadShape, Error>;
+    fn read_from<T: Read>(source: &mut T, record_size: i32) -> Result<Self::ReadShape, Error>;
 }
 
 impl<S: ConcreteReadableShape> ReadableShape for S {
     type ReadShape = S::ActualShape;
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ReadShape, Error> {
+    fn read_from<T: Read>(mut source: &mut T, mut record_size: i32) -> Result<Self::ReadShape, Error> {
         let shapetype = ShapeType::read_from(&mut source)?;
+        record_size -= std::mem::size_of::<i32>() as i32;
         if shapetype == Self::shapetype() {
-            S::read_shape_content(&mut source)
+            S::read_shape_content(&mut source, record_size)
         } else {
             Err(Error::MismatchShapeType {
                 requested: Self::shapetype(),
@@ -257,29 +258,30 @@ impl HasShapeType for Shape {
 
 impl ReadableShape for Shape {
     type ReadShape = Self;
-    fn read_from<T: Read>(mut source: &mut T) -> Result<Self::ReadShape, Error> {
+    fn read_from<T: Read>(mut source: &mut T, mut record_size: i32) -> Result<Self::ReadShape, Error> {
         let shapetype = ShapeType::read_from(&mut source)?;
+        record_size -= std::mem::size_of::<i32>() as i32;
         let shape = match shapetype {
-            ShapeType::Polyline => Shape::Polyline(Polyline::read_shape_content(&mut source)?),
-            ShapeType::PolylineM => Shape::PolylineM(PolylineM::read_shape_content(&mut source)?),
-            ShapeType::PolylineZ => Shape::PolylineZ(PolylineZ::read_shape_content(&mut source)?),
-            ShapeType::Point => Shape::Point(Point::read_shape_content(&mut source)?),
-            ShapeType::PointM => Shape::PointM(PointM::read_shape_content(&mut source)?),
-            ShapeType::PointZ => Shape::PointZ(PointZ::read_shape_content(&mut source)?),
-            ShapeType::Polygon => Shape::Polygon(Polygon::read_shape_content(&mut source)?),
-            ShapeType::PolygonM => Shape::PolygonM(PolygonM::read_shape_content(&mut source)?),
-            ShapeType::PolygonZ => Shape::PolygonZ(PolygonZ::read_shape_content(&mut source)?),
+            ShapeType::Polyline => Shape::Polyline(Polyline::read_shape_content(&mut source, record_size)?),
+            ShapeType::PolylineM => Shape::PolylineM(PolylineM::read_shape_content(&mut source, record_size)?),
+            ShapeType::PolylineZ => Shape::PolylineZ(PolylineZ::read_shape_content(&mut source, record_size)?),
+            ShapeType::Point => Shape::Point(Point::read_shape_content(&mut source, record_size)?),
+            ShapeType::PointM => Shape::PointM(PointM::read_shape_content(&mut source, record_size)?),
+            ShapeType::PointZ => Shape::PointZ(PointZ::read_shape_content(&mut source, record_size)?),
+            ShapeType::Polygon => Shape::Polygon(Polygon::read_shape_content(&mut source, record_size)?),
+            ShapeType::PolygonM => Shape::PolygonM(PolygonM::read_shape_content(&mut source, record_size)?),
+            ShapeType::PolygonZ => Shape::PolygonZ(PolygonZ::read_shape_content(&mut source, record_size)?),
             ShapeType::Multipoint => {
-                Shape::Multipoint(Multipoint::read_shape_content(&mut source)?)
+                Shape::Multipoint(Multipoint::read_shape_content(&mut source, record_size)?)
             }
             ShapeType::MultipointM => {
-                Shape::MultipointM(MultipointM::read_shape_content(&mut source)?)
+                Shape::MultipointM(MultipointM::read_shape_content(&mut source, record_size)?)
             }
             ShapeType::MultipointZ => {
-                Shape::MultipointZ(MultipointZ::read_shape_content(&mut source)?)
+                Shape::MultipointZ(MultipointZ::read_shape_content(&mut source, record_size)?)
             }
             ShapeType::Multipatch => {
-                Shape::Multipatch(Multipatch::read_shape_content(&mut source)?)
+                Shape::Multipatch(Multipatch::read_shape_content(&mut source, record_size)?)
             }
             ShapeType::NullShape => Shape::NullShape,
         };
@@ -361,6 +363,10 @@ impl BBox {
             xmax,
             ymax,
         }
+    }
+
+    pub fn new(xmin: f64, ymin: f64, xmax: f64, ymax: f64) -> Self {
+        BBox{xmin, ymin, xmax, ymax}
     }
 
     pub fn read_from<T: Read>(mut source: T) -> Result<BBox, std::io::Error> {

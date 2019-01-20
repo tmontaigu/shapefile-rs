@@ -66,6 +66,23 @@ impl Multipatch {
             m_range,
         }
     }
+
+    pub(crate) fn size_of_record(num_points: i32, num_parts: i32, is_m_used: bool) -> usize {
+        let mut size = 0usize;
+        size += 4 * size_of::<f64>(); // BBOX
+        size += size_of::<i32>(); // num parts
+        size += size_of::<i32>(); // num points
+        size += size_of::<i32>() * num_parts as usize;
+        size += size_of::<i32>() * num_parts as usize;
+        size += 2 * size_of::<f64>();// mandatory Z Range
+        size += 2 * size_of::<f64>() * num_points as usize; // mandatory Z
+
+        if is_m_used {
+            size += 2 * size_of::<f64>(); // Optional M range
+            size += 2 * size_of::<f64>() * num_points as usize; // Optional M
+        }
+        size
+    }
 }
 
 impl fmt::Display for Multipatch {
@@ -101,10 +118,19 @@ impl HasShapeType for Multipatch {
 }
 
 impl ConcreteReadableShape for Multipatch {
-    fn read_shape_content<T: Read>(mut source: &mut T) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
+
+        let record_size_with_m = Self::size_of_record(num_parts, num_points, true) as i32;
+        let record_size_without_m = Self::size_of_record(num_parts, num_points, false) as i32;
+
+        if (record_size != record_size_with_m) & (record_size != record_size_without_m) {
+            return Err(Error::InvalidShapeRecordSize)
+        }
+
+        let is_m_used = record_size == record_size_with_m;
 
         let parts = read_parts(&mut source, num_parts)?;
 
@@ -121,8 +147,11 @@ impl ConcreteReadableShape for Multipatch {
         let z_range = read_range(&mut source)?;
         read_zs_into(&mut source, &mut points)?;
 
-        let m_range = read_range(&mut source)?;
-        read_ms_into(&mut source, &mut points)?;
+        let mut m_range = [0.0, 0.0];
+        if is_m_used {
+            m_range = read_range(&mut source)?;
+            read_ms_into(&mut source, &mut points)?;
+        }
 
         Ok(Self {
             bbox,
