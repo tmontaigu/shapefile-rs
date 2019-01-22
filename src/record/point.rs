@@ -128,7 +128,7 @@ impl HasShapeType for PointM {
 }
 
 impl ConcreteReadableShape for PointM {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
         if record_size == 3 * size_of::<f64>() as i32 {
             let x = source.read_f64::<LittleEndian>()?; 
             let y = source.read_f64::<LittleEndian>()?;
@@ -231,7 +231,7 @@ impl HasShapeType for PointZ {
 }
 
 impl ConcreteReadableShape for PointZ {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
         if record_size == 4 * size_of::<f64>() as i32 {
             let x = source.read_f64::<LittleEndian>()?;
             let y = source.read_f64::<LittleEndian>()?;

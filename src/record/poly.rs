@@ -88,7 +88,7 @@ impl Polyline {
         size += size_of::<i32>(); // num parts
         size += size_of::<i32>(); // num points
         size += size_of::<i32>() * num_parts as usize;
-        size += 2 * size_of::<f64>() * num_points as usize;
+        size += size_of::<Point>() * num_points as usize;
         size
     }
 }
@@ -116,7 +116,7 @@ impl ConcreteReadableShape for Polyline {
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
 
-        if record_size == Self::size_of_record(num_points, num_parts) as i32 {
+        if record_size != Self::size_of_record(num_points, num_parts) as i32 {
             Err(Error::InvalidShapeRecordSize)
         }
         else {

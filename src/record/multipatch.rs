@@ -6,7 +6,7 @@ use std::mem::size_of;
 
 use record::io::*;
 use record::BBox;
-use record::{EsriShape, HasShapeType, MultipartShape, MultipointShape, PointZ, WritableShape};
+use record::{EsriShape, HasShapeType, MultipartShape, MultipointShape, PointZ, WritableShape, Point};
 use {Error, ShapeType};
 
 use record::is_parts_array_valid;
@@ -52,6 +52,7 @@ pub struct Multipatch {
     pub m_range: [f64; 2],
 }
 
+
 impl Multipatch {
     pub fn new(points: Vec<PointZ>, parts: Vec<i32>, parts_type: Vec<PatchType>) -> Self {
         let bbox = BBox::from_points(&points);
@@ -72,14 +73,15 @@ impl Multipatch {
         size += 4 * size_of::<f64>(); // BBOX
         size += size_of::<i32>(); // num parts
         size += size_of::<i32>(); // num points
-        size += size_of::<i32>() * num_parts as usize;
-        size += size_of::<i32>() * num_parts as usize;
+        size += size_of::<i32>() * num_parts as usize; // parts
+        size += size_of::<i32>() * num_parts as usize; // parts type
+        size += size_of::<Point>() * num_points as usize;
         size += 2 * size_of::<f64>();// mandatory Z Range
-        size += 2 * size_of::<f64>() * num_points as usize; // mandatory Z
+        size += size_of::<f64>() * num_points as usize; // mandatory Z
 
         if is_m_used {
             size += 2 * size_of::<f64>(); // Optional M range
-            size += 2 * size_of::<f64>() * num_points as usize; // Optional M
+            size += size_of::<f64>() * num_points as usize; // Optional M
         }
         size
     }
@@ -123,9 +125,10 @@ impl ConcreteReadableShape for Multipatch {
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
 
-        let record_size_with_m = Self::size_of_record(num_parts, num_points, true) as i32;
-        let record_size_without_m = Self::size_of_record(num_parts, num_points, false) as i32;
+        let record_size_with_m = Self::size_of_record(num_points, num_parts, true) as i32;
+        let record_size_without_m = Self::size_of_record(num_points, num_parts, false) as i32;
 
+        println!("{} vs {} or {}", record_size, record_size_with_m, record_size_without_m);
         if (record_size != record_size_with_m) & (record_size != record_size_without_m) {
             return Err(Error::InvalidShapeRecordSize)
         }
