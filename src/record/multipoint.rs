@@ -112,7 +112,7 @@ impl ConcreteReadableShape for Multipoint {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
         if record_size == Self::size_of_record(num_points) as i32 {
-            let points = read_xys_into_point_vec(&mut source, num_points)?;
+            let points = read_xy_in_vec_of::<Point, T>(&mut source, num_points)?;
             Ok(Self { bbox, points })
         }
         else {
@@ -192,7 +192,7 @@ impl ConcreteReadableShape for MultipointM {
         } 
         else {
             let m_is_used = size_with_m == record_size;
-            let mut points = read_xys_into_pointm_vec(&mut source, num_points)?;
+            let mut points = read_xy_in_vec_of::<PointM, T>(&mut source, num_points)?;
 
             if m_is_used {
                 let _m_range = read_range(&mut source)?;
@@ -282,7 +282,7 @@ impl ConcreteReadableShape for MultipointZ {
         }
         else {
             let m_is_used = size_with_m == record_size;
-            let mut points = read_xys_into_pointz_vec(&mut source, num_points)?;
+            let mut points = read_xy_in_vec_of::<PointZ, T>(&mut source, num_points)?;
 
             let _z_range = read_range(&mut source)?;
             read_zs_into(&mut source, &mut points)?;

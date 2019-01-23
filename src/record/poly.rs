@@ -121,7 +121,7 @@ impl ConcreteReadableShape for Polyline {
         }
         else {
             let parts = read_parts(&mut source, num_parts)?;
-            let points = read_xys_into_point_vec(&mut source, num_points)?;
+            let points = read_xy_in_vec_of::<Point, T>(&mut source, num_points)?;
 
             Ok(Self {
                 bbox,
@@ -212,7 +212,7 @@ impl ConcreteReadableShape for PolylineM {
         }
         else {
             let is_m_used = record_size == record_size_with_m;
-            let mut points = read_xys_into_pointm_vec(&mut source, num_points)?;
+            let mut points = read_xy_in_vec_of::<PointM, T>(&mut source, num_points)?;
 
             if is_m_used {
                 let _m_range = read_range(&mut source)?;
@@ -319,7 +319,7 @@ impl ConcreteReadableShape for PolylineZ {
             let is_m_used = record_size == record_size_with_m;
             let parts = read_parts(&mut source, num_parts)?;
 
-            let mut points = read_xys_into_pointz_vec(&mut source, num_points)?;
+            let mut points = read_xy_in_vec_of::<PointZ, T>(&mut source, num_points)?;
 
             let _z_range = read_range(&mut source)?;
             read_zs_into(&mut source, &mut points)?;

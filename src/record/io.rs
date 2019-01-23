@@ -9,6 +9,11 @@ pub trait HasXY {
     fn y(&self) -> f64;
 }
 
+pub(crate) trait HasMutXY {
+    fn x_mut(&mut self) -> &mut f64;
+    fn y_mut(&mut self) -> &mut f64;
+}
+
 pub(crate) trait HasM {
     fn m(&self) -> f64;
     fn m_mut(&mut self) -> &mut f64;
@@ -25,6 +30,20 @@ macro_rules! impl_has_xy_for {
             }
         }
     };
+}
+
+macro_rules! impl_has_mut_xy_for {
+    ($PointType:ty) => {
+        impl HasMutXY for $PointType {
+            fn x_mut(&mut self) -> &mut f64 {
+                &mut self.x
+            }
+            fn y_mut(&mut self) -> &mut f64 {
+                &mut self.y
+            }
+        }
+    };
+
 }
 
 macro_rules! impl_has_m_for {
@@ -45,35 +64,28 @@ impl_has_xy_for!(Point);
 impl_has_xy_for!(PointM);
 impl_has_xy_for!(PointZ);
 
+impl_has_mut_xy_for!(Point);
+impl_has_mut_xy_for!(PointM);
+impl_has_mut_xy_for!(PointZ);
+
 impl_has_m_for!(PointM);
 impl_has_m_for!(PointZ);
 
-macro_rules! define_read_xy_func {
-    ($func:ident, $PointType:ident) => {
-        pub(crate) fn $func<T: Read>(
-            source: &mut T,
-            num_points: i32,
-        ) -> Result<Vec<$PointType>, std::io::Error> {
-            let mut points = Vec::<$PointType>::with_capacity(num_points as usize);
 
-            for _ in 0..num_points {
-                let x = source.read_f64::<LittleEndian>()?;
-                let y = source.read_f64::<LittleEndian>()?;
-                let p = $PointType {
-                    x,
-                    y,
-                    ..Default::default()
-                };
-                points.push(p);
-            }
-            Ok(points)
-        }
-    };
+
+pub(crate) fn read_xy_in_vec_of<PointType, T>(source: &mut T, num_points: i32) -> Result<Vec<PointType>, std::io::Error>
+    where PointType: HasMutXY + Default,
+          T: Read
+{
+    let mut points = Vec::<PointType>::with_capacity(num_points as usize);
+    for _ in 0..num_points {
+        let mut p = PointType::default();
+        *p.x_mut() = source.read_f64::<LittleEndian>()?;
+        *p.y_mut() = source.read_f64::<LittleEndian>()?;
+        points.push(p);
+    }
+    Ok(points)
 }
-
-define_read_xy_func!(read_xys_into_point_vec, Point);
-define_read_xy_func!(read_xys_into_pointm_vec, PointM);
-define_read_xy_func!(read_xys_into_pointz_vec, PointZ);
 
 pub(crate) fn read_ms_into<T: Read, D: HasM>(
     source: &mut T,

@@ -128,7 +128,6 @@ impl ConcreteReadableShape for Multipatch {
         let record_size_with_m = Self::size_of_record(num_points, num_parts, true) as i32;
         let record_size_without_m = Self::size_of_record(num_points, num_parts, false) as i32;
 
-        println!("{} vs {} or {}", record_size, record_size_with_m, record_size_without_m);
         if (record_size != record_size_with_m) & (record_size != record_size_without_m) {
             return Err(Error::InvalidShapeRecordSize)
         }
@@ -145,7 +144,7 @@ impl ConcreteReadableShape for Multipatch {
                 None => return Err(Error::InvalidPatchType(code)),
             }
         }
-        let mut points = read_xys_into_pointz_vec(&mut source, num_points)?;
+        let mut points = read_xy_in_vec_of::<PointZ, T>(&mut source, num_points)?;
 
         let z_range = read_range(&mut source)?;
         read_zs_into(&mut source, &mut points)?;
