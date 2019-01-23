@@ -31,12 +31,13 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 pub use reader::{FileReaderBuilder, Reader, read, read_as};
 pub use record::Multipatch;
-pub use record::{HasShapeType, MultipartShape, MultipointShape, ReadableShape, convert_shapes_to_vec_of};
+pub use record::{HasShapeType, ReadableShape, convert_shapes_to_vec_of};
 pub use record::{Multipoint, MultipointM, MultipointZ};
 pub use record::{PatchType, Shape, NO_DATA};
 pub use record::{Point, PointM, PointZ};
 pub use record::{Polygon, PolygonM, PolygonZ};
 pub use record::{Polyline, PolylineM, PolylineZ};
+pub use record::traits::{MultipartShape, MultipointShape};
 pub use writer::Writer;
 
 /// All Errors that can happen when using this library

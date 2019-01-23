@@ -1,18 +1,18 @@
 //! Module for the Multipatch shape
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::{Read, Write};
 
 use std::mem::size_of;
+use std::io::{Read, Write};
+use std::slice::SliceIndex;
+use std::fmt;
 
 use record::io::*;
 use record::BBox;
-use record::{EsriShape, HasShapeType, MultipartShape, MultipointShape, PointZ, WritableShape, Point};
+use record::{EsriShape, HasShapeType, PointZ, WritableShape, Point};
+use record::traits::{MultipartShape, MultipointShape};
 use {Error, ShapeType};
-
 use record::is_parts_array_valid;
 use record::ConcreteReadableShape;
-use std::fmt;
-use std::slice::SliceIndex;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PatchType {

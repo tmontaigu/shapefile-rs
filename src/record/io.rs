@@ -1,77 +1,9 @@
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use record::is_no_data;
-use record::{Point, PointM, PointZ};
 use std::io::{Read, Write};
-use NO_DATA;
 
-pub trait HasXY {
-    fn x(&self) -> f64;
-    fn y(&self) -> f64;
-}
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-pub(crate) trait HasMutXY {
-    fn x_mut(&mut self) -> &mut f64;
-    fn y_mut(&mut self) -> &mut f64;
-}
-
-pub(crate) trait HasM {
-    fn m(&self) -> f64;
-    fn m_mut(&mut self) -> &mut f64;
-}
-
-macro_rules! impl_has_xy_for {
-    ($PointType:ty) => {
-        impl HasXY for $PointType {
-            fn x(&self) -> f64 {
-                self.x
-            }
-            fn y(&self) -> f64 {
-                self.y
-            }
-        }
-    };
-}
-
-macro_rules! impl_has_mut_xy_for {
-    ($PointType:ty) => {
-        impl HasMutXY for $PointType {
-            fn x_mut(&mut self) -> &mut f64 {
-                &mut self.x
-            }
-            fn y_mut(&mut self) -> &mut f64 {
-                &mut self.y
-            }
-        }
-    };
-
-}
-
-macro_rules! impl_has_m_for {
-    ($PointType:ty) => {
-        impl HasM for $PointType {
-            fn m(&self) -> f64 {
-                self.m
-            }
-
-            fn m_mut(&mut self) -> &mut f64 {
-                &mut self.m
-            }
-        }
-    };
-}
-
-impl_has_xy_for!(Point);
-impl_has_xy_for!(PointM);
-impl_has_xy_for!(PointZ);
-
-impl_has_mut_xy_for!(Point);
-impl_has_mut_xy_for!(PointM);
-impl_has_mut_xy_for!(PointZ);
-
-impl_has_m_for!(PointM);
-impl_has_m_for!(PointZ);
-
-
+use record::{PointZ, is_no_data, NO_DATA};
+use record::traits::{HasXY, HasMutXY, HasM};
 
 pub(crate) fn read_xy_in_vec_of<PointType, T>(source: &mut T, num_points: i32) -> Result<Vec<PointType>, std::io::Error>
     where PointType: HasMutXY + Default,

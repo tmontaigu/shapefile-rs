@@ -1,19 +1,20 @@
 //! Module with the definition of Polyline(M,Z) and Polygon(M,Z)
 
 use std::io::{Read, Write};
+use std::mem::size_of;
+use std::slice::SliceIndex;
+use std::fmt;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use record::io::*;
-use record::{BBox, EsriShape, HasShapeType, MultipartShape, MultipointShape, WritableShape};
+use record::{BBox, EsriShape, HasShapeType, WritableShape};
 use record::{Point, PointM, PointZ};
 use {Error, ShapeType};
-
+use record::traits::{MultipartShape, MultipointShape};
 use record::is_parts_array_valid;
 use record::ConcreteReadableShape;
-use std::fmt;
-use std::mem::size_of;
-use std::slice::SliceIndex;
+use record::traits::{HasXY};
 
 pub struct GenericPolyline<PointType> {
     pub bbox: BBox,

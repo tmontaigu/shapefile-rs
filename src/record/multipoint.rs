@@ -9,16 +9,17 @@
 use std::fmt;
 use std::io::{Read, Write};
 use std::mem::size_of;
+use std::slice::SliceIndex;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use record::io::*;
 use record::ConcreteReadableShape;
 use record::{BBox, EsriShape};
-use record::{HasShapeType, MultipointShape, WritableShape};
+use record::{HasShapeType, WritableShape};
 use record::{Point, PointM, PointZ};
 use {Error, ShapeType};
-use std::slice::SliceIndex;
+use record::traits::{HasXY, MultipointShape};
 
 /// Generic struct to create the Multipoint, MultipointM, MultipointZ types
 pub struct GenericMultipoint<PointType> {
