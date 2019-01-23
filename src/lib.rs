@@ -74,6 +74,18 @@ impl From<std::io::Error> for Error {
     }
 }
 
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::IoError(e) => write!(f, "{}", e),
+            Error::InvalidFileCode(code) => write!(f, "The file code ' {} ' is invalid, is this a Shapefile ?", code),
+            Error::InvalidShapeType(code) => write!(f, "The code ' {} ' does not correspond to any of the ShapeType code defined by ESRI", code),
+            Error::MismatchShapeType{requested, actual} => write!(f, "The requested type: '{}' does not correspond to the actual shape type: '{}'", requested, actual), 
+            e => write!(f, "{:?}", e)
+       }
+    }
+}
+
 /// The enum for the ShapeType as defined in the
 /// specification
 #[derive(Debug, PartialEq, Copy, Clone)]
