@@ -53,9 +53,6 @@ pub enum Error {
     InvalidPatchType(i32),
     /// Emitted when the file read mixes [ShapeType](enum.ShapeType.html)
     /// Which is not allowed by the specification (expect for NullShape)
-    MixedShapeType,
-    /// Error emitted when you try to write a malformed Shape
-    /// For example: a mismatch between the number of x and z coordinates
     MalformedShape,
     /// Error returned when trying to read the shape records as a certain shape type
     /// but the actual shape type does not correspond to the one asked
@@ -73,6 +70,20 @@ impl From<std::io::Error> for Error {
         Error::IoError(error)
     }
 }
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::IoError(e) => write!(f, "{}", e),
+            Error::InvalidFileCode(code) => write!(f, "The file code ' {} ' is invalid, is this a Shapefile ?", code),
+            Error::InvalidShapeType(code) => write!(f, "The code ' {} ' does not correspond to any of the ShapeType code defined by ESRI", code),
+            Error::MismatchShapeType{requested, actual} => write!(f, "The requested type: '{}' does not correspond to the actual shape type: '{}'", requested, actual), 
+            e => write!(f, "{:?}", e)
+       }
+    }
+}
+
+impl std::error::Error for Error {}
 
 /// The enum for the ShapeType as defined in the
 /// specification
