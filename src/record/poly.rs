@@ -328,10 +328,6 @@ impl ConcreteReadableShape for PolylineZ {
                 let _m_range = read_range(&mut source)?;
                 read_ms_into(&mut source, &mut points)?;
             }
-            else {
-
-                println!("\nRCSDF: {}, withm: {} withoutm: {}", record_size, record_size_with_m, record_size_without_m);
-            }
 
             Ok(Self {
                 bbox,
