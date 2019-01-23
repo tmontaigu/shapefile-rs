@@ -53,9 +53,6 @@ pub enum Error {
     InvalidPatchType(i32),
     /// Emitted when the file read mixes [ShapeType](enum.ShapeType.html)
     /// Which is not allowed by the specification (expect for NullShape)
-    MixedShapeType,
-    /// Error emitted when you try to write a malformed Shape
-    /// For example: a mismatch between the number of x and z coordinates
     MalformedShape,
     /// Error returned when trying to read the shape records as a certain shape type
     /// but the actual shape type does not correspond to the one asked
@@ -85,6 +82,8 @@ impl fmt::Display for Error {
        }
     }
 }
+
+impl std::error::Error for Error {}
 
 /// The enum for the ShapeType as defined in the
 /// specification
