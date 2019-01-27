@@ -12,3 +12,4 @@ repository = "https://github.com/tmontaigu/shapefile-rs"
 
 [dependencies]
 byteorder = "1.2.7"
+dbase = "0.0.2"

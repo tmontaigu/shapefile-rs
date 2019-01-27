@@ -4,10 +4,7 @@ mod testfiles;
 
 #[test]
 fn test_line() {
-    let mut reader = shapefile::reader::FileReaderBuilder::new(testfiles::LINE_PATH)
-        .with_index()
-        .build()
-        .unwrap();
+    let mut reader = shapefile::Reader::from_path(testfiles::LINE_PATH).unwrap();
 
     if let Some(shape) = reader.read_nth_shape(0) {
         let shp = shape.unwrap();

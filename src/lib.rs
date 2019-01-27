@@ -1,6 +1,6 @@
 //! Read & Write [Shapefile](http://downloads.esri.com/support/whitepapers/mo_/shapefile.pdf) in Rust
 //!
-//! _.dbf_ files are not currently supported
+//! _.dbf_ can only be read but not written to
 //!
 //! As different shapefiles can store different type of shapes
 //! (but one shapefile can only store the same type of shapes)
@@ -18,6 +18,7 @@
 //!
 //! To write a file see the [writer](writer/index.html) module
 extern crate byteorder;
+extern crate dbase;
 
 pub mod header;
 pub mod reader;
@@ -29,7 +30,7 @@ use std::fmt;
 use std::io::{Read, Write};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-pub use reader::{FileReaderBuilder, Reader, read, read_as};
+pub use reader::{Reader, read, read_as};
 pub use record::Multipatch;
 pub use record::{HasShapeType, ReadableShape, convert_shapes_to_vec_of};
 pub use record::{Multipoint, MultipointM, MultipointZ};
@@ -64,11 +65,21 @@ pub enum Error {
         actual: ShapeType,
     },
     InvalidShapeRecordSize,
+
+    DbaseError(dbase::Error),
+    MissingDbf,
+    MissingIndexFile,
 }
 
 impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Error {
         Error::IoError(error)
+    }
+}
+
+impl From<dbase::Error> for Error  {
+    fn from(e: dbase::Error) -> Error {
+        Error::DbaseError(e)
     }
 }
 

@@ -1,15 +1,20 @@
 //! Reader module, contains the definitions of the types that a user should use to read a file
 //!
-//! This module proposes two type: a [Reader](struct.Reader.html) and a [FileReaderBuilder](struct.FileReaderBuilder.html)
 //!
-//! The Reader is the struct that actually reads the file from any source as long as it implements the
+//! The [Reader](struct.Reader.html) is the struct that actually reads the file from any source as long as it implements the
 //! `Read` Trait (`std::fs::File`, and `std::io::Cursor` for example).
 //!
-//! Note that by default the Reader does not read the index file and so the methods
-//! [read_nth_shape_as](struct.Reader.html#method.read_nth_shape_as) and [read_nth_shape](struct.Reader.html#method.read_nth_shape) will _not_ work.
-//! If you wish to use them you will have to give to the reader a source for the index file via [add_index_source](struct.Reader.html#method.add_index_source)
+//! It is recommended to create a `Reader` using its
+//! [from_path](struct.Reader.html#method.from_path) method as this constructor
+//! will take care of opening the .shx and .dbf files corresponding to the .shp (if they exists).
 //!
-//! Or use the [FileReaderBuilder](struct.FileReaderBuilder.html) if you are reading from files (not buffers)
+//! If you want to read a shapefile that is not storred in a file (e.g the shp data is in a buffer),
+//! you will have to construct the `Reader` "by hand" with its [new](struct.Reader.html#method.new) method.
+//!
+//! If you want the "manually" constructed `Reader` to also read the *shx* and *dbf* file content
+//! you will have to use [add_index_source](struct.Reader.html#method.add_index_source) and/or 
+//! [add_dbf_source](struct.Reader.html#method.add_dbf_source)
+//!
 //!
 //! # Examples
 //!
@@ -30,10 +35,6 @@
 //! let shapes = reader.read().unwrap();
 //! ```
 //!
-//! ```
-//! let mut reader = shapefile::FileReaderBuilder::new("tests/data/line.shp").with_index().build().unwrap();
-//! ```
-//!
 //! If you know beforehand the exact type that the .shp file is made of,
 //! you can use the different `*_as::<S>()` functions.:
 //! - [read_as](struct.Reader.html#method.read_as) To read all the shapes as the specified type
@@ -44,16 +45,19 @@
 //! Two functions ([read](fn.read.html) and [read_as](fn.read_as.html)) are provided to read
 //! files with one function call (thus not having to build a `Reader`)
 
+use std::fs::File;
+use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::iter::FusedIterator;
+use std::path::{Path};
+
+use byteorder::{BigEndian, ReadBytesExt};
+
 use header;
 use record;
 use {Error, Shape};
 
-use byteorder::{BigEndian, ReadBytesExt};
 use record::ReadableShape;
-use std::fs::File;
-use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::iter::FusedIterator;
-use std::path::{Path, PathBuf};
+
 
 const INDEX_RECORD_SIZE: usize = 2 * std::mem::size_of::<i32>();
 
@@ -62,6 +66,8 @@ pub(crate) struct ShapeIndex {
     pub record_size: i32,
 }
 
+
+/// Read the content of a .shx file
 fn read_index_file<T: Read>(mut source: T) -> Result<Vec<ShapeIndex>, Error> {
     let header = header::Header::read_from(&mut source)?;
 
@@ -87,6 +93,7 @@ fn read_one_shape_as<T: Read, S: ReadableShape>(
     let shape = S::read_from(&mut source, record_size)?;
     Ok((hdr, shape))
 }
+
 
 
 /// Struct that handle iteration over the shapes of a .shp file
@@ -117,12 +124,38 @@ impl<T: Read, S: ReadableShape> Iterator for ShapeIterator<T, S> {
 
 impl<T: Read, S: ReadableShape> FusedIterator for ShapeIterator<T, S> {}
 
+pub struct ShapeRecordIterator<T: Read, S: ReadableShape> {
+    shape_iter: ShapeIterator<T, S>,
+    dbf_reader: dbase::Reader<T>,
+}
 
+impl<T: Read, S: ReadableShape> Iterator for ShapeRecordIterator<T, S> {
+    type Item = Result<(S::ReadShape, dbase::Record), Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let shape = match self.shape_iter.next()? {
+            Err(e) => return Some(Err(e)),
+            Ok(shp) => shp,
+        };
+
+        let record = match self.dbf_reader.next()? {
+            Err(e) => return Some(Err(Error::DbaseError(e))),
+            Ok(rcd) => rcd,
+        };
+        
+        Some(Ok((shape, record)))
+    }
+}
+
+impl<T: Read, S: ReadableShape> FusedIterator for ShapeRecordIterator<T, S> {}
+
+//TODO Make it possible for the dbf source to be of a different dtype ?
 /// struct that reads the content of a shapefile
 pub struct Reader<T: Read> {
     source: T,
     header: header::Header,
-    shapes_index: Vec<ShapeIndex>,
+    shapes_index: Option<Vec<ShapeIndex>>,
+    dbf_reader: Option<dbase::Reader<T>>,
 }
 
 impl<T: Read> Reader<T> {
@@ -143,7 +176,8 @@ impl<T: Read> Reader<T> {
         Ok(Reader {
             source,
             header,
-            shapes_index: Vec::<ShapeIndex>::new(),
+            shapes_index: None,
+            dbf_reader: None,
         })
     }
 
@@ -159,8 +193,6 @@ impl<T: Read> Reader<T> {
     pub fn header(&self) -> &header::Header {
         &self.header
     }
-
-
 
     /// Reads all the shape as shape of a certain type.
     ///
@@ -205,6 +237,12 @@ impl<T: Read> Reader<T> {
     ///
     pub fn read(self) -> Result<Vec<Shape>, Error> {
         self.into_iter().collect()
+    }
+
+    /// Read and return _only_ the records contained in the *.dbf* file
+    pub fn read_records(self) -> Result<Vec<dbase::Record>, Error> {
+        let dbf_reader = self.dbf_reader.ok_or(Error::MissingDbf)?;
+        dbf_reader.read().or_else(|e| Err(Error::DbaseError(e)))
     }
 
 
@@ -262,12 +300,36 @@ impl<T: Read> Reader<T> {
         }
     }
 
+    pub fn iter_shapes_and_records_as<S: ReadableShape>(mut self) -> Result<ShapeRecordIterator<T, S>, Error> {
+        let maybe_dbf_reader = self.dbf_reader.take();
+        if let Some(dbf_reader) = maybe_dbf_reader {
+            let shape_iter = self.iter_shapes_as::<S>();
+            Ok(ShapeRecordIterator {
+                shape_iter,
+                dbf_reader,
+            })
+        } else {
+            Err(Error::MissingDbf)
+        }
+    }
+    
+    pub fn iter_shapes_and_records(self) -> Result<ShapeRecordIterator<T, Shape>, Error> {
+        self.iter_shapes_and_records_as::<Shape>()
+    }
+
     /// Reads the index file from the source
     /// This allows to later read shapes by giving their index without reading the whole file
     ///
     /// (see `Reader::read_nth_shape()`)
     pub fn add_index_source(&mut self, source: T) -> Result<(), Error> {
-        self.shapes_index = read_index_file(source)?;
+        self.shapes_index = Some(read_index_file(source)?);
+        Ok(())
+    }
+
+    /// Adds the `source` as the source where the dbf record will be read from
+    pub fn add_dbf_source(&mut self, source: T) -> Result<(), Error> {
+        let dbf_reader = dbase::Reader::new(source)?;
+        self.dbf_reader = Some(dbf_reader);
         Ok(())
     }
 }
@@ -283,8 +345,34 @@ impl<T: Read> IntoIterator for Reader<T> {
 
 impl Reader<BufReader<File>> {
     /// Creates a reader from a path to a file
+    /// 
+    /// Will attempt to read both the .shx and .dbf associated with the file,
+    /// if they do not exists the function will not fail, and you will get an error later 
+    /// if you try to use a function that requires the file to be present.
+    ///
+    /// Eg: If you open a file "SummonersRift.shp" and no file "SummonersRift.dbf" exists, the `from_path` constructor won't fail because the .dbf wasn't found, however if you try to
+    /// use
     ///
     /// # Examples
+    /// 
+    /// ```
+    /// use std::path::Path;
+    /// assert_eq!(Path::new("tests/data/linem.dbf").exists(), false);
+    /// assert_eq!(Path::new("tests/data/linem.shx").exists(), false);
+    ///
+    /// // both .shx and .dbf does not exists, but creation does not fail
+    /// let mut reader = shapefile::Reader::from_path("tests/data/linem.shp").unwrap();
+    /// let result = reader.iter_shapes_and_records();
+    /// assert_eq!(result.is_err(),  true);
+    ///
+    ///
+    /// assert_eq!(Path::new("tests/data/multipatch.dbf").exists(), true);
+    ///
+    /// let mut reader = shapefile::Reader::from_path("tests/data/multipatch.shp").unwrap();
+    /// let result = reader.iter_shapes_and_records();
+    /// assert_eq!(result.is_err(),  false);
+    /// ```
+    ///
     ///
     /// ```
     /// use shapefile::Reader;
@@ -292,9 +380,24 @@ impl Reader<BufReader<File>> {
     /// let polylines = reader.read_as::<shapefile::Polyline>().unwrap();
     /// ```
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
-        let file = File::open(path)?;
-        let source = BufReader::new(file);
-        Self::new(source)
+        let shape_path = path.as_ref().to_path_buf();
+        let shx_path = shape_path.with_extension("shx");
+        let dbf_path = shape_path.with_extension("dbf");
+
+        let source = BufReader::new(File::open(shape_path)?);
+        let mut reader = Self::new(source)?;
+
+        if shx_path.exists() {
+            let index_source = BufReader::new(File::open(shx_path)?);
+            reader.add_index_source(index_source)?;
+        }
+
+        if dbf_path.exists() {
+            let dbf_source = BufReader::new(File::open(dbf_path)?);
+            reader.add_dbf_source(dbf_source)?;
+            
+        }
+        Ok(reader)
     }
 }
 
@@ -309,40 +412,35 @@ impl<T: Read + Seek> Reader<T> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use shapefile::FileReaderBuilder;
-    /// let mut reader = FileReaderBuilder::new("tests/data/line.shp").with_index().build().unwrap();
-    /// let shape = reader.read_nth_shape_as::<shapefile::Polyline>(117);
-    /// assert_eq!(shape.is_none(), true);
-    ///
-    /// let shape = reader.read_nth_shape_as::<shapefile::Polyline>(0);
-    /// assert_eq!(shape.is_some(), true)
-    /// ```
     pub fn read_nth_shape_as<S: ReadableShape>(
         &mut self,
         index: usize,
     ) -> Option<Result<S::ReadShape, Error>> {
-        let offset = {
-            let shape_idx = self.shapes_index.get(index)?;
-            (shape_idx.offset * 2) as u64
-        };
+        if let Some(ref shapes_index) = self.shapes_index {
+            let offset = {
+                let shape_idx = shapes_index.get(index)?;
+                (shape_idx.offset * 2) as u64
+            };
 
-        if let Err(e) = self.source.seek(SeekFrom::Start(offset)) {
-            return Some(Err(Error::IoError(e)));
+            if let Err(e) = self.source.seek(SeekFrom::Start(offset)) {
+                return Some(Err(Error::IoError(e)));
+            }
+
+            let (_, shape) = match read_one_shape_as::<T, S>(&mut self.source) {
+                Err(e) => return Some(Err(e)),
+                Ok(hdr_and_shape) => hdr_and_shape,
+            };
+
+            if let Err(e) = self
+                .source
+                .seek(SeekFrom::Start(header::HEADER_SIZE as u64))
+            {
+                return Some(Err(Error::IoError(e)));
+            }
+            Some(Ok(shape))
+        } else {
+            Some(Err(Error::MissingIndexFile))
         }
-
-        let (_, shape) = match read_one_shape_as::<T, S>(&mut self.source) {
-            Err(e) => return Some(Err(e)),
-            Ok(hdr_and_shape) => hdr_and_shape,
-        };
-
-        if let Err(e) = self
-            .source
-            .seek(SeekFrom::Start(header::HEADER_SIZE as u64))
-        {
-            return Some(Err(Error::IoError(e)));
-        }
-        Some(Ok(shape))
     }
 
     /// Reads the `n`th shape of the shapefile
@@ -355,74 +453,11 @@ impl<T: Read + Seek> Reader<T> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use shapefile::FileReaderBuilder;
-    /// let mut reader = FileReaderBuilder::new("tests/data/line.shp").with_index().build().unwrap();
-    /// let shape = reader.read_nth_shape(117);
-    /// assert_eq!(shape.is_none(), true);
-    ///
-    /// let shape = reader.read_nth_shape(0);
-    /// assert_eq!(shape.is_some(), true)
-    /// ```
-    ///
-    /// ```
-    /// use shapefile::Reader;
-    /// let mut reader = Reader::from_path("tests/data/line.shp").unwrap();
-    /// let shape = reader.read_nth_shape(0);
-    /// assert_eq!(shape.is_none(), true); // We didn't give the shx file
-    /// ```
     pub fn read_nth_shape(&mut self, index: usize) -> Option<Result<Shape, Error>> {
         self.read_nth_shape_as::<Shape>(index)
     }
 }
 
-/*
-#[allow(dead_code)]
-enum SourceType<T: Read> {
-    Path(PathBuf),
-    Stream(T),
-}
-
-struct ReaderBuilder {
-    shape: PathBuf,
-    index_path: Option<PathBuf>,
-}*/
-
-
-pub struct FileReaderBuilder {
-    shape_path: PathBuf,
-    index_path: Option<PathBuf>,
-}
-
-impl FileReaderBuilder {
-    /// Creates a new FileReaderBuilder, with path being the path to the .shp file
-    pub fn new<P: AsRef<Path>>(path: P) -> Self {
-        let shape_path = path.as_ref().to_path_buf();
-        Self {
-            shape_path,
-            index_path: None,
-        }
-    }
-
-    /// Tells the builder to also open the .shx corresponding to the .shp given when
-    /// creating the FileReaderBuilder
-    pub fn with_index(mut self) -> Self {
-        self.index_path = Some(self.shape_path.with_extension("shx"));
-        self
-    }
-
-    /// Creates the Reader
-    ///
-    /// Forwards error that may happen when opening the files
-    pub fn build(self) -> Result<Reader<BufReader<File>>, Error> {
-        let mut reader = Reader::from_path(self.shape_path)?;
-        if let Some(p) = self.index_path {
-            let index_source = BufReader::new(File::open(p)?);
-            reader.add_index_source(index_source)?;
-        }
-        Ok(reader)
-    }
-}
 
 /// Function to read all the Shapes in a file.
 ///
@@ -467,11 +502,4 @@ pub fn read_as<T: AsRef<Path>, S: ReadableShape>(path: T) -> Result<Vec<S::ReadS
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    #[test]
-    fn test_builder() {
-        let reader = FileReaderBuilder::new("mdr.shp").with_index().build();
-        assert_eq!(reader.is_err(), true);
-    }
 }
