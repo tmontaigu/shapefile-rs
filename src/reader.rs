@@ -170,6 +170,14 @@ impl<T: Read> Reader<T> {
     /// Will also return an error if the data is not a shapefile (Wrong file code)
     ///
     /// Will also return an error if the shapetype read from the input source is invalid
+    ///
+    /// # Example 
+    ///
+    /// ```
+    /// use std::fs::File;
+    /// let file = File::open("tests/data/line.shp").unwrap();
+    /// let reader = shapefile::Reader::new(file).unwrap();
+    /// ```
     pub fn new(mut source: T) -> Result<Reader<T>, Error> {
         let header = header::Header::read_from(&mut source)?;
 
@@ -300,6 +308,21 @@ impl<T: Read> Reader<T> {
         }
     }
 
+    /// Returns an iterator over the Shapes and their Records
+    ///
+    /// # Errors
+    ///
+    /// The `Result` will be an error if the .dbf wasn't found
+    ///
+    /// # Example
+    /// ```
+    /// use shapefile::{Reader, Multipatch};
+    /// let reader = Reader::from_path("tests/data/multipatch.shp").unwrap();
+    /// for result in reader.iter_shapes_and_records_as::<Multipatch>().unwrap() {
+    ///     let (shape, record) = result.unwrap();
+    ///     // ...
+    /// }
+    /// ```
     pub fn iter_shapes_and_records_as<S: ReadableShape>(mut self) -> Result<ShapeRecordIterator<T, S>, Error> {
         let maybe_dbf_reader = self.dbf_reader.take();
         if let Some(dbf_reader) = maybe_dbf_reader {
@@ -313,6 +336,26 @@ impl<T: Read> Reader<T> {
         }
     }
     
+    /// Returns an iterator over the Shapes and their Records
+    ///
+    /// # Errors
+    ///
+    /// The `Result` will be an error if the .dbf wasn't found
+    ///
+    /// # Example
+    /// ```
+    /// use shapefile::{Reader, Shape};
+    /// let reader = Reader::from_path("tests/data/multipatch.shp").unwrap();
+    /// for result in reader.iter_shapes_and_records().unwrap() {
+    ///     let (shape, record) = result.unwrap();
+    ///     match shape {
+    ///         Shape::Multipatch(multip) => {/*...*/ },
+    ///         //..
+    ///         _ => { /*...*/ }
+    ///     }
+    ///     // ...
+    /// }
+    /// ```
     pub fn iter_shapes_and_records(self) -> Result<ShapeRecordIterator<T, Shape>, Error> {
         self.iter_shapes_and_records_as::<Shape>()
     }
@@ -320,7 +363,7 @@ impl<T: Read> Reader<T> {
     /// Reads the index file from the source
     /// This allows to later read shapes by giving their index without reading the whole file
     ///
-    /// (see `Reader::read_nth_shape()`)
+    /// (see [read_nth_shape()](struct.Reader.html#method.read_nth_shape))
     pub fn add_index_source(&mut self, source: T) -> Result<(), Error> {
         self.shapes_index = Some(read_index_file(source)?);
         Ok(())
@@ -401,16 +444,20 @@ impl Reader<BufReader<File>> {
     }
 }
 
+/// Sources that implements `Seek` have access to 
+/// a few more methods that uses the *index file(.shx)*
 impl<T: Read + Seek> Reader<T> {
     /// Reads the `n`th shape of the shapefile
     ///
     /// # Returns
     ///
-    /// `None` if the index is out of range or if no index file was added prior to
-    /// calling this function
+    /// `None` if the index is out of range
     ///
+    /// # Errors 
+    /// 
+    /// This method will return an `Error::MissingIndexFile` if you use it
+    /// but no *.shx* was found when opening the shapefile.
     ///
-    /// # Examples
     ///
     pub fn read_nth_shape_as<S: ReadableShape>(
         &mut self,
@@ -444,15 +491,6 @@ impl<T: Read + Seek> Reader<T> {
     }
 
     /// Reads the `n`th shape of the shapefile
-    ///
-    /// # Returns
-    ///
-    /// `None` if the index is out of range or if no index file was added prior to
-    /// calling this function
-    ///
-    ///
-    /// # Examples
-    ///
     pub fn read_nth_shape(&mut self, index: usize) -> Option<Result<Shape, Error>> {
         self.read_nth_shape_as::<Shape>(index)
     }
