@@ -1,6 +1,6 @@
 [package]
 name = "shapefile"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["tmontaigu <thomas.montaigu@laposte.net>"]
 description = "Read & Write shapefiles in Rust"
 license = "MIT"
@@ -12,3 +12,4 @@ repository = "https://github.com/tmontaigu/shapefile-rs"
 
 [dependencies]
 byteorder = "1.2.7"
+dbase = "0.0.2"
