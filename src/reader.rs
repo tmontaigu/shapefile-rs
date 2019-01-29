@@ -40,6 +40,14 @@
 //! - [read_as](struct.Reader.html#method.read_as) To read all the shapes as the specified type
 //! - [iter_shapes_as](struct.Reader.html#method.iter_shapes_as) To iterate over the shapes as shapes
 //! of the specified type
+//! - [iter_shapes_and_records_as](struct.Reader.html#method.iter_shapes_and_records_as) To iterate
+//! over both the shapes and records
+//!
+//! Otherwise use the functions that return [Shape](../record/enum.Shape.html)s and do a `match`
+//!
+//! - [read](struct.Reader.html#method.read)
+//! - [iter_shapes](struct.Reader.html#method.iter_shapes)
+//! - [iter_shapes_and_records](struct.Reader.html#method.iter_shapes_and_records)
 //!
 //!
 //! Two functions ([read](fn.read.html) and [read_as](fn.read_as.html)) are provided to read
@@ -393,8 +401,6 @@ impl Reader<BufReader<File>> {
     /// if they do not exists the function will not fail, and you will get an error later 
     /// if you try to use a function that requires the file to be present.
     ///
-    /// Eg: If you open a file "SummonersRift.shp" and no file "SummonersRift.dbf" exists, the `from_path` constructor won't fail because the .dbf wasn't found, however if you try to
-    /// use
     ///
     /// # Examples
     /// 
