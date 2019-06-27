@@ -306,7 +306,6 @@ fn check_pointz<T: Read>(reader: shapefile::Reader<T>) {
 }
 
 fn check_polygon<T: Read>(reader: shapefile::Reader<T>) {
-    use shapefile::Point;
     {
         let header = reader.header();
         assert_eq!(header.file_length, 170);
@@ -340,7 +339,6 @@ fn check_polygon<T: Read>(reader: shapefile::Reader<T>) {
 }
 
 fn check_polygonm<T: Read>(reader: shapefile::Reader<T>) {
-    use shapefile::PointM;
     {
         let header = reader.header();
         assert_eq!(header.file_length, 134);
@@ -413,7 +411,6 @@ fn check_polygonz<T: Read>(reader: shapefile::Reader<T>) {
 }
 
 fn check_multipoint<T: Read>(reader: shapefile::Reader<T>) {
-    use shapefile::Point;
     {
         let header = reader.header();
         assert_eq!(header.file_length, 90);
@@ -434,7 +431,6 @@ fn check_multipoint<T: Read>(reader: shapefile::Reader<T>) {
 }
 
 fn check_multipointz<T: Read>(reader: shapefile::Reader<T>) {
-    use shapefile::PointZ;
     {
         let header = reader.header();
         assert_eq!(header.file_length, 154);
@@ -487,7 +483,6 @@ fn check_multipointz<T: Read>(reader: shapefile::Reader<T>) {
 }
 
 fn check_multipatch<T: Read>(reader: shapefile::Reader<T>) {
-    use shapefile::PointZ;
     {
         let header = reader.header();
         assert_eq!(header.file_length, 356, "Wrong file length");
