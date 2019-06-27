@@ -53,6 +53,7 @@ fn write_index_file<T: Write>(
 pub struct Writer<T: Write> {
     pub dest: T,
     index_dest: Option<T>,
+    dbase_dest: Option<T>,
 }
 
 impl<T: Write> Writer<T> {
@@ -63,6 +64,7 @@ impl<T: Write> Writer<T> {
         Self {
             dest,
             index_dest: None,
+            dbase_dest: None
         }
     }
 
@@ -167,9 +169,26 @@ impl<T: Write> Writer<T> {
         Ok(())
     }
 
+    pub fn write_shapes_and_records<S: EsriShape>(mut self, shapes: Vec<S>, records: Vec<dbase::Record>) -> Result<(), Error> {
+        if shapes.len() != records.len() {
+            panic!("The shapes and records vectors must have the same len");
+        }
+        self.write_shapes(shapes)?;
+        if let Some(dbase_dest) = self.dbase_dest {
+            let dbase_writer = dbase::Writer::new(dbase_dest);
+            dbase_writer.write(&records)?;
+        }
+        Ok(())
+    }
+
     /// Adds dest as the destination where the index file will be written
     pub fn add_index_dest(&mut self, dest: T) {
         self.index_dest = Some(dest);
+    }
+
+    /// Adds dest as the destination where the dbase content will be written
+    pub fn add_dbase_dest(&mut self, dest: T) {
+        self.dbase_dest = Some(dest);
     }
 
 }
@@ -185,8 +204,19 @@ impl Writer<BufWriter<File>> {
     /// let writer = shapefile::Writer::from_path("/dev/null");
     /// ```
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
-        let file = File::create(path)?;
-        let dest = BufWriter::new(file);
-        Ok(Self::new(dest))
+        let shp_path = path.as_ref().to_path_buf();
+        let shx_path = shp_path.with_extension("shx");
+        let dbf_path = shp_path.with_extension("dfb");
+
+        let shp_file = BufWriter::new(File::create(shp_path)?);
+        let shx_file = BufWriter::new(File::create(shx_path)?);
+        let dbf_file = BufWriter::new(File::create(dbf_path)?);
+
+
+        let mut writer = Self::new(shp_file);
+        writer.add_index_dest(shx_file);
+        writer.add_dbase_dest(dbf_file);
+
+        Ok(writer)
     }
 }
