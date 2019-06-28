@@ -17,6 +17,7 @@ pub use record::point::{Point, PointM, PointZ};
 pub use record::poly::{Polygon, PolygonM, PolygonZ};
 pub use record::poly::{Polyline, PolylineM, PolylineZ};
 use record::traits::HasXY;
+use std::convert::TryFrom;
 
 /// Value inferior to this are considered as NO_DATA
 pub const NO_DATA: f64 = -10e38;
@@ -34,11 +35,6 @@ pub trait HasShapeType {
 /// Simple Trait to store the type of the shape
 pub trait ConcreteShape {
     type ActualShape;
-}
-
-// Basically we need Stabilized TryFrom trait
-pub trait ConcreteShapeFromShape: ConcreteShape {
-    fn try_from(shape: Shape) -> Result<Self::ActualShape, Error>;
 }
 
 pub trait ConcreteReadableShape: ConcreteShape + HasShapeType {
@@ -320,10 +316,12 @@ impl RecordHeader {
 /// let multipoints = convert_shapes_to_vec_of::<MultipointZ>(shapes);
 /// assert_eq!(multipoints.is_ok(), true);
 /// ```
-pub fn convert_shapes_to_vec_of<S: ConcreteShapeFromShape>(
+pub fn convert_shapes_to_vec_of<S>(
     shapes: Vec<Shape>,
-) -> Result<Vec<S::ActualShape>, Error> {
-    let mut concrete_shapes = Vec::<S::ActualShape>::with_capacity(shapes.len());
+) -> Result<Vec<S>, Error>
+    where S:TryFrom<Shape>,
+        Error: From<<S as TryFrom<Shape>>::Error> {
+    let mut concrete_shapes = Vec::<S>::with_capacity(shapes.len());
     for shape in shapes {
         let concrete = S::try_from(shape)?;
         concrete_shapes.push(concrete);
@@ -353,12 +351,12 @@ macro_rules! impl_from_concrete_shape {
     };
 }
 
-/// macro to implement the custom trait ConcreteShapeFromShape
-/// (which should be TryFrom<T> when stabilized)
-macro_rules! impl_to_concrete_shape {
+/// macro to implement the TryFrom<Shape> trait
+macro_rules! impl_try_from_shape {
     (Shape::$ShapeEnumVariant:ident=>$ConcreteShape:ident) => {
-        impl ConcreteShapeFromShape for $ConcreteShape {
-            fn try_from(shape: Shape) -> Result<Self::ActualShape, Error> {
+        impl TryFrom<Shape> for $ConcreteShape {
+        type Error = Error;
+            fn try_from(shape: Shape) -> Result<Self, Self::Error> {
                 match shape {
                     Shape::$ShapeEnumVariant(shp) => Ok(shp),
                     _ => Err(Error::MismatchShapeType {
@@ -373,7 +371,7 @@ macro_rules! impl_to_concrete_shape {
 
 macro_rules! impl_to_way_conversion {
     (Shape::$ShapeEnumVariant:ident<=>$ConcreteShape:ident) => {
-        impl_to_concrete_shape!(Shape::$ShapeEnumVariant => $ConcreteShape);
+        impl_try_from_shape!(Shape::$ShapeEnumVariant => $ConcreteShape);
         impl_from_concrete_shape!($ConcreteShape => Shape::$ShapeEnumVariant);
     };
 }
