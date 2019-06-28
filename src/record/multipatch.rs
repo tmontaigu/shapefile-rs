@@ -120,7 +120,7 @@ impl HasShapeType for Multipatch {
 }
 
 impl ConcreteReadableShape for Multipatch {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;

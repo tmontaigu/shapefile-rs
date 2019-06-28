@@ -95,7 +95,7 @@ fn read_index_file<T: Read>(mut source: T) -> Result<Vec<ShapeIndex>, Error> {
 /// Reads and returns one shape and its header from the source
 fn read_one_shape_as<T: Read, S: ReadableShape>(
     mut source: &mut T,
-) -> Result<(record::RecordHeader, S::ReadShape), Error> {
+) -> Result<(record::RecordHeader, S), Error> {
     let hdr = record::RecordHeader::read_from(&mut source)?;
     let record_size = hdr.record_size * 2;
     let shape = S::read_from(&mut source, record_size)?;
@@ -113,7 +113,7 @@ pub struct ShapeIterator<T: Read, S: ReadableShape> {
 }
 
 impl<T: Read, S: ReadableShape> Iterator for ShapeIterator<T, S> {
-    type Item = Result<S::ReadShape, Error>;
+    type Item = Result<S, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_pos >= self.file_length {
@@ -138,7 +138,7 @@ pub struct ShapeRecordIterator<T: Read, S: ReadableShape> {
 }
 
 impl<T: Read, S: ReadableShape> Iterator for ShapeRecordIterator<T, S> {
-    type Item = Result<(S::ReadShape, dbase::Record), Error>;
+    type Item = Result<(S, dbase::Record), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let shape = match self.shape_iter.next()? {
@@ -232,7 +232,7 @@ impl<T: Read> Reader<T> {
     /// let polylines = reader.read_as::<shapefile::Polyline>(); // we ask for the wrong type
     /// assert_eq!(polylines.is_err(), true);
     /// ```
-    pub fn read_as<S: ReadableShape>(self) -> Result<Vec<S::ReadShape>, Error> {
+    pub fn read_as<S: ReadableShape>(self) -> Result<Vec<S>, Error> {
         self.iter_shapes_as::<S>().collect()
     }
 
@@ -468,7 +468,7 @@ impl<T: Read + Seek> Reader<T> {
     pub fn read_nth_shape_as<S: ReadableShape>(
         &mut self,
         index: usize,
-    ) -> Option<Result<S::ReadShape, Error>> {
+    ) -> Option<Result<S, Error>> {
         if let Some(ref shapes_index) = self.shapes_index {
             let offset = {
                 let shape_idx = shapes_index.get(index)?;
@@ -538,7 +538,7 @@ pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
 ///
 /// If the reading is successful, the returned `Vec<S:ReadShape>>`is a vector of actual structs
 /// Useful if you know in at compile time which kind of shape you expect the file to have
-pub fn read_as<T: AsRef<Path>, S: ReadableShape>(path: T) -> Result<Vec<S::ReadShape>, Error> {
+pub fn read_as<T: AsRef<Path>, S: ReadableShape>(path: T) -> Result<Vec<S>, Error> {
     let reader = Reader::from_path(path)?;
     reader.read_as::<S>()
 }

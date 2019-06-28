@@ -112,7 +112,7 @@ impl HasShapeType for Polyline {
 }
 
 impl ConcreteReadableShape for Polyline {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -198,7 +198,7 @@ impl HasShapeType for PolylineM {
 }
 
 impl ConcreteReadableShape for PolylineM {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -304,7 +304,7 @@ impl HasShapeType for PolylineZ {
 }
 
 impl ConcreteReadableShape for PolylineZ {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -451,7 +451,7 @@ impl HasShapeType for Polygon {
 }
 
 impl ConcreteReadableShape for Polygon {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
         let poly = Polyline::read_shape_content(&mut source, record_size)?;
         Ok(poly.into())
     }
@@ -504,7 +504,7 @@ impl HasShapeType for PolygonM {
 }
 
 impl ConcreteReadableShape for PolygonM {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
         let poly = PolylineM::read_shape_content(&mut source, record_size)?;
         Ok(Self::from(poly))
     }
@@ -561,7 +561,7 @@ impl HasShapeType for PolygonZ {
 }
 
 impl ConcreteReadableShape for PolygonZ {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
         let poly = PolylineZ::read_shape_content(&mut source, record_size)?;
         Ok(poly.into())
     }

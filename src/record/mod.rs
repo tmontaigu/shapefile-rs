@@ -33,25 +33,22 @@ pub trait HasShapeType {
 }
 
 /// Simple Trait to store the type of the shape
-pub trait ConcreteShape {
-    type ActualShape;
+pub trait ConcreteShape: Sized + HasShapeType {
 }
 
-pub trait ConcreteReadableShape: ConcreteShape + HasShapeType {
+pub trait ConcreteReadableShape: ConcreteShape {
     /// Function that actually reads the `ActualShape` from the source
     /// and returns it
-    fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error>;
+    fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error>;
 }
 
 /// Trait implemented by all the Shapes that can be read
-pub trait ReadableShape {
-    type ReadShape;
-    fn read_from<T: Read>(source: &mut T, record_size: i32) -> Result<Self::ReadShape, Error>;
+pub trait ReadableShape: Sized {
+    fn read_from<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error>;
 }
 
 impl<S: ConcreteReadableShape> ReadableShape for S {
-    type ReadShape = S::ActualShape;
-    fn read_from<T: Read>(mut source: &mut T, mut record_size: i32) -> Result<Self::ReadShape, Error> {
+    fn read_from<T: Read>(mut source: &mut T, mut record_size: i32) -> Result<S, Error> {
         let shapetype = ShapeType::read_from(&mut source)?;
         record_size -= std::mem::size_of::<i32>() as i32;
         if shapetype == Self::shapetype() {
@@ -129,8 +126,7 @@ impl HasShapeType for Shape {
 }
 
 impl ReadableShape for Shape {
-    type ReadShape = Self;
-    fn read_from<T: Read>(mut source: &mut T, mut record_size: i32) -> Result<Self::ReadShape, Error> {
+    fn read_from<T: Read>(mut source: &mut T, mut record_size: i32) -> Result<Self, Error> {
         let shapetype = ShapeType::read_from(&mut source)?;
         record_size -= std::mem::size_of::<i32>() as i32;
         let shape = match shapetype {
@@ -334,7 +330,6 @@ pub fn convert_shapes_to_vec_of<S>(
 macro_rules! impl_concrete_shape_for {
     ($ConcreteType:ident) => {
         impl ConcreteShape for $ConcreteType {
-            type ActualShape = $ConcreteType;
         }
     };
 }

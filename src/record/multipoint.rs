@@ -109,7 +109,7 @@ impl HasShapeType for Multipoint {
 }
 
 impl ConcreteReadableShape for Multipoint {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
         if record_size == Self::size_of_record(num_points) as i32 {
@@ -180,7 +180,7 @@ impl HasShapeType for MultipointM {
 }
 
 impl ConcreteReadableShape for MultipointM {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
         let bbox = BBox::read_from(&mut source)?;
 
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -271,7 +271,7 @@ impl HasShapeType for MultipointZ {
 }
 
 impl ConcreteReadableShape for MultipointZ {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self::ActualShape, Error> {
+    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
             
