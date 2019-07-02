@@ -74,11 +74,11 @@ pub trait WritableShape {
 
 pub trait EsriShape: HasShapeType + WritableShape {
     fn bbox(&self) -> BBox;
-    /// Should the Z range of this shape (maybe require computing it)
+    /// Should return the Z range of this shape (maybe require computing it)
     fn z_range(&self) -> [f64; 2] {
         [0.0, 0.0]
     }
-    /// Should the M range of this shape (maybe require computing it)
+    /// Should return the M range of this shape (maybe require computing it)
     fn m_range(&self) -> [f64; 2] {
         [0.0, 0.0]
     }

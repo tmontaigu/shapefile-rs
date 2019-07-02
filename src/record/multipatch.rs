@@ -45,8 +45,8 @@ impl PatchType {
 
 pub struct Multipatch {
     pub bbox: BBox,
-    points: Vec<PointZ>,
-    parts: Vec<i32>,
+    pub points: Vec<PointZ>,
+    pub parts: Vec<i32>,
     pub parts_type: Vec<PatchType>,
     pub z_range: [f64; 2],
     pub m_range: [f64; 2],

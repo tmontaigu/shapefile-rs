@@ -18,8 +18,8 @@ use record::traits::{HasXY};
 
 pub struct GenericPolyline<PointType> {
     pub bbox: BBox,
-    points: Vec<PointType>,
-    parts: Vec<i32>,
+    pub points: Vec<PointType>,
+    pub parts: Vec<i32>,
 }
 
 impl<PointType: HasXY> GenericPolyline<PointType> {
@@ -392,8 +392,8 @@ impl EsriShape for PolylineZ {
 
 pub struct GenericPolygon<PointType> {
     pub bbox: BBox,
-    points: Vec<PointType>,
-    parts: Vec<i32>,
+    pub points: Vec<PointType>,
+    pub parts: Vec<i32>,
 }
 
 impl<PointType: HasXY> GenericPolygon<PointType> {

@@ -25,7 +25,7 @@ use record::traits::{HasXY, MultipointShape};
 pub struct GenericMultipoint<PointType> {
     /// The 2D bounding box
     pub bbox: BBox,
-    points: Vec<PointType>,
+    pub points: Vec<PointType>,
 }
 
 impl<PointType> MultipointShape<PointType> for GenericMultipoint<PointType> {
