@@ -25,20 +25,20 @@ pub mod reader;
 pub mod record;
 pub mod writer;
 
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::convert::From;
 use std::fmt;
 use std::io::{Read, Write};
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-pub use reader::{Reader, read, read_as};
+pub use reader::{read, read_as, Reader};
+pub use record::traits::{MultipartShape, MultipointShape};
 pub use record::Multipatch;
-pub use record::{HasShapeType, ReadableShape, convert_shapes_to_vec_of};
+pub use record::{convert_shapes_to_vec_of, HasShapeType, ReadableShape};
 pub use record::{Multipoint, MultipointM, MultipointZ};
 pub use record::{PatchType, Shape, NO_DATA};
 pub use record::{Point, PointM, PointZ};
 pub use record::{Polygon, PolygonM, PolygonZ};
 pub use record::{Polyline, PolylineM, PolylineZ};
-pub use record::traits::{MultipartShape, MultipointShape};
 pub use writer::Writer;
 
 /// All Errors that can happen when using this library
@@ -77,7 +77,7 @@ impl From<std::io::Error> for Error {
     }
 }
 
-impl From<dbase::Error> for Error  {
+impl From<dbase::Error> for Error {
     fn from(e: dbase::Error) -> Error {
         Error::DbaseError(e)
     }
@@ -87,11 +87,23 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Error::IoError(e) => write!(f, "{}", e),
-            Error::InvalidFileCode(code) => write!(f, "The file code ' {} ' is invalid, is this a Shapefile ?", code),
-            Error::InvalidShapeType(code) => write!(f, "The code ' {} ' does not correspond to any of the ShapeType code defined by ESRI", code),
-            Error::MismatchShapeType{requested, actual} => write!(f, "The requested type: '{}' does not correspond to the actual shape type: '{}'", requested, actual), 
-            e => write!(f, "{:?}", e)
-       }
+            Error::InvalidFileCode(code) => write!(
+                f,
+                "The file code ' {} ' is invalid, is this a Shapefile ?",
+                code
+            ),
+            Error::InvalidShapeType(code) => write!(
+                f,
+                "The code ' {} ' does not correspond to any of the ShapeType code defined by ESRI",
+                code
+            ),
+            Error::MismatchShapeType { requested, actual } => write!(
+                f,
+                "The requested type: '{}' does not correspond to the actual shape type: '{}'",
+                requested, actual
+            ),
+            e => write!(f, "{:?}", e),
+        }
     }
 }
 
@@ -197,7 +209,6 @@ impl ShapeType {
             _ => true,
         }
     }
-
 }
 
 impl fmt::Display for ShapeType {
@@ -220,4 +231,3 @@ impl fmt::Display for ShapeType {
         }
     }
 }
-

@@ -64,7 +64,7 @@ impl<T: Write> Writer<T> {
         Self {
             dest,
             index_dest: None,
-            dbase_dest: None
+            dbase_dest: None,
         }
     }
 
@@ -169,7 +169,11 @@ impl<T: Write> Writer<T> {
         Ok(())
     }
 
-    pub fn write_shapes_and_records<S: EsriShape>(mut self, shapes: Vec<S>, records: Vec<dbase::Record>) -> Result<(), Error> {
+    pub fn write_shapes_and_records<S: EsriShape>(
+        mut self,
+        shapes: Vec<S>,
+        records: Vec<dbase::Record>,
+    ) -> Result<(), Error> {
         if shapes.len() != records.len() {
             panic!("The shapes and records vectors must have the same len");
         }
@@ -190,7 +194,6 @@ impl<T: Write> Writer<T> {
     pub fn add_dbase_dest(&mut self, dest: T) {
         self.dbase_dest = Some(dest);
     }
-
 }
 
 impl Writer<BufWriter<File>> {
@@ -211,7 +214,6 @@ impl Writer<BufWriter<File>> {
         let shp_file = BufWriter::new(File::create(shp_path)?);
         let shx_file = BufWriter::new(File::create(shx_path)?);
         let dbf_file = BufWriter::new(File::create(dbf_path)?);
-
 
         let mut writer = Self::new(shp_file);
         writer.add_index_dest(shx_file);

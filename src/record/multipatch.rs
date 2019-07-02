@@ -1,18 +1,18 @@
 //! Module for the Multipatch shape
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use std::mem::size_of;
-use std::io::{Read, Write};
-use std::slice::SliceIndex;
 use std::fmt;
+use std::io::{Read, Write};
+use std::mem::size_of;
+use std::slice::SliceIndex;
 
 use record::io::*;
-use record::BBox;
-use record::{EsriShape, HasShapeType, PointZ, WritableShape, Point};
-use record::traits::{MultipartShape, MultipointShape};
-use {Error, ShapeType};
 use record::is_parts_array_valid;
+use record::traits::{MultipartShape, MultipointShape};
+use record::BBox;
 use record::ConcreteReadableShape;
+use record::{EsriShape, HasShapeType, Point, PointZ, WritableShape};
+use {Error, ShapeType};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PatchType {
@@ -52,7 +52,6 @@ pub struct Multipatch {
     pub m_range: [f64; 2],
 }
 
-
 impl Multipatch {
     pub fn new(points: Vec<PointZ>, parts: Vec<i32>, parts_type: Vec<PatchType>) -> Self {
         let bbox = BBox::from_points(&points);
@@ -76,7 +75,7 @@ impl Multipatch {
         size += size_of::<i32>() * num_parts as usize; // parts
         size += size_of::<i32>() * num_parts as usize; // parts type
         size += size_of::<Point>() * num_points as usize;
-        size += 2 * size_of::<f64>();// mandatory Z Range
+        size += 2 * size_of::<f64>(); // mandatory Z Range
         size += size_of::<f64>() * num_points as usize; // mandatory Z
 
         if is_m_used {
@@ -99,7 +98,10 @@ impl fmt::Display for Multipatch {
 }
 
 impl MultipointShape<PointZ> for Multipatch {
-    fn point<I: SliceIndex<[PointZ]>>(&self, index: I) -> Option<&<I as SliceIndex<[PointZ]>>::Output> {
+    fn point<I: SliceIndex<[PointZ]>>(
+        &self,
+        index: I,
+    ) -> Option<&<I as SliceIndex<[PointZ]>>::Output> {
         self.points.get(index)
     }
     fn points(&self) -> &[PointZ] {
@@ -129,7 +131,7 @@ impl ConcreteReadableShape for Multipatch {
         let record_size_without_m = Self::size_of_record(num_points, num_parts, false) as i32;
 
         if (record_size != record_size_with_m) & (record_size != record_size_without_m) {
-            return Err(Error::InvalidShapeRecordSize)
+            return Err(Error::InvalidShapeRecordSize);
         }
 
         let is_m_used = record_size == record_size_with_m;

@@ -50,13 +50,11 @@ impl HasShapeType for Point {
 
 impl ConcreteReadableShape for Point {
     fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
-        if record_size == 2 * size_of::<f64>() as i32
-        {
+        if record_size == 2 * size_of::<f64>() as i32 {
             let x = source.read_f64::<LittleEndian>()?;
             let y = source.read_f64::<LittleEndian>()?;
             Ok(Self { x, y })
-        }
-        else {
+        } else {
             Err(Error::InvalidShapeRecordSize)
         }
     }
@@ -95,7 +93,6 @@ impl fmt::Display for Point {
  * PointM
  */
 
-
 /// Point with `x`, `y`, `m`
 #[derive(PartialEq, Debug, Default, Copy, Clone)]
 pub struct PointM {
@@ -130,16 +127,11 @@ impl HasShapeType for PointM {
 impl ConcreteReadableShape for PointM {
     fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
         if record_size == 3 * size_of::<f64>() as i32 {
-            let x = source.read_f64::<LittleEndian>()?; 
+            let x = source.read_f64::<LittleEndian>()?;
             let y = source.read_f64::<LittleEndian>()?;
             let m = source.read_f64::<LittleEndian>()?;
-            Ok(Self {
-                x,
-                y,
-                m,
-            })
-        }
-        else {
+            Ok(Self { x, y, m })
+        } else {
             Err(Error::InvalidShapeRecordSize)
         }
     }
@@ -237,14 +229,8 @@ impl ConcreteReadableShape for PointZ {
             let y = source.read_f64::<LittleEndian>()?;
             let z = source.read_f64::<LittleEndian>()?;
             let m = source.read_f64::<LittleEndian>()?;
-            Ok(Self {
-                x,
-                y,
-                z,
-                m,
-            })
-        } 
-        else {
+            Ok(Self { x, y, z, m })
+        } else {
             Err(Error::InvalidShapeRecordSize)
         }
     }

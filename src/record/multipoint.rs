@@ -14,12 +14,12 @@ use std::slice::SliceIndex;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use record::io::*;
+use record::traits::{HasXY, MultipointShape};
 use record::ConcreteReadableShape;
 use record::{BBox, EsriShape};
 use record::{HasShapeType, WritableShape};
 use record::{Point, PointM, PointZ};
 use {Error, ShapeType};
-use record::traits::{HasXY, MultipointShape};
 
 /// Generic struct to create the Multipoint, MultipointM, MultipointZ types
 pub struct GenericMultipoint<PointType> {
@@ -29,7 +29,10 @@ pub struct GenericMultipoint<PointType> {
 }
 
 impl<PointType> MultipointShape<PointType> for GenericMultipoint<PointType> {
-    fn point<I: SliceIndex<[PointType]>>(&self, index: I) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
+    fn point<I: SliceIndex<[PointType]>>(
+        &self,
+        index: I,
+    ) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
         self.points.get(index)
     }
     fn points(&self) -> &[PointType] {
@@ -115,8 +118,7 @@ impl ConcreteReadableShape for Multipoint {
         if record_size == Self::size_of_record(num_points) as i32 {
             let points = read_xy_in_vec_of::<Point, T>(&mut source, num_points)?;
             Ok(Self { bbox, points })
-        }
-        else {
+        } else {
             Err(Error::InvalidShapeRecordSize)
         }
     }
@@ -188,10 +190,9 @@ impl ConcreteReadableShape for MultipointM {
         let size_with_m = Self::size_of_record(num_points, true) as i32;
         let size_without_m = Self::size_of_record(num_points, false) as i32;
 
-        if (record_size != size_with_m) & (record_size != size_without_m)  {
+        if (record_size != size_with_m) & (record_size != size_without_m) {
             Err(Error::InvalidShapeRecordSize)
-        } 
-        else {
+        } else {
             let m_is_used = size_with_m == record_size;
             let mut points = read_xy_in_vec_of::<PointM, T>(&mut source, num_points)?;
 
@@ -274,14 +275,13 @@ impl ConcreteReadableShape for MultipointZ {
     fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
         let bbox = BBox::read_from(&mut source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
-            
+
         let size_with_m = Self::size_of_record(num_points, true) as i32;
         let size_without_m = Self::size_of_record(num_points, false) as i32;
-        
-        if (record_size != size_with_m) & (record_size != size_without_m)  {
+
+        if (record_size != size_with_m) & (record_size != size_without_m) {
             Err(Error::InvalidShapeRecordSize)
-        }
-        else {
+        } else {
             let m_is_used = size_with_m == record_size;
             let mut points = read_xy_in_vec_of::<PointZ, T>(&mut source, num_points)?;
 

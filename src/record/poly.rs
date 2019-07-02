@@ -1,20 +1,20 @@
 //! Module with the definition of Polyline(M,Z) and Polygon(M,Z)
 
+use std::fmt;
 use std::io::{Read, Write};
 use std::mem::size_of;
 use std::slice::SliceIndex;
-use std::fmt;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use record::io::*;
+use record::is_parts_array_valid;
+use record::traits::HasXY;
+use record::traits::{MultipartShape, MultipointShape};
+use record::ConcreteReadableShape;
 use record::{BBox, EsriShape, HasShapeType, WritableShape};
 use record::{Point, PointM, PointZ};
 use {Error, ShapeType};
-use record::traits::{MultipartShape, MultipointShape};
-use record::is_parts_array_valid;
-use record::ConcreteReadableShape;
-use record::traits::{HasXY};
 
 pub struct GenericPolyline<PointType> {
     pub bbox: BBox,
@@ -66,7 +66,10 @@ impl<PointType> From<GenericPolyline<PointType>> for GenericPolygon<PointType> {
 }
 
 impl<PointType> MultipointShape<PointType> for GenericPolyline<PointType> {
-    fn point<I: SliceIndex<[PointType]>>(&self, index: I) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
+    fn point<I: SliceIndex<[PointType]>>(
+        &self,
+        index: I,
+    ) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
         self.points.get(index)
     }
     fn points(&self) -> &[PointType] {
@@ -119,8 +122,7 @@ impl ConcreteReadableShape for Polyline {
 
         if record_size != Self::size_of_record(num_points, num_parts) as i32 {
             Err(Error::InvalidShapeRecordSize)
-        }
-        else {
+        } else {
             let parts = read_parts(&mut source, num_parts)?;
             let points = read_xy_in_vec_of::<Point, T>(&mut source, num_points)?;
 
@@ -209,9 +211,8 @@ impl ConcreteReadableShape for PolylineM {
         let record_size_without_m = Self::size_of_record(num_points, num_parts, false) as i32;
 
         if (record_size != record_size_with_m) & (record_size != record_size_without_m) {
-            return Err(Error::InvalidShapeRecordSize)
-        }
-        else {
+            return Err(Error::InvalidShapeRecordSize);
+        } else {
             let is_m_used = record_size == record_size_with_m;
             let mut points = read_xy_in_vec_of::<PointM, T>(&mut source, num_points)?;
 
@@ -312,11 +313,9 @@ impl ConcreteReadableShape for PolylineZ {
         let record_size_with_m = Self::size_of_record(num_points, num_parts, true) as i32;
         let record_size_without_m = Self::size_of_record(num_points, num_parts, false) as i32;
 
-
         if (record_size != record_size_with_m) & (record_size != record_size_without_m) {
-            return Err(Error::InvalidShapeRecordSize)
-        }
-        else {
+            return Err(Error::InvalidShapeRecordSize);
+        } else {
             let is_m_used = record_size == record_size_with_m;
             let parts = read_parts(&mut source, num_parts)?;
 
@@ -417,7 +416,10 @@ impl<PointType: HasXY> GenericPolygon<PointType> {
 }
 
 impl<PointType> MultipointShape<PointType> for GenericPolygon<PointType> {
-    fn point<I: SliceIndex<[PointType]>>(&self, index: I) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
+    fn point<I: SliceIndex<[PointType]>>(
+        &self,
+        index: I,
+    ) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
         self.points.get(index)
     }
     fn points(&self) -> &[PointType] {

@@ -12,11 +12,11 @@ pub mod traits;
 use super::{Error, ShapeType};
 pub use record::multipatch::{Multipatch, PatchType};
 pub use record::multipoint::{Multipoint, MultipointM, MultipointZ};
-pub use record::traits::{MultipointShape, MultipartShape};
 pub use record::point::{Point, PointM, PointZ};
 pub use record::poly::{Polygon, PolygonM, PolygonZ};
 pub use record::poly::{Polyline, PolylineM, PolylineZ};
 use record::traits::HasXY;
+pub use record::traits::{MultipartShape, MultipointShape};
 use std::convert::TryFrom;
 
 /// Value inferior to this are considered as NO_DATA
@@ -33,8 +33,7 @@ pub trait HasShapeType {
 }
 
 /// Simple Trait to store the type of the shape
-pub trait ConcreteShape: Sized + HasShapeType {
-}
+pub trait ConcreteShape: Sized + HasShapeType {}
 
 pub trait ConcreteReadableShape: ConcreteShape {
     /// Function that actually reads the `ActualShape` from the source
@@ -130,15 +129,31 @@ impl ReadableShape for Shape {
         let shapetype = ShapeType::read_from(&mut source)?;
         record_size -= std::mem::size_of::<i32>() as i32;
         let shape = match shapetype {
-            ShapeType::Polyline => Shape::Polyline(Polyline::read_shape_content(&mut source, record_size)?),
-            ShapeType::PolylineM => Shape::PolylineM(PolylineM::read_shape_content(&mut source, record_size)?),
-            ShapeType::PolylineZ => Shape::PolylineZ(PolylineZ::read_shape_content(&mut source, record_size)?),
+            ShapeType::Polyline => {
+                Shape::Polyline(Polyline::read_shape_content(&mut source, record_size)?)
+            }
+            ShapeType::PolylineM => {
+                Shape::PolylineM(PolylineM::read_shape_content(&mut source, record_size)?)
+            }
+            ShapeType::PolylineZ => {
+                Shape::PolylineZ(PolylineZ::read_shape_content(&mut source, record_size)?)
+            }
             ShapeType::Point => Shape::Point(Point::read_shape_content(&mut source, record_size)?),
-            ShapeType::PointM => Shape::PointM(PointM::read_shape_content(&mut source, record_size)?),
-            ShapeType::PointZ => Shape::PointZ(PointZ::read_shape_content(&mut source, record_size)?),
-            ShapeType::Polygon => Shape::Polygon(Polygon::read_shape_content(&mut source, record_size)?),
-            ShapeType::PolygonM => Shape::PolygonM(PolygonM::read_shape_content(&mut source, record_size)?),
-            ShapeType::PolygonZ => Shape::PolygonZ(PolygonZ::read_shape_content(&mut source, record_size)?),
+            ShapeType::PointM => {
+                Shape::PointM(PointM::read_shape_content(&mut source, record_size)?)
+            }
+            ShapeType::PointZ => {
+                Shape::PointZ(PointZ::read_shape_content(&mut source, record_size)?)
+            }
+            ShapeType::Polygon => {
+                Shape::Polygon(Polygon::read_shape_content(&mut source, record_size)?)
+            }
+            ShapeType::PolygonM => {
+                Shape::PolygonM(PolygonM::read_shape_content(&mut source, record_size)?)
+            }
+            ShapeType::PolygonZ => {
+                Shape::PolygonZ(PolygonZ::read_shape_content(&mut source, record_size)?)
+            }
             ShapeType::Multipoint => {
                 Shape::Multipoint(Multipoint::read_shape_content(&mut source, record_size)?)
             }
@@ -234,7 +249,12 @@ impl BBox {
     }
 
     pub fn new(xmin: f64, ymin: f64, xmax: f64, ymax: f64) -> Self {
-        BBox{xmin, ymin, xmax, ymax}
+        BBox {
+            xmin,
+            ymin,
+            xmax,
+            ymax,
+        }
     }
 
     pub fn read_from<T: Read>(mut source: T) -> Result<BBox, std::io::Error> {
@@ -312,11 +332,11 @@ impl RecordHeader {
 /// let multipoints = convert_shapes_to_vec_of::<MultipointZ>(shapes);
 /// assert_eq!(multipoints.is_ok(), true);
 /// ```
-pub fn convert_shapes_to_vec_of<S>(
-    shapes: Vec<Shape>,
-) -> Result<Vec<S>, Error>
-    where S:TryFrom<Shape>,
-        Error: From<<S as TryFrom<Shape>>::Error> {
+pub fn convert_shapes_to_vec_of<S>(shapes: Vec<Shape>) -> Result<Vec<S>, Error>
+where
+    S: TryFrom<Shape>,
+    Error: From<<S as TryFrom<Shape>>::Error>,
+{
     let mut concrete_shapes = Vec::<S>::with_capacity(shapes.len());
     for shape in shapes {
         let concrete = S::try_from(shape)?;
@@ -329,8 +349,7 @@ pub fn convert_shapes_to_vec_of<S>(
 /// the ConcreteShape Trait
 macro_rules! impl_concrete_shape_for {
     ($ConcreteType:ident) => {
-        impl ConcreteShape for $ConcreteType {
-        }
+        impl ConcreteShape for $ConcreteType {}
     };
 }
 
@@ -350,7 +369,7 @@ macro_rules! impl_from_concrete_shape {
 macro_rules! impl_try_from_shape {
     (Shape::$ShapeEnumVariant:ident=>$ConcreteShape:ident) => {
         impl TryFrom<Shape> for $ConcreteShape {
-        type Error = Error;
+            type Error = Error;
             fn try_from(shape: Shape) -> Result<Self, Self::Error> {
                 match shape {
                     Shape::$ShapeEnumVariant(shp) => Ok(shp),

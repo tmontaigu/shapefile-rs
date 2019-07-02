@@ -2,12 +2,16 @@ use std::io::{Read, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use record::{PointZ, is_no_data, NO_DATA};
-use record::traits::{HasXY, HasMutXY, HasM};
+use record::traits::{HasM, HasMutXY, HasXY};
+use record::{is_no_data, PointZ, NO_DATA};
 
-pub(crate) fn read_xy_in_vec_of<PointType, T>(source: &mut T, num_points: i32) -> Result<Vec<PointType>, std::io::Error>
-    where PointType: HasMutXY + Default,
-          T: Read
+pub(crate) fn read_xy_in_vec_of<PointType, T>(
+    source: &mut T,
+    num_points: i32,
+) -> Result<Vec<PointType>, std::io::Error>
+where
+    PointType: HasMutXY + Default,
+    T: Read,
 {
     let mut points = Vec::<PointType>::with_capacity(num_points as usize);
     for _ in 0..num_points {

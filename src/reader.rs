@@ -12,7 +12,7 @@
 //! you will have to construct the `Reader` "by hand" with its [new](struct.Reader.html#method.new) method.
 //!
 //! If you want the "manually" constructed `Reader` to also read the *shx* and *dbf* file content
-//! you will have to use [add_index_source](struct.Reader.html#method.add_index_source) and/or 
+//! you will have to use [add_index_source](struct.Reader.html#method.add_index_source) and/or
 //! [add_dbf_source](struct.Reader.html#method.add_dbf_source)
 //!
 //!
@@ -56,7 +56,7 @@
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::iter::FusedIterator;
-use std::path::{Path};
+use std::path::Path;
 
 use byteorder::{BigEndian, ReadBytesExt};
 
@@ -66,14 +66,12 @@ use {Error, Shape};
 
 use record::ReadableShape;
 
-
 const INDEX_RECORD_SIZE: usize = 2 * std::mem::size_of::<i32>();
 
 pub(crate) struct ShapeIndex {
     pub offset: i32,
     pub record_size: i32,
 }
-
 
 /// Read the content of a .shx file
 fn read_index_file<T: Read>(mut source: T) -> Result<Vec<ShapeIndex>, Error> {
@@ -101,8 +99,6 @@ fn read_one_shape_as<T: Read, S: ReadableShape>(
     let shape = S::read_from(&mut source, record_size)?;
     Ok((hdr, shape))
 }
-
-
 
 /// Struct that handle iteration over the shapes of a .shp file
 pub struct ShapeIterator<T: Read, S: ReadableShape> {
@@ -150,7 +146,7 @@ impl<T: Read, S: ReadableShape> Iterator for ShapeRecordIterator<T, S> {
             Err(e) => return Some(Err(Error::DbaseError(e))),
             Ok(rcd) => rcd,
         };
-        
+
         Some(Ok((shape, record)))
     }
 }
@@ -179,7 +175,7 @@ impl<T: Read> Reader<T> {
     ///
     /// Will also return an error if the shapetype read from the input source is invalid
     ///
-    /// # Example 
+    /// # Example
     ///
     /// ```
     /// use std::fs::File;
@@ -261,7 +257,6 @@ impl<T: Read> Reader<T> {
         dbf_reader.read().or_else(|e| Err(Error::DbaseError(e)))
     }
 
-
     /// Returns an iterator that tries to read the shapes as the specified type
     /// Will return an error of the type `S` does not match the actual type in the file
     ///
@@ -331,7 +326,9 @@ impl<T: Read> Reader<T> {
     ///     // ...
     /// }
     /// ```
-    pub fn iter_shapes_and_records_as<S: ReadableShape>(mut self) -> Result<ShapeRecordIterator<T, S>, Error> {
+    pub fn iter_shapes_and_records_as<S: ReadableShape>(
+        mut self,
+    ) -> Result<ShapeRecordIterator<T, S>, Error> {
         let maybe_dbf_reader = self.dbf_reader.take();
         if let Some(dbf_reader) = maybe_dbf_reader {
             let shape_iter = self.iter_shapes_as::<S>();
@@ -343,7 +340,7 @@ impl<T: Read> Reader<T> {
             Err(Error::MissingDbf)
         }
     }
-    
+
     /// Returns an iterator over the Shapes and their Records
     ///
     /// # Errors
@@ -396,14 +393,14 @@ impl<T: Read> IntoIterator for Reader<T> {
 
 impl Reader<BufReader<File>> {
     /// Creates a reader from a path to a file
-    /// 
+    ///
     /// Will attempt to read both the .shx and .dbf associated with the file,
-    /// if they do not exists the function will not fail, and you will get an error later 
+    /// if they do not exists the function will not fail, and you will get an error later
     /// if you try to use a function that requires the file to be present.
     ///
     ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use std::path::Path;
     /// assert_eq!(Path::new("tests/data/linem.dbf").exists(), false);
@@ -444,13 +441,12 @@ impl Reader<BufReader<File>> {
         if dbf_path.exists() {
             let dbf_source = BufReader::new(File::open(dbf_path)?);
             reader.add_dbf_source(dbf_source)?;
-            
         }
         Ok(reader)
     }
 }
 
-/// Sources that implements `Seek` have access to 
+/// Sources that implements `Seek` have access to
 /// a few more methods that uses the *index file(.shx)*
 impl<T: Read + Seek> Reader<T> {
     /// Reads the `n`th shape of the shapefile
@@ -459,8 +455,8 @@ impl<T: Read + Seek> Reader<T> {
     ///
     /// `None` if the index is out of range
     ///
-    /// # Errors 
-    /// 
+    /// # Errors
+    ///
     /// This method will return an `Error::MissingIndexFile` if you use it
     /// but no *.shx* was found when opening the shapefile.
     ///
@@ -502,7 +498,6 @@ impl<T: Read + Seek> Reader<T> {
     }
 }
 
-
 /// Function to read all the Shapes in a file.
 ///
 /// Returns a `Vec<Shape>` which means that you will have to `match`
@@ -543,7 +538,5 @@ pub fn read_as<T: AsRef<Path>, S: ReadableShape>(path: T) -> Result<Vec<S>, Erro
     reader.read_as::<S>()
 }
 
-
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

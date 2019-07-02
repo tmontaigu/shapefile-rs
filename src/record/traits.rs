@@ -23,7 +23,10 @@ pub(crate) trait HasM {
 /// Trait that allows access to the slice of points of shapes that
 /// have multiple points (all the shapes except `Point`, `PointM`, `PoinZ`).
 pub trait MultipointShape<PointType> {
-    fn point<I: SliceIndex<[PointType]>>(&self, index: I) -> Option<&<I as SliceIndex<[PointType]>>::Output>;
+    fn point<I: SliceIndex<[PointType]>>(
+        &self,
+        index: I,
+    ) -> Option<&<I as SliceIndex<[PointType]>>::Output>;
 
     /// Returns a non mutable slice to the points
     ///
@@ -91,7 +94,11 @@ pub trait MultipartShape<PointType>: MultipointShape<PointType> {
             Some(self.points())
         } else {
             let first_index = *parts.get(index)? as usize;
-            let last_index = if index == parts.len() - 1 { self.points().len() } else { *parts.get(index + 1)? as usize };
+            let last_index = if index == parts.len() - 1 {
+                self.points().len()
+            } else {
+                *parts.get(index + 1)? as usize
+            };
             self.points().get(first_index..last_index)
         }
     }
@@ -128,9 +135,9 @@ pub struct PartIterator<'a, PointType, Shape: 'a + MultipartShape<PointType> + ?
 }
 
 impl<'a, PointType, Shape> Iterator for PartIterator<'a, PointType, Shape>
-    where PointType: 'a,
-          Shape: 'a + MultipartShape<PointType>
-
+where
+    PointType: 'a,
+    Shape: 'a + MultipartShape<PointType>,
 {
     type Item = &'a [PointType];
 
@@ -168,7 +175,6 @@ macro_rules! impl_has_mut_xy_for {
             }
         }
     };
-
 }
 
 macro_rules! impl_has_m_for {
@@ -195,4 +201,3 @@ impl_has_mut_xy_for!(PointZ);
 
 impl_has_m_for!(PointM);
 impl_has_m_for!(PointZ);
-
