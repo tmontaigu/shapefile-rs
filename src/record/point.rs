@@ -5,12 +5,16 @@ use std::io::{Read, Write};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use record::EsriShape;
 use std::mem::size_of;
-use ShapeType;
+use ::{ShapeType, NO_DATA};
 
 use super::Error;
 use record::ConcreteReadableShape;
 use record::{is_no_data, BBox, HasShapeType, WritableShape};
 use std::fmt;
+
+#[cfg(feature = "geo-types")]
+use geo_types;
+
 
 /// Point with only `x` and `y` coordinates
 #[derive(PartialEq, Debug, Default, Copy, Clone)]
@@ -89,12 +93,30 @@ impl fmt::Display for Point {
     }
 }
 
+
+#[cfg(feature = "geo-types")]
+impl From<Point> for geo_types::Point<f64> {
+    fn from(p: Point) -> Self {
+        geo_types::Point::new(p.x, p.y)
+    }
+}
+
+#[cfg(feature = "geo-types")]
+impl From<geo_types::Point<f64>> for Point {
+    fn from(p: geo_types::Point<f64>) -> Self {
+        Point::new(p.x(), p.y())
+    }
+}
+
+
+
+
 /*
  * PointM
  */
 
 /// Point with `x`, `y`, `m`
-#[derive(PartialEq, Debug, Default, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub struct PointM {
     pub x: f64,
     pub y: f64,
@@ -150,12 +172,6 @@ impl WritableShape for PointM {
     }
 }
 
-impl fmt::Display for PointM {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Point(x: {}, y: {}, m: {})", self.x, self.y, self.m)
-    }
-}
-
 impl EsriShape for PointM {
     fn bbox(&self) -> BBox {
         BBox {
@@ -175,22 +191,44 @@ impl EsriShape for PointM {
     }
 }
 
-impl fmt::Display for PointZ {
+impl fmt::Display for PointM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Point(x: {}, y: {}, z: {}, m: {})",
-            self.x, self.y, self.z, self.m
-        )
+        write!(f, "Point(x: {}, y: {}, m: {})", self.x, self.y, self.m)
     }
 }
+
+impl Default for PointM {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            m: NO_DATA
+        }
+    }
+}
+
+
+#[cfg(feature = "geo-types")]
+impl From<PointM> for geo_types::Point<f64> {
+    fn from(p: PointM) -> Self {
+        geo_types::Point::new(p.x, p.y)
+    }
+}
+
+#[cfg(feature = "geo-types")]
+impl From<geo_types::Point<f64>> for PointM {
+    fn from(p: geo_types::Point<f64>) -> Self {
+        PointM{x: p.x(), y: p.y(), ..Default::default()}
+    }
+}
+
 
 /*
  * PointZ
  */
 
 /// Point with `x`, `y`, `m`, `z`
-#[derive(PartialEq, Debug, Default, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub struct PointZ {
     pub x: f64,
     pub y: f64,
@@ -270,5 +308,89 @@ impl EsriShape for PointZ {
         } else {
             [self.m, self.m]
         }
+    }
+}
+
+impl Default for PointZ {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            m: NO_DATA
+        }
+    }
+}
+
+impl fmt::Display for PointZ {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Point(x: {}, y: {}, z: {}, m: {})",
+            self.x, self.y, self.z, self.m
+        )
+    }
+}
+
+
+#[cfg(feature = "geo-types")]
+impl From<PointZ> for geo_types::Point<f64> {
+    fn from(p: PointZ) -> Self {
+        geo_types::Point::new(p.x, p.y)
+    }
+}
+
+#[cfg(feature = "geo-types")]
+impl From<geo_types::Point<f64>> for PointZ {
+    fn from(p: geo_types::Point<f64>) -> Self {
+        PointZ{x: p.x(), y: p.y(), ..Default::default()}
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "geo-types")]
+mod test {
+    use super::*;
+
+    #[test]
+    fn geo_types_point_conversion() {
+        let p = Point::new(14.0, 42.65);
+        let gp: geo_types::Point<f64> = p.into();
+
+        assert_eq!(gp.x(), 14.0);
+        assert_eq!(gp.y(), 42.65);
+
+        let p: Point = gp.into();
+        assert_eq!(p.x, 14.0);
+        assert_eq!(p.y, 42.65);
+    }
+
+    #[test]
+    fn geo_types_point_m_conversion() {
+        let p = PointM::new(14.0, 42.65, 652.3);
+        let gp: geo_types::Point<f64> = p.into();
+
+        assert_eq!(gp.x(), 14.0);
+        assert_eq!(gp.y(), 42.65);
+
+        let p: PointM = gp.into();
+        assert_eq!(p.x, 14.0);
+        assert_eq!(p.y, 42.65);
+        assert_eq!(p.m, NO_DATA);
+    }
+
+    #[test]
+    fn geo_types_point_z_conversion() {
+        let p = PointZ::new(14.0, 42.65, 111.0, 652.3);
+        let gp: geo_types::Point<f64> = p.into();
+
+        assert_eq!(gp.x(), 14.0);
+        assert_eq!(gp.y(), 42.65);
+
+        let p: PointZ = gp.into();
+        assert_eq!(p.x, 14.0);
+        assert_eq!(p.y, 42.65);
+        assert_eq!(p.z, 0.0);
+        assert_eq!(p.m, NO_DATA);
     }
 }

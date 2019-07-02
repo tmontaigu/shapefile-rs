@@ -13,3 +13,4 @@ repository = "https://github.com/tmontaigu/shapefile-rs"
 [dependencies]
 byteorder = "1.2.7"
 dbase = "0.0.3"
+geo-types = {version = "0.4.3", optional = true}

@@ -41,6 +41,9 @@ pub use record::{Polygon, PolygonM, PolygonZ};
 pub use record::{Polyline, PolylineM, PolylineZ};
 pub use writer::Writer;
 
+#[cfg(feature = "geo-types")]
+extern crate geo_types;
+
 /// All Errors that can happen when using this library
 #[derive(Debug)]
 pub enum Error {

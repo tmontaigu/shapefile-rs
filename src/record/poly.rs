@@ -16,6 +16,9 @@ use record::{BBox, EsriShape, HasShapeType, WritableShape};
 use record::{Point, PointM, PointZ};
 use {Error, ShapeType};
 
+#[cfg(feature = "geo-types")]
+use geo_types;
+
 pub struct GenericPolyline<PointType> {
     pub bbox: BBox,
     pub points: Vec<PointType>,
@@ -80,6 +83,45 @@ impl<PointType> MultipointShape<PointType> for GenericPolyline<PointType> {
 impl<PointType> MultipartShape<PointType> for GenericPolyline<PointType> {
     fn parts_indices(&self) -> &[i32] {
         &self.parts
+    }
+}
+
+
+#[cfg(feature = "geo-types")]
+impl<PointType> From<GenericPolyline<PointType>> for geo_types::MultiLineString<f64>
+    where PointType: Copy,
+         geo_types::Coordinate<f64>: From<PointType>
+    {
+    fn from(polyline: GenericPolyline<PointType>) -> Self {
+        use std::iter::FromIterator;
+        let mut lines = Vec::<geo_types::LineString<f64>>::with_capacity(polyline.parts_indices().len());
+        for parts in polyline.parts() {
+            let line: Vec<geo_types::Coordinate<f64>> =
+                parts.iter()
+                    .map(|point| geo_types::Coordinate::<f64>::from(*point))
+                    .collect();
+            lines.push(line.into());
+        }
+        geo_types::MultiLineString::<f64>::from_iter(lines.into_iter())
+    }
+}
+
+#[cfg(feature = "geo-types")]
+impl<PointType> From<geo_types::MultiLineString<f64>> for GenericPolyline<PointType>
+    where PointType: From<geo_types::Coordinate<f64>> + HasXY
+{
+    fn from(mls: geo_types::MultiLineString<f64>) -> Self {
+        let mut points = Vec::<PointType>::new();
+        let mut parts = Vec::<i32>::new();
+        let mut point_index: i32 = 0;
+        for line_string in mls {
+            parts.push(point_index);
+            for point in line_string {
+                points.push(point.into());
+            }
+            point_index += points.len() as i32;
+        }
+        GenericPolyline::<PointType>::new(points, parts)
     }
 }
 
@@ -388,6 +430,7 @@ impl EsriShape for PolylineZ {
 /*
  * Polygon
  */
+
 
 pub struct GenericPolygon<PointType> {
     pub bbox: BBox,

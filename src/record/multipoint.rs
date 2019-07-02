@@ -21,6 +21,9 @@ use record::{HasShapeType, WritableShape};
 use record::{Point, PointM, PointZ};
 use {Error, ShapeType};
 
+#[cfg(feature = "geo-types")]
+use geo_types;
+
 /// Generic struct to create the Multipoint, MultipointM, MultipointZ types
 pub struct GenericMultipoint<PointType> {
     /// The 2D bounding box
@@ -80,6 +83,29 @@ impl<PointType: HasXY> GenericMultipoint<PointType> {
         Self { bbox, points }
     }
 }
+
+#[cfg(feature = "geo-types")]
+impl<PointType> From<GenericMultipoint<PointType>> for geo_types::MultiPoint<f64>
+    where geo_types::Point<f64>: From<PointType>
+{
+    fn from(multi_points: GenericMultipoint<PointType>) -> Self {
+        multi_points.points
+            .into_iter()
+            .map(|p| geo_types::Point::from(p))
+            .collect::<Vec<geo_types::Point<f64>>>()
+            .into()
+    }
+}
+
+#[cfg(feature = "geo-types")]
+impl<PointType> From<geo_types::MultiPoint<f64>> for GenericMultipoint<PointType>
+    where PointType: From<geo_types::Point<f64>> + HasXY{
+    fn from(mp: geo_types::MultiPoint<f64>) -> Self {
+        let points = mp.into_iter().map(|p| p.into()).collect();
+        Self::new(points)
+    }
+}
+
 
 /*
  * Multipoint
@@ -149,6 +175,9 @@ impl EsriShape for Multipoint {
         self.bbox
     }
 }
+
+
+
 
 /*
  * MultipointM
@@ -337,4 +366,96 @@ impl EsriShape for MultipointZ {
     fn m_range(&self) -> [f64; 2] {
         calc_m_range(&self.points)
     }
+}
+
+
+#[cfg(test)]
+#[cfg(feature = "geo-types")]
+mod tests {
+    use super::*;
+    use ::{geo_types, NO_DATA};
+
+    #[test]
+    fn test_multipoint_to_geo_types_multipoint() {
+        let points = vec![
+            Point::new(1.0, 1.0),
+            Point::new(2.0, 2.0),
+        ];
+        let shapefile_multipoint = Multipoint::new(points);
+        let geo_types_multipoint = geo_types::MultiPoint::from(shapefile_multipoint);
+
+        let mut iter = geo_types_multipoint.into_iter();
+        let p1 = iter.next().unwrap();
+        let p2 = iter.next().unwrap();
+        assert_eq!(p1.x(), 1.0);
+        assert_eq!(p1.y(), 1.0);
+
+        assert_eq!(p2.x(), 2.0);
+        assert_eq!(p2.y(), 2.0);
+    }
+
+
+    #[test]
+    fn test_multipoint_m_to_geo_types_multipoint() {
+        let points = vec![
+            PointM::new(120.0, 56.0, 42.2),
+            PointM::new(6.0, 18.7, 462.54),
+        ];
+        let shapefile_multipoint = MultipointM::new(points);
+        let geo_types_multipoint = geo_types::MultiPoint::from(shapefile_multipoint);
+
+        let mut iter = geo_types_multipoint.into_iter();
+        let p1 = iter.next().unwrap();
+        let p2 = iter.next().unwrap();
+        assert_eq!(p1.x(), 120.0);
+        assert_eq!(p1.y(), 56.0);
+
+        assert_eq!(p2.x(), 6.0);
+        assert_eq!(p2.y(), 18.7);
+
+
+        let geo_types_multipoint: geo_types::MultiPoint<_> = vec![p1, p2].into();
+        let shapefile_multipoint = MultipointM::from(geo_types_multipoint);
+
+        assert_eq!(shapefile_multipoint.points[0].x, 120.0);
+        assert_eq!(shapefile_multipoint.points[0].y, 56.0);
+        assert_eq!(shapefile_multipoint.points[0].m, NO_DATA);
+
+        assert_eq!(shapefile_multipoint.points[1].x, 6.0);
+        assert_eq!(shapefile_multipoint.points[1].y, 18.7);
+        assert_eq!(shapefile_multipoint.points[0].m, NO_DATA);
+    }
+
+    #[test]
+    fn test_multipoint_z_to_geo_types_multipoint() {
+        let points = vec![
+            PointZ::new(1.0, 1.0,  17.0, 18.0),
+            PointZ::new(2.0, 2.0, 15.0, 16.0),
+        ];
+        let shapefile_multipoint = MultipointZ::new(points);
+        let geo_types_multipoint = geo_types::MultiPoint::from(shapefile_multipoint);
+
+        let mut iter = geo_types_multipoint.into_iter();
+        let p1 = iter.next().unwrap();
+        let p2 = iter.next().unwrap();
+        assert_eq!(p1.x(), 1.0);
+        assert_eq!(p1.y(), 1.0);
+
+        assert_eq!(p2.x(), 2.0);
+        assert_eq!(p2.y(), 2.0);
+
+        let geo_types_multipoint: geo_types::MultiPoint<_> = vec![p1, p2].into();
+        let shapefile_multipoint = MultipointZ::from(geo_types_multipoint);
+
+        assert_eq!(shapefile_multipoint.points[0].x, 1.0);
+        assert_eq!(shapefile_multipoint.points[0].y, 1.0);
+        assert_eq!(shapefile_multipoint.points[0].z, 0.0);
+        assert_eq!(shapefile_multipoint.points[0].m, NO_DATA);
+
+        assert_eq!(shapefile_multipoint.points[1].x, 2.0);
+        assert_eq!(shapefile_multipoint.points[1].y, 2.0);
+        assert_eq!(shapefile_multipoint.points[0].z, 0.0);
+        assert_eq!(shapefile_multipoint.points[0].m, NO_DATA);
+    }
+
 }
