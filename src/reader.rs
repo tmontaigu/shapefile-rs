@@ -524,10 +524,10 @@ pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
 ///  # Examples
 ///
 /// ```
-/// let polylines = shapefile::read_as::<&str, shapefile::PolylineZ>("tests/data/polygon.shp");
+/// let polylines = shapefile::read_as::<_, shapefile::PolylineZ>("tests/data/polygon.shp");
 /// assert_eq!(polylines.is_err(), true);
 ///
-/// let polygons = shapefile::read_as::<&str, shapefile::Polygon>("tests/data/polygon.shp");
+/// let polygons = shapefile::read_as::<_, shapefile::Polygon>("tests/data/polygon.shp");
 /// assert_eq!(polygons.is_ok(), true);
 /// ```
 ///

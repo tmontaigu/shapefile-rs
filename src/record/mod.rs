@@ -19,6 +19,9 @@ use record::traits::HasXY;
 pub use record::traits::{MultipartShape, MultipointShape};
 use std::convert::TryFrom;
 
+#[cfg(feature = "geo-types")]
+use geo_types;
+
 /// Value inferior to this are considered as NO_DATA
 pub const NO_DATA: f64 = -10e38;
 
@@ -99,6 +102,39 @@ pub(crate) fn is_parts_array_valid<PointType, ST: MultipartShape<PointType>>(sha
         .iter()
         .all(|p| (*p >= 0) & (*p < num_points))
 }
+
+
+
+/// Given the points, check if they represent an outer ring of a polygon
+///
+/// As per ESRI's Shapefile 1998 whitepaper:
+/// `
+/// The order of vertices or orientation for a ring indicates which side of the ring
+/// is the interior of the polygon.
+/// The neighborhood to the right of an observer walking along
+/// the ring in vertex order is the neighborhood inside the polygon.
+/// Vertices of rings defining holes in polygons are in a counterclockwise direction.
+/// Vertices for a single, ringed polygon are, therefore, always in clockwise order.
+/// `
+///
+/// Inner Rings defines holes -> points are in counterclockwise order
+/// Outer Rings's points are un clockwise order
+///
+/// https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order/1180256#1180256
+#[cfg(feature = "geo-types")]
+pub(crate) fn is_outer_ring<PointType: HasXY>(points: &[PointType]) -> bool {
+    let area = points
+        .windows(2)
+        .map(|pts| (pts[1].x() - pts[0].x()) * (pts[1].y() + pts[0].y()) )
+        .sum::<f64>() / 2.0f64;
+
+    if area < 0.0 {
+        false
+    } else {
+        true
+    }
+}
+
 
 /// enum of Shapes that can be read or written to a shapefile
 pub enum Shape {
@@ -215,6 +251,59 @@ impl fmt::Display for Shape {
         }
     }
 }
+
+/// Tries to convert a shapefile's Shape into a geo_types::Geometry
+///
+/// This conversion can fail because the conversion of shapefile's polygons & multipatch into
+/// their geo_types counter parts can fail. And the NullShape has no equivalent Geometry;
+#[cfg(feature = "geo-types")]
+impl TryFrom<Shape> for geo_types::Geometry<f64> {
+    type Error = Error;
+
+    fn try_from(shape: Shape) -> Result<Self, Self::Error> {
+        use geo_types::Geometry;
+        match shape {
+            Shape::NullShape => Err(Error::NullShapeConversion),
+            Shape::Point(point) => Ok(Geometry::Point(geo_types::Point::from(point))),
+            Shape::PointM(point) => Ok(Geometry::Point(geo_types::Point::from(point))),
+            Shape::PointZ(point) => Ok(Geometry::Point(geo_types::Point::from(point))),
+            Shape::Polyline(polyline) => Ok(Geometry::MultiLineString(geo_types::MultiLineString::<f64>::from(polyline))),
+            Shape::PolylineM(polyline) => Ok(Geometry::MultiLineString(geo_types::MultiLineString::<f64>::from(polyline))),
+            Shape::PolylineZ(polyline) => Ok(Geometry::MultiLineString(geo_types::MultiLineString::<f64>::from(polyline))),
+            Shape::Polygon(polygon) => Ok(Geometry::MultiPolygon(geo_types::MultiPolygon::<f64>::try_from(polygon)?)),
+            Shape::PolygonM(polygon) => Ok(Geometry::MultiPolygon(geo_types::MultiPolygon::<f64>::try_from(polygon)?)),
+            Shape::PolygonZ(polygon) => Ok(Geometry::MultiPolygon(geo_types::MultiPolygon::<f64>::try_from(polygon)?)),
+            Shape::Multipoint(multipoint) => Ok(Geometry::MultiPoint(geo_types::MultiPoint::<f64>::from(multipoint))),
+            Shape::MultipointM(multipoint) => Ok(Geometry::MultiPoint(geo_types::MultiPoint::<f64>::from(multipoint))),
+            Shape::MultipointZ(multipoint) => Ok(Geometry::MultiPoint(geo_types::MultiPoint::<f64>::from(multipoint))),
+            Shape::Multipatch(multipatch) => Ok(Geometry::MultiPolygon(geo_types::MultiPolygon::<f64>::try_from(multipatch)?)),
+        }
+    }
+}
+
+/// Converts a Geometry to a Shape
+///
+/// Since all Geometries are in 2D, the resulting shape will be 2D
+/// (Polygon, Polyline, etc and not PolylineM, PolylineZ, etc)
+/// Fails when the geometry is a geometry conversion
+#[cfg(feature = "geo-types")]
+impl TryFrom<geo_types::Geometry<f64>> for Shape {
+    type Error = Error;
+    fn try_from(geometry: geo_types::Geometry<f64>) -> Result<Self, Self::Error> {
+        match geometry {
+            geo_types::Geometry::Point(point) => Ok(Shape::Point(point.into())),
+            geo_types::Geometry::Line(line) => Ok(Shape::Polyline(line.into())),
+            geo_types::Geometry::LineString(polyline) => Ok(Shape::Polyline(polyline.into())),
+            geo_types::Geometry::Polygon(polygon) => Ok(Shape::Polygon(polygon.into())),
+            geo_types::Geometry::MultiPoint(multipoint) => Ok(Shape::Multipoint(multipoint.into())),
+            geo_types::Geometry::MultiLineString(multi_linestring) => Ok(Shape::Polyline(multi_linestring.into())),
+            geo_types::Geometry::MultiPolygon(multi_polygon) => Ok(Shape::Polygon(multi_polygon.into())),
+            geo_types::Geometry::GeometryCollection(_) => Err(Error::GeometryCollectionConversion),
+        }
+    }
+}
+
+
 
 /// 2D (x, y) Bounding box
 #[derive(Copy, Clone)]

@@ -1,6 +1,6 @@
 //! Read & Write [Shapefile](http://downloads.esri.com/support/whitepapers/mo_/shapefile.pdf) in Rust
 //!
-//! _.dbf_ can only be read but not written to
+//! _.dbf_ can be read & written to (but the support for this is still alpha-ish)
 //!
 //! As different shapefiles can store different type of shapes
 //! (but one shapefile can only store the same type of shapes)
@@ -17,6 +17,14 @@
 //! # Writing
 //!
 //! To write a file see the [writer](writer/index.html) module
+//!
+//!
+//!
+//! # Features
+//!
+//! The `geo-types` feature can be enabled to have access to `From` and `TryFrom`
+//! implementations allowing to convert (or try to) back and forth between shapefile's type and
+//! the one in `geo_types`
 extern crate byteorder;
 extern crate dbase;
 
@@ -72,6 +80,12 @@ pub enum Error {
     DbaseError(dbase::Error),
     MissingDbf,
     MissingIndexFile,
+    /// This error can happen when trying to convert a multipatch or polgyon into
+    /// geo_types::Multipolygon, this error happen when during such conversion,
+    /// an inner ring has no corresponding outer ring.
+    OrphanInnerRing,
+    NullShapeConversion,
+    GeometryCollectionConversion,
 }
 
 impl From<std::io::Error> for Error {
