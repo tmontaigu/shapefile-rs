@@ -285,7 +285,8 @@ impl TryFrom<Shape> for geo_types::Geometry<f64> {
 ///
 /// Since all Geometries are in 2D, the resulting shape will be 2D
 /// (Polygon, Polyline, etc and not PolylineM, PolylineZ, etc)
-/// Fails when the geometry is a geometry conversion
+///
+/// Fails if the geometry is a GeometryCollection
 #[cfg(feature = "geo-types")]
 impl TryFrom<geo_types::Geometry<f64>> for Shape {
     type Error = Error;
