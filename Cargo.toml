@@ -1,6 +1,6 @@
 [package]
 name = "shapefile"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["tmontaigu <thomas.montaigu@laposte.net>"]
 description = "Read & Write shapefiles in Rust"
 license = "MIT"
@@ -8,9 +8,14 @@ readme = "README.md"
 keywords = ["shapefile"]
 homepage = "https://github.com/tmontaigu/shapefile-rs"
 repository = "https://github.com/tmontaigu/shapefile-rs"
+exclude = ["tests/data/*"]
 #edition = "2018"
 
 [dependencies]
 byteorder = "1.2.7"
 dbase = "0.0.3"
 geo-types = {version = "0.4.3", optional = true}
+
+
+[package.metadata.docs.rs]
+features = ["geo-types"]
