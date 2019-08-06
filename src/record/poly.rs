@@ -8,7 +8,7 @@ use std::slice::SliceIndex;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use record::io::*;
-use record::{is_parts_array_valid};
+use record::{is_parts_array_valid, close_points_if_not_already};
 use record::traits::HasXY;
 use record::traits::{MultipartShape, MultipointShape};
 use record::ConcreteReadableShape;
@@ -27,28 +27,75 @@ pub struct GenericPolyline<PointType> {
     pub parts: Vec<i32>,
 }
 
+/// Creating a Polyline
 impl<PointType: HasXY> GenericPolyline<PointType> {
     /// # Examples
     ///
-    /// Creating a Polyline
+    /// Polyline with single part
     /// ```
     /// use shapefile::{Point, Polyline};
     /// let points = vec![
     ///     Point::new(1.0, 1.0),
     ///     Point::new(2.0, 2.0),
     /// ];
-    /// let poly = Polyline::new(points, vec![0]);
+    /// let poly = Polyline::new(points);
+    ///
+    /// assert_eq!(poly.points.len(), 2);
+    /// assert_eq!(poly.parts, vec![0]);
     /// ```
     ///
-    pub fn new(points: Vec<PointType>, parts: Vec<i32>) -> Self {
+    pub fn new(points: Vec<PointType>) -> Self {
         let bbox = BBox::from_points(&points);
         Self {
             bbox,
             points,
-            parts,
+            parts: vec![0],
+        }
+    }
+
+    /// # Examples
+    ///
+    /// Polyline with multiple parts
+    /// ```
+    /// use shapefile::{Point, Polyline};
+    /// let first_part = vec![
+    ///     Point::new(1.0, 1.0),
+    ///     Point::new(2.0, 2.0),
+    /// ];
+    /// let second_part = vec![
+    ///     Point::new(3.0, 1.0),
+    ///     Point::new(5.0, 6.0),
+    /// ];
+    /// let poly = Polyline::with_parts(vec![first_part, second_part]);
+    ///
+    /// assert_eq!(poly.points.len(), 4);
+    /// assert_eq!(poly.parts, vec![0, 2]);
+    /// ```
+    ///
+    pub fn with_parts(parts: Vec<Vec<PointType>>) -> Self {
+        let mut parts_indices = Vec::<i32>::with_capacity(parts.len());
+        parts_indices.push(0);
+        if let Some(following_parts) = parts.get(1..) {
+            for points in  following_parts {
+                parts_indices.push(points.len() as i32)
+            }
+        }
+
+        let num_points = parts.iter().map(|pts| pts.len()).sum();
+        let mut all_points = Vec::<PointType>::with_capacity(num_points);
+        for mut points in parts {
+            all_points.append(&mut points);
+        }
+
+        let bbox = BBox::from_points(&all_points);
+        Self {
+            bbox,
+            points: all_points,
+            parts: parts_indices,
         }
     }
 }
+
 
 impl<PointType> From<GenericPolygon<PointType>> for GenericPolyline<PointType> {
     fn from(p: GenericPolygon<PointType>) -> Self {
@@ -115,7 +162,7 @@ impl<PointType> From<geo_types::Line<f64>> for GenericPolyline<PointType>
 {
     fn from(line: geo_types::Line<f64>) -> Self {
         let (p1, p2) = line.points();
-        Self::new(vec![PointType::from(p1), PointType::from(p2)], vec![0])
+        Self::new(vec![PointType::from(p1), PointType::from(p2)])
     }
 }
 
@@ -129,7 +176,7 @@ impl<PointType> From<geo_types::LineString<f64>> for GenericPolyline<PointType>
             .into_iter()
             .map(|p| PointType::from(p))
             .collect();
-        Self::new(points, vec![0])
+        Self::new(points)
     }
 }
 
@@ -141,8 +188,8 @@ impl<PointType> From<geo_types::MultiLineString<f64>> for GenericPolyline<PointT
 {
     fn from(mls: geo_types::MultiLineString<f64>) -> Self {
         let mut points = Vec::<PointType>::new();
-        let mut parts = Vec::<i32>::new();
         let mut point_index: i32 = 0;
+        let mut parts = Vec::<i32>::new();
         for line_string in mls {
             parts.push(point_index);
             for point in line_string {
@@ -150,7 +197,12 @@ impl<PointType> From<geo_types::MultiLineString<f64>> for GenericPolyline<PointT
             }
             point_index += points.len() as i32;
         }
-        GenericPolyline::<PointType>::new(points, parts)
+        let bbox = BBox::from_points(&points);
+        Self {
+            bbox,
+            points,
+            parts
+        }
     }
 }
 
@@ -467,25 +519,45 @@ pub struct GenericPolygon<PointType> {
     pub parts: Vec<i32>,
 }
 
-impl<PointType: HasXY> GenericPolygon<PointType> {
+impl<PointType: HasXY + PartialEq + Copy> GenericPolygon<PointType> {
     /// # Examples
     ///
-    /// Creating a PolygonZ
+    /// Creating a PolygonZ with one ring,
+    /// The constructor closes the polygon
     /// ```
-    /// use shapefile::{PointZ, PolygonZ, NO_DATA, MultipointShape};
+    /// use shapefile::{PointZ, PolygonZ, NO_DATA};
     /// let points = vec![
-    ///     PointZ::new(1.0, 1.0, 0.0, NO_DATA),
-    ///     PointZ::new(2.0, 2.0, 17.0, NO_DATA),
+    ///     PointZ::new(0.0, 0.0, 0.0, NO_DATA),
+    ///     PointZ::new(0.0, 1.0, 0.0, NO_DATA),
+    ///     PointZ::new(1.0, 0.0, 0.0, NO_DATA),
     /// ];
-    /// let poly = PolygonZ::new(points, vec![0]);
+    /// let poly = PolygonZ::new(points);
     ///
-    /// assert_eq!(poly.point(1), Some(&PointZ::new(2.0, 2.0, 17.0, NO_DATA)));
+    /// // The polygon gets closed 'explicitly'
+    /// assert_eq!(poly.points.len(), 4);
+    /// assert_eq!(poly.points.last(), poly.points.first());
     /// ```
     ///
-    pub fn new(points: Vec<PointType>, parts: Vec<i32>) -> Self {
-        //TODO check if pars are closed (last pts = 1st pts
-        // if not lcose them
-        Self::from(GenericPolyline::<PointType>::new(points, parts))
+    pub fn new(mut points: Vec<PointType>) -> Self {
+        close_points_if_not_already(&mut points);
+        if super::ring_type_from_points_ordering(&points) == super::RingType::InnerRing {
+            points.reverse();
+        }
+        Self::from(GenericPolyline::<PointType>::new(points))
+    }
+}
+
+impl<PointType: HasXY + PartialEq + Copy> GenericPolygon<PointType> {
+    pub fn with_parts(mut parts_points: Vec<Vec<PointType>>) -> Self {
+        parts_points.iter_mut().for_each(close_points_if_not_already);
+        let mut has_outer_ring = false;
+        for points in &mut parts_points {
+            if super::ring_type_from_points_ordering(&points) == super::RingType::InnerRing && !has_outer_ring {
+                points.reverse();
+                has_outer_ring = true;
+            }
+        }
+        Self::from(GenericPolyline::<PointType>::with_parts(parts_points))
     }
 }
 
@@ -519,7 +591,6 @@ impl<PointType> TryFrom<GenericPolygon<PointType>> for geo_types::MultiPolygon<f
           geo_types::Point<f64>: From<PointType>{
     type Error = Error;
     fn try_from(p: GenericPolygon<PointType>) -> Result<Self, Self::Error> {
-        use super::is_outer_ring;
         let mut last_poly = None;
         let mut polygons = Vec::<geo_types::Polygon<f64>>::new();
         for points_slc in p.parts() {
@@ -527,7 +598,7 @@ impl<PointType> TryFrom<GenericPolygon<PointType>> for geo_types::MultiPolygon<f
                 .iter()
                 .map(|p| geo_types::Point::<f64>::from(*p))
                 .collect::<Vec<geo_types::Point<f64>>>();
-            if is_outer_ring(points_slc) {
+            if super::ring_type_from_points_ordering(points_slc) == super::RingType::OuterRing {
                 let new_poly = geo_types::Polygon::new(points.into(), vec![]);
                 if last_poly.is_some() {
                     polygons.push(last_poly.replace(new_poly).unwrap());
@@ -553,17 +624,15 @@ impl<PointType> TryFrom<GenericPolygon<PointType>> for geo_types::MultiPolygon<f
 #[cfg(feature = "geo-types")]
 /// geo_types guarantees that Polygons exterior and interiors are closed
 impl<PointType> From<geo_types::Polygon<f64>> for GenericPolygon<PointType>
-    where  PointType: HasXY + From<geo_types::Coordinate<f64>> {
+    where  PointType: HasXY + From<geo_types::Coordinate<f64>> + PartialEq + Copy {
     fn from(polygon: geo_types::Polygon<f64>) -> Self {
-        use super::is_outer_ring;
         if polygon.exterior(). num_coords() == 0 {
-            return Self::new(vec![], vec![]);
+            return Self::new(vec![]);
         }
 
         let mut total_num_points = polygon.exterior().num_coords();
         total_num_points += polygon.interiors().iter().map(|ls| ls.num_coords()).sum::<usize>();
 
-        let mut parts = vec![0i32];
         let mut all_points = Vec::<PointType>::with_capacity(total_num_points);
 
         let (outer_ls, inners_ls) = polygon.into_inner();
@@ -572,31 +641,40 @@ impl<PointType> From<geo_types::Polygon<f64>> for GenericPolygon<PointType>
             .map(|c| PointType::from(c))
             .collect::<Vec<PointType>>();
 
-        if !is_outer_ring(&outer_points) {
+        if super::ring_type_from_points_ordering(&outer_points) == super::RingType::InnerRing {
             outer_points.reverse();
         }
         all_points.append(&mut outer_points);
-
-        for inner_ls in inners_ls {
-            parts.push((all_points.len() - 1) as i32);
+        let mut num_inner = inners_ls.len();
+        let mut parts = Vec::<i32>::with_capacity(1 + num_inner);
+        parts.push(0);
+        for (i, inner_ls) in inners_ls.into_iter().enumerate() {
+            if i != num_inner - 1 {
+                parts.push(i as i32);
+            }
             let mut inner_points = inner_ls
                 .into_iter()
                 .map(|c| PointType::from(c))
                 .collect::<Vec<PointType>>();
 
-            if is_outer_ring(&inner_points) {
+            if super::ring_type_from_points_ordering(&inner_points) == super::RingType::OuterRing {
                 inner_points.reverse();
             }
             all_points.append(&mut inner_points);
         }
 
-        Self::new(all_points, parts)
+        let bbox = BBox::from_points(&all_points);
+        Self {
+            bbox,
+            points: all_points,
+            parts
+        }
     }
 }
 
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::MultiPolygon<f64>> for GenericPolygon<PointType>
-    where  PointType: HasXY + From<geo_types::Coordinate<f64>> {
+    where  PointType: HasXY + From<geo_types::Coordinate<f64>> + PartialEq + Copy {
     fn from(multi_polygon: geo_types::MultiPolygon<f64>) -> Self {
         let polygons = multi_polygon
             .into_iter()
@@ -607,22 +685,23 @@ impl<PointType> From<geo_types::MultiPolygon<f64>> for GenericPolygon<PointType>
             .iter()
             .fold(0usize, |count, polygon| count + polygon.points.len());
 
-        let total_part_count = polygons
-            .iter()
-            .fold(0usize, |count, polygon| count + polygon.parts.len());
-
         let mut all_points = Vec::<PointType>::with_capacity(total_points_count);
-        let mut all_parts = Vec::<i32>::with_capacity(total_part_count);
-
-        for mut polygon in polygons {
-            polygon.parts
-                .into_iter()
-                .map(|index| index + (all_points.len() as i32))
-                .for_each(|index| all_parts.push(index));
+        let num_parts = polygons.len();
+        let mut parts = Vec::<i32>::with_capacity(num_parts);
+        parts.push(0);
+        for (i, mut polygon) in polygons.into_iter().enumerate() {
             all_points.append(&mut polygon.points);
-
+            if i != num_parts - 1 {
+                parts.push(all_points.len() as i32)
+            }
         }
-        Self::new(all_points, all_parts)
+
+        let bbox = BBox::from_points(&all_points);
+        Self {
+            bbox,
+            points: all_points,
+            parts
+        }
     }
 }
 
