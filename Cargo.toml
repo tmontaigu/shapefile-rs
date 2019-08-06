@@ -13,7 +13,7 @@ exclude = ["tests/data/*"]
 
 [dependencies]
 byteorder = "1.2.7"
-dbase = "0.0.3"
+dbase = "0.0.4"
 geo-types = {version = "0.4.3", optional = true}
 
 
