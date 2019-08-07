@@ -1,6 +1,6 @@
 [package]
 name = "shapefile"
-version = "0.0.4"
+version = "0.0.5"
 authors = ["tmontaigu <thomas.montaigu@laposte.net>"]
 description = "Read & Write shapefiles in Rust"
 license = "MIT"
