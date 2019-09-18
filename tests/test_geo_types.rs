@@ -8,10 +8,10 @@ mod geo_types_conversions {
         let shp_polygons = shapefile::read_as::<_, shapefile::Polygon>("tests/data/multi_polygon.shp")
             .unwrap();
 
-        let mut multi_polygons = shp_polygons.into_iter()
+        let mut multi_polygons = shp_polygons
+            .into_iter()
             .map(|polygon| geo_types::MultiPolygon::<f64>::try_from(polygon).unwrap())
             .collect::<Vec<geo_types::MultiPolygon<f64>>>();
-
 
         let multi_polygon = multi_polygons.pop().unwrap();
         let geo_polygons = multi_polygon.into_iter().collect::<Vec<geo_types::Polygon<f64>>>();
@@ -28,10 +28,5 @@ mod geo_types_conversions {
 
         assert_eq!(&polygon.points, &shp_polygons[0].points);
         assert_eq!(&polygon.parts, &shp_polygons[0].parts);
-    }
-
-    #[test]
-    fn test_multipatch_conversion() {
-
     }
 }

@@ -85,7 +85,7 @@ impl<T: Write> Writer<T> {
     /// use shapefile::{Point, Polyline};
     /// let mut writer = shapefile::Writer::from_path("polylines.shp").unwrap();
     /// let points = vec![Point::new(0.0, 0.0), Point::new(1.0, 0.0), Point::new(2.0, 0.0)];
-    /// let polyline = Polyline::new(points, vec![0]);
+    /// let polyline = Polyline::new(points);
     ///
     /// writer.write_shapes(vec![polyline]).unwrap();
     /// ```

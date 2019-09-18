@@ -103,7 +103,34 @@ pub(crate) fn is_parts_array_valid<PointType, ST: MultipartShape<PointType>>(sha
         .all(|p| (*p >= 0) & (*p < num_points))
 }
 
+pub(crate) fn is_part_closed<PointType: PartialEq>(points:&Vec<PointType>) -> bool {
+    if let (Some(first), Some(last)) = (points.first(), points.last()) {
+        if first == last {
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
 
+pub(crate) fn close_points_if_not_already<PointType: PartialEq + Copy>(points: &mut Vec<PointType>) {
+    if !is_part_closed(points) {
+        let maybe_first = points.first().cloned();
+        if maybe_first.is_some() {
+            let first: PointType = maybe_first.unwrap();
+            points.push(first);
+        }
+    }
+}
+
+
+#[derive(Eq, PartialEq, Debug)]
+pub(crate) enum RingType {
+    OuterRing,
+    InnerRing
+}
 
 /// Given the points, check if they represent an outer ring of a polygon
 ///
@@ -121,19 +148,19 @@ pub(crate) fn is_parts_array_valid<PointType, ST: MultipartShape<PointType>>(sha
 /// Outer Rings's points are un clockwise order
 ///
 /// https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order/1180256#1180256
-#[cfg(feature = "geo-types")]
-pub(crate) fn is_outer_ring<PointType: HasXY>(points: &[PointType]) -> bool {
+pub(crate) fn ring_type_from_points_ordering<PointType: HasXY>(points: &[PointType]) -> RingType {
     let area = points
         .windows(2)
         .map(|pts| (pts[1].x() - pts[0].x()) * (pts[1].y() + pts[0].y()) )
         .sum::<f64>() / 2.0f64;
 
     if area < 0.0 {
-        false
+        RingType::InnerRing
     } else {
-        true
+        RingType::OuterRing
     }
 }
+
 
 
 /// enum of Shapes that can be read or written to a shapefile
@@ -406,10 +433,9 @@ impl RecordHeader {
 ///
 /// // Build a Vec<Shape> with only polylines in it
 /// let points = vec![Point::default(), Point::default()];
-/// let parts = Vec::<i32>::new();
 /// let shapes = vec![
-///     Shape::from(Polyline::new(points.clone(), parts.clone())),
-///     Shape::from(Polyline::new(points, parts)),
+///     Shape::from(Polyline::new(points.clone())),
+///     Shape::from(Polyline::new(points)),
 /// ];
 ///
 /// // try a conversion to the wrong type
@@ -515,10 +541,9 @@ mod tests {
     #[test]
     fn convert_to_vec_of_poly_err() {
         let points = vec![Point::default(), Point::default()];
-        let parts = Vec::<i32>::new();
         let shapes = vec![
             Shape::Point(Point::default()),
-            Shape::Polyline(Polyline::new(points, parts)),
+            Shape::Polyline(Polyline::new(points)),
         ];
         assert!(convert_shapes_to_vec_of::<Polyline>(shapes).is_err());
     }
@@ -526,10 +551,9 @@ mod tests {
     #[test]
     fn convert_to_vec_of_point_err() {
         let points = vec![Point::default(), Point::default()];
-        let parts = Vec::<i32>::new();
         let shapes = vec![
             Shape::Point(Point::default()),
-            Shape::Polyline(Polyline::new(points, parts)),
+            Shape::Polyline(Polyline::new(points)),
         ];
         assert!(convert_shapes_to_vec_of::<Point>(shapes).is_err());
     }
@@ -537,11 +561,10 @@ mod tests {
     #[test]
     fn convert_to_vec_of_poly_ok() {
         let points = vec![Point::default(), Point::default()];
-        let parts = Vec::<i32>::new();
 
         let shapes = vec![
-            Shape::from(Polyline::new(points.clone(), parts.clone())),
-            Shape::from(Polyline::new(points, parts)),
+            Shape::from(Polyline::new(points.clone())),
+            Shape::from(Polyline::new(points)),
         ];
 
         assert!(convert_shapes_to_vec_of::<Polyline>(shapes).is_ok());
@@ -554,5 +577,20 @@ mod tests {
             Shape::Point(Point::default()),
         ];
         assert!(convert_shapes_to_vec_of::<Point>(shapes).is_ok());
+    }
+
+    #[test]
+    fn test_vertices_order() {
+        let mut points = vec![
+            Point::new(0.0, 0.0),
+            Point::new(1.0, 0.0),
+            Point::new(1.0, 1.0),
+            Point::new(0.0, 1.0),
+        ];
+
+        assert_eq!(ring_type_from_points_ordering(&points), RingType::InnerRing);
+        points.reverse();
+        assert_eq!(ring_type_from_points_ordering(&points), RingType::OuterRing);
+
     }
 }

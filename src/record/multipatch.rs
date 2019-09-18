@@ -7,7 +7,7 @@ use std::mem::size_of;
 use std::slice::SliceIndex;
 
 use record::io::*;
-use record::is_parts_array_valid;
+use record::{is_parts_array_valid, close_points_if_not_already};
 use record::traits::{MultipartShape, MultipointShape};
 use record::BBox;
 use record::ConcreteReadableShape;
@@ -48,6 +48,10 @@ impl PatchType {
     }
 }
 
+/// Following things are important with Multipatch shape:
+/// 1) Ring types must be closed
+/// 2) InnerRings must follow their OuterRings
+/// 3) Parts must not intersects or penetrate each others
 pub struct Multipatch {
     pub bbox: BBox,
     pub points: Vec<PointZ>,
@@ -58,17 +62,87 @@ pub struct Multipatch {
 }
 
 impl Multipatch {
-    pub fn new(points: Vec<PointZ>, parts: Vec<i32>, parts_type: Vec<PatchType>) -> Self {
+    /// # Examples
+    ///
+    /// Creating a Multipatch with one outer ring,
+    /// The constructor closes rings
+    /// ```
+    /// use shapefile::{PointZ, Multipatch, NO_DATA, PatchType};
+    /// let points = vec![
+    ///     PointZ::new(0.0, 0.0, 0.0, NO_DATA),
+    ///     PointZ::new(0.0, 1.0, 0.0, NO_DATA),
+    ///     PointZ::new(1.0, 0.0, 0.0, NO_DATA),
+    /// ];
+    /// let multip = Multipatch::new(points, PatchType::OuterRing);
+    ///
+    /// // The polygon gets closed 'explicitly'
+    /// assert_eq!(multip.points.len(), 4);
+    /// assert_eq!(multip.points.last(), multip.points.first());
+    /// ```
+    ///
+    pub fn new(mut points: Vec<PointZ>, part_type: PatchType) -> Self {
+        match part_type {
+            PatchType::OuterRing | PatchType::InnerRing | PatchType::FirstRing => {
+                close_points_if_not_already(&mut points);
+            },
+            _ => {},
+        }
         let bbox = BBox::from_points(&points);
         let m_range = calc_m_range(&points);
         let z_range = calc_z_range(&points);
         Self {
             bbox,
             points,
+            parts: vec![0],
+            parts_type: vec![part_type],
+            z_range,
+            m_range,
+        }
+    }
+
+    pub fn with_parts(parts_points: Vec<(Vec<PointZ>, PatchType)>) -> Self {
+        let num_parts = parts_points.len();
+        let num_points = parts_points.iter().map(|pts| pts.0.len()).sum();
+
+        let mut all_points = Vec::<PointZ>::with_capacity(num_points);
+        let mut parts = Vec::<i32>::with_capacity(num_parts);
+        let mut parts_type = Vec::<PatchType>::with_capacity(num_parts);
+
+        for (i, (mut points, patch_type)) in parts_points.into_iter().enumerate() {
+            if i != num_parts - 1 {
+                parts.push(all_points.len() as i32);
+            }
+            match patch_type {
+                PatchType::OuterRing | PatchType::InnerRing | PatchType::FirstRing => {
+                    close_points_if_not_already(&mut points);
+                },
+                _ => {},
+            }
+            all_points.append(&mut points);
+            parts_type.push(patch_type);
+        }
+
+        let bbox = BBox::from_points(&all_points);
+        let m_range = calc_m_range(&all_points);
+        let z_range = calc_z_range(&all_points);
+        Self {
+            bbox,
+            points: all_points,
             parts,
             parts_type,
             z_range,
-            m_range,
+            m_range
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            bbox: BBox::new(0.0, 0.0, 0.0, 0.0),
+            points: vec![],
+            parts: vec![],
+            parts_type: vec![],
+            z_range: [0.0,0.0],
+            m_range: [0.0, 0.0]
         }
     }
 
@@ -287,9 +361,8 @@ impl TryFrom<Multipatch> for geo_types::MultiPolygon<f64> {
 #[cfg(feature = "geo-types")]
 impl From<geo_types::Polygon<f64>> for Multipatch {
     fn from(polygon: geo_types::Polygon<f64>) -> Self {
-        use super::is_outer_ring;
         if polygon.exterior(). num_coords() == 0 {
-            return Self::new(vec![], vec![], vec![]);
+            return Self::empty();
         }
 
         let mut total_num_points = polygon.exterior().num_coords();
@@ -305,7 +378,7 @@ impl From<geo_types::Polygon<f64>> for Multipatch {
             .map(|c| PointZ::from(c))
             .collect::<Vec<PointZ>>();
 
-        if !is_outer_ring(&outer_points) {
+        if super::ring_type_from_points_ordering(&outer_points) == super::RingType::InnerRing {
             outer_points.reverse();
         }
         all_points.append(&mut outer_points);
@@ -317,14 +390,23 @@ impl From<geo_types::Polygon<f64>> for Multipatch {
                 .map(|c| PointZ::from(c))
                 .collect::<Vec<PointZ>>();
 
-            if is_outer_ring(&inner_points) {
+            if super::ring_type_from_points_ordering(&inner_points) == super::RingType::OuterRing {
                 inner_points.reverse();
             }
             all_points.append(&mut inner_points);
             parts_type.push(PatchType::InnerRing);
         }
 
-        Self::new(all_points, parts, parts_type)
+        let m_range = calc_m_range(&all_points);
+        let z_range = calc_z_range(&all_points);
+        Self {
+            bbox: BBox::from_points(&all_points),
+            points: all_points,
+            parts,
+            parts_type,
+            z_range,
+            m_range
+        }
     }
 }
 
@@ -358,6 +440,15 @@ impl From<geo_types::MultiPolygon<f64>> for Multipatch {
             all_parts_type.append(&mut multipatch.parts_type);
 
         }
-        Self::new(all_points, all_parts, all_parts_type)
+        let m_range = calc_m_range(&all_points);
+        let z_range = calc_z_range(&all_points);
+        Self {
+            bbox: BBox::from_points(&all_points),
+            points: all_points,
+            parts: all_parts,
+            parts_type: all_parts_type,
+            z_range,
+            m_range
+        }
     }
 }
