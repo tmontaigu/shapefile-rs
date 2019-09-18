@@ -135,7 +135,7 @@ impl Multipatch {
         }
     }
 
-    fn empty() -> Self {
+    pub fn empty() -> Self {
         Self {
             bbox: BBox::new(0.0, 0.0, 0.0, 0.0),
             points: vec![],
