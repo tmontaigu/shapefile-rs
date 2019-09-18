@@ -323,7 +323,7 @@ fn check_polygon<T: Read>(reader: shapefile::Reader<T>) {
             Point { x: 117.0, y: 36.0 },
             Point { x: 115.0, y: 32.0 },
             Point { x: 118.0, y: 20.0 },
-            Point { x: 119.0, y: 24.0 },
+            Point { x: 113.0, y: 24.0 },
             Point { x: 15.0, y: 2.0 },
             Point { x: 17.0, y: 6.0 },
             Point { x: 22.0, y: 7.0 },
@@ -726,14 +726,24 @@ read_write_read_test!(
 );
 
 /* Read-Write-Read tests on Polygons */
-//read_write_read_test!(read_write_read_polygon, to_vec_of_polygon, check_polygon, testfiles::POLYGON_PATH);
+read_write_read_test!(
+    read_write_read_polygon,
+    Polygon,
+    check_polygon,
+    testfiles::POLYGON_PATH
+);
 read_write_read_test!(
     read_write_read_polygonm,
     PolygonM,
     check_polygonm,
     testfiles::POLYGONM_PATH
 );
-//read_write_read_test!(read_write_read_polygonz, to_vec_of_polygonz, check_polygonz, testfiles::POLYGONZ_PATH);
+read_write_read_test!(
+    read_write_read_polygonz,
+    PolygonZ,
+    check_polygonz,
+    testfiles::POLYGONZ_PATH
+);
 
 /* Read-Write-Read tests on Multipoint */
 read_write_read_test!(
