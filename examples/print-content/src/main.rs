@@ -18,17 +18,14 @@ fn main() {
         let shape = shape.unwrap();
     }
 
-    let reader = shapefile::FileReaderBuilder::new(filename)
-        .with_dbf()
-        .build()
-        .unwrap();
+    let reader = shapefile::Reader::from_path(filename).unwrap();
 
     for result in reader.iter_shapes_and_records().unwrap() {
         let (shape, record) = result.unwrap();
         println!("Shape: {}, records: ", shape);
         for (name, value) in record {
-            print!("{}: {:?}, ", name, value);
+            println!("\t{}: {:?}, ", name, value);
         }
-        println!("");
+        println!();
     }
 }
