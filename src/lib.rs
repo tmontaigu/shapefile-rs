@@ -26,7 +26,7 @@
 //! implementations allowing to convert (or try to) back and forth between shapefile's type and
 //! the one in `geo_types`
 extern crate byteorder;
-extern crate dbase;
+pub extern crate dbase;
 
 pub mod header;
 pub mod reader;
