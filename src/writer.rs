@@ -209,7 +209,7 @@ impl Writer<BufWriter<File>> {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let shp_path = path.as_ref().to_path_buf();
         let shx_path = shp_path.with_extension("shx");
-        let dbf_path = shp_path.with_extension("dfb");
+        let dbf_path = shp_path.with_extension("dbf");
 
         let shp_file = BufWriter::new(File::create(shp_path)?);
         let shx_file = BufWriter::new(File::create(shx_path)?);
