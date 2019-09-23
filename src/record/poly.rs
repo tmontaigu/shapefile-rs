@@ -66,18 +66,26 @@ impl<PointType: HasXY> GenericPolyline<PointType> {
     ///     Point::new(3.0, 1.0),
     ///     Point::new(5.0, 6.0),
     /// ];
-    /// let poly = Polyline::with_parts(vec![first_part, second_part]);
     ///
-    /// assert_eq!(poly.points.len(), 4);
-    /// assert_eq!(poly.parts, vec![0, 2]);
+    /// let third_part = vec![
+    ///     Point::new(17.0, 15.0),
+    ///     Point::new(18.0, 19.0),
+    ///     Point::new(20.0, 19.0),
+    /// ];
+    /// let poly = Polyline::with_parts(vec![first_part, second_part, third_part]);
+    ///
+    /// assert_eq!(poly.points.len(), 7);
+    /// assert_eq!(poly.parts, vec![0, 2, 5]);
     /// ```
     ///
     pub fn with_parts(parts: Vec<Vec<PointType>>) -> Self {
         let mut parts_indices = Vec::<i32>::with_capacity(parts.len());
         parts_indices.push(0);
         if let Some(following_parts) = parts.get(1..) {
+            let mut sum = 0i32;
             for points in  following_parts {
-                parts_indices.push(points.len() as i32)
+                sum += points.len() as i32;
+                parts_indices.push(sum);
             }
         }
 
