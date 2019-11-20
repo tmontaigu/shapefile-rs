@@ -11,9 +11,25 @@ use super::Error;
 use record::ConcreteReadableShape;
 use record::{is_no_data, BBox, HasShapeType, WritableShape};
 use std::fmt;
+use crate::record::traits::MultipointShape;
 
 #[cfg(feature = "geo-types")]
 use geo_types;
+use std::slice::SliceIndex;
+
+macro_rules! impl_multipoint_shape_for (
+    ($point_type:ty) =>  {
+        impl MultipointShape<$point_type> for $point_type {
+            fn point<I: SliceIndex<[$point_type]>>(&self, index: I) -> Option<&<I as SliceIndex<[$point_type]>>::Output> {
+                self.points().get(index)
+            }
+
+            fn points(&self) -> &[$point_type] {
+                std::slice::from_ref(self)
+            }
+        }
+    }
+);
 
 
 /// Point with only `x` and `y` coordinates
@@ -93,6 +109,7 @@ impl fmt::Display for Point {
     }
 }
 
+impl_multipoint_shape_for!(Point);
 
 #[cfg(feature = "geo-types")]
 impl From<Point> for geo_types::Point<f64> {
@@ -221,6 +238,8 @@ impl Default for PointM {
         }
     }
 }
+
+impl_multipoint_shape_for!(PointM);
 
 
 #[cfg(feature = "geo-types")]
@@ -365,6 +384,7 @@ impl fmt::Display for PointZ {
     }
 }
 
+impl_multipoint_shape_for!(PointZ);
 
 #[cfg(feature = "geo-types")]
 impl From<PointZ> for geo_types::Point<f64> {
@@ -401,9 +421,8 @@ impl From<PointZ> for geo_types::Coordinate<f64> {
 
 #[cfg(test)]
 #[cfg(feature = "geo-types")]
-mod test {
+mod test_geo_types {
     use super::*;
-
     #[test]
     fn geo_types_point_conversion() {
         let p = Point::new(14.0, 42.65);
@@ -444,5 +463,20 @@ mod test {
         assert_eq!(p.y, 42.65);
         assert_eq!(p.z, 0.0);
         assert_eq!(p.m, NO_DATA);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_multipoint_impl_for_point() {
+        let point = Point::new(42.0, 1337.0);
+
+        let points = point.points();
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0], point);
+        assert_eq!(point.point(10), None);
     }
 }

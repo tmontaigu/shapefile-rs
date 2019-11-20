@@ -21,8 +21,13 @@ pub(crate) trait HasM {
 }
 
 /// Trait that allows access to the slice of points of shapes that
-/// have multiple points (all the shapes except `Point`, `PointM`, `PoinZ`).
+/// have multiple points.
+///
+/// For convenience, even `Point`, `PointM`, `PointZ` implements this trait
+/// meaning that all shapes are MultipointShape
 pub trait MultipointShape<PointType> {
+    //TODO Is this method useful since there is a .points() method
+    //     that means users can do .points()[10] or .points()[..15]
     fn point<I: SliceIndex<[PointType]>>(
         &self,
         index: I,
