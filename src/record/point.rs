@@ -225,7 +225,11 @@ impl EsriShape for PointM {
 
 impl fmt::Display for PointM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Point(x: {}, y: {}, m: {})", self.x, self.y, self.m)
+        if is_no_data(self.m) {
+            write!(f, "Point(x: {}, y: {}, m: NO_DATA)", self.x, self.y)
+        } else {
+            write!(f, "Point(x: {}, y: {}, m: {})", self.x, self.y, self.m)
+        }
     }
 }
 
@@ -376,11 +380,19 @@ impl Default for PointZ {
 
 impl fmt::Display for PointZ {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Point(x: {}, y: {}, z: {}, m: {})",
-            self.x, self.y, self.z, self.m
-        )
+        if is_no_data(self.m) {
+            write!(
+                f,
+                "Point(x: {}, y: {}, z: {}, m: NO_DATA)",
+                self.x, self.y, self.z
+            )
+        } else {
+            write!(
+                f,
+                "Point(x: {}, y: {}, z: {}, m: {})",
+                self.x, self.y, self.z, self.m
+            )
+        }
     }
 }
 
