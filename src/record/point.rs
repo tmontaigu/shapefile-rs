@@ -308,6 +308,13 @@ impl PointZ {
     pub fn new(x: f64, y: f64, z: f64, m: f64) -> Self {
         Self { x, y, z, m }
     }
+
+    fn read_xyz<R: Read>(source: &mut R) -> std::io::Result<Self> {
+        let x = source.read_f64::<LittleEndian>()?;
+        let y = source.read_f64::<LittleEndian>()?;
+        let z = source.read_f64::<LittleEndian>()?;
+        Ok(Self { x, y, z, m: NO_DATA })
+    }
 }
 
 impl HasShapeType for PointZ {
@@ -318,12 +325,13 @@ impl HasShapeType for PointZ {
 
 impl ConcreteReadableShape for PointZ {
     fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
-        if record_size == 4 * size_of::<f64>() as i32 {
-            let x = source.read_f64::<LittleEndian>()?;
-            let y = source.read_f64::<LittleEndian>()?;
-            let z = source.read_f64::<LittleEndian>()?;
-            let m = source.read_f64::<LittleEndian>()?;
-            Ok(Self { x, y, z, m })
+        if record_size == 3 * size_of::<f64>() as i32 {
+            let point = Self::read_xyz(source)?;
+            Ok(point)
+        } else if record_size == 4 * size_of::<f64>() as i32 {
+            let mut point = Self::read_xyz(source)?;
+            point.m = source.read_f64::<LittleEndian>()?;
+            Ok(point)
         } else {
             Err(Error::InvalidShapeRecordSize)
         }
