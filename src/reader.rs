@@ -451,6 +451,11 @@ impl Reader<BufReader<File>> {
 impl<T: Read + Seek> Reader<T> {
     /// Reads the `n`th shape of the shapefile
     ///
+    /// # Important
+    ///
+    /// Even though in shapefiles, shapes are indexed starting from '1'.
+    /// this method expects indexes starting from 0.
+    ///
     /// # Returns
     ///
     /// `None` if the index is out of range
@@ -459,8 +464,6 @@ impl<T: Read + Seek> Reader<T> {
     ///
     /// This method will return an `Error::MissingIndexFile` if you use it
     /// but no *.shx* was found when opening the shapefile.
-    ///
-    ///
     pub fn read_nth_shape_as<S: ReadableShape>(
         &mut self,
         index: usize,
