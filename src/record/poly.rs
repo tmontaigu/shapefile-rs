@@ -653,7 +653,7 @@ impl<PointType> From<geo_types::Polygon<f64>> for GenericPolygon<PointType>
             outer_points.reverse();
         }
         all_points.append(&mut outer_points);
-        let mut num_inner = inners_ls.len();
+        let num_inner = inners_ls.len();
         let mut parts = Vec::<i32>::with_capacity(1 + num_inner);
         parts.push(0);
         for (i, inner_ls) in inners_ls.into_iter().enumerate() {
