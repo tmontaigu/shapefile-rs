@@ -140,14 +140,14 @@ impl<T: Write> Writer<T> {
             version: 1000,
         };
 
-        let mut pos = header::HEADER_SIZE;
+        let mut pos = header::HEADER_SIZE / 2;
         header.write_to(&mut self.dest)?;
         let mut shapes_index = Vec::<ShapeIndex>::with_capacity(shapes.len());
-        for (i, shape) in shapes.into_iter().enumerate() {
+        for (i, shape) in (1..).zip(shapes.into_iter()) {
             //TODO Check record size < i32_max ?
             let record_size = (shape.size_in_bytes() + std::mem::size_of::<i32>()) / 2;
             let rc_hdr = RecordHeader {
-                record_number: i as i32,
+                record_number: i,
                 record_size: record_size as i32,
             };
 
@@ -159,7 +159,7 @@ impl<T: Write> Writer<T> {
             rc_hdr.write_to(&mut self.dest)?;
             shapetype.write_to(&mut self.dest)?;
             shape.write_to(&mut self.dest)?;
-            pos += (record_size * 2) as i32;
+            pos += record_size as i32;
         }
 
         if let Some(ref mut shx_dest) = &mut self.index_dest {
