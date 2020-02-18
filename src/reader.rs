@@ -2,7 +2,7 @@
 //!
 //!
 //! The [Reader](struct.Reader.html) is the struct that actually reads the file from any source as long as it implements the
-//! `Read` Trait (`std::fs::File`, and `std::io::Cursor` for example).
+//! [`Read`] Trait ([`std::fs::File`], and [`std::io::Cursor`] for example).
 //!
 //! It is recommended to create a `Reader` using its
 //! [from_path](struct.Reader.html#method.from_path) method as this constructor
@@ -14,6 +14,10 @@
 //! If you want the "manually" constructed `Reader` to also read the *shx* and *dbf* file content
 //! you will have to use [add_index_source](struct.Reader.html#method.add_index_source) and/or
 //! [add_dbf_source](struct.Reader.html#method.add_dbf_source)
+//!
+//! [`Read`]: https://doc.rust-lang.org/std/io/trait.Read.html
+//! [`std::fs::File`]: https://doc.rust-lang.org/std/fs/struct.File.html
+//! [`std::io::Cursor`]: https://doc.rust-lang.org/std/io/struct.Cursor.html
 //!
 //!
 //! # Examples
