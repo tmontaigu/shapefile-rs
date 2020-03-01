@@ -159,7 +159,7 @@ impl<T: Write> Writer<T> {
             rc_hdr.write_to(&mut self.dest)?;
             shapetype.write_to(&mut self.dest)?;
             shape.write_to(&mut self.dest)?;
-            pos += record_size as i32;
+            pos += record_size as i32 + RecordHeader::SIZE as i32 / 2;
         }
 
         if let Some(ref mut shx_dest) = &mut self.index_dest {
