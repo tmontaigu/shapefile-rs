@@ -5,10 +5,12 @@ use shapefile::record::{MultipartShape, MultipointShape};
 use shapefile::Point;
 
 pub const LINE_PATH: &str = "./tests/data/line.shp";
+pub const LINE_SHX_PATH: &str = "./tests/data/line.shx";
 pub const LINEM_PATH: &str = "./tests/data/linem.shp";
 pub const LINEZ_PATH: &str = "./tests/data/linez.shp";
 
 pub const POINT_PATH: &str = "./tests/data/point.shp";
+pub const POINT_SHX_PATH: &str = "./tests/data/point.shx";
 pub const POINTM_PATH: &str = "./tests/data/pointm.shp";
 pub const POINTZ_PATH: &str = "./tests/data/pointz.shp";
 
