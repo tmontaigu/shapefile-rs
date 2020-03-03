@@ -11,6 +11,7 @@ pub mod point;
 pub mod polygon;
 pub mod polyline;
 pub mod traits;
+pub mod macros;
 
 use super::{Error, ShapeType};
 pub use record::bbox::{BBoxZ, GenericBBox};
