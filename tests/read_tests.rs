@@ -759,7 +759,7 @@ read_write_read_test!(
     testfiles::MULTIPOINTZ_PATH
 );
 
-/* Read-Write-Read tests on Multipoint */
+/* Read-Write-Read tests on Multipatch */
 read_write_read_test!(
     read_write_read_multipatch,
     Multipatch,

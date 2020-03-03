@@ -109,10 +109,8 @@ impl Multipatch {
         let mut parts = Vec::<i32>::with_capacity(num_parts);
         let mut parts_type = Vec::<PatchType>::with_capacity(num_parts);
 
-        for (i, (mut points, patch_type)) in parts_points.into_iter().enumerate() {
-            if i != num_parts - 1 {
-                parts.push(all_points.len() as i32);
-            }
+        for (mut points, patch_type) in parts_points.into_iter() {
+            parts.push(all_points.len() as i32);
             match patch_type {
                 PatchType::OuterRing | PatchType::InnerRing | PatchType::FirstRing => {
                     close_points_if_not_already(&mut points);
@@ -451,5 +449,35 @@ impl From<geo_types::MultiPolygon<f64>> for Multipatch {
             z_range,
             m_range
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{Multipatch, PointZ, PatchType};
+
+    #[test]
+    fn test_multipatch_creation() {
+        let mp = Multipatch::with_parts(
+            vec![
+                (
+                    vec![
+                        PointZ::new(0.0, 1.0, 0.0, 0.0),
+                        PointZ::new(0.0, 2.0, 0.0, 0.0),
+                        PointZ::new(0.0, 1.0, 0.0, 0.0),
+                    ], PatchType::OuterRing
+                ),
+                (
+                    vec![
+                        PointZ::new(0.0, 17.0, 5.0, 0.0),
+                        PointZ::new(0.0, 28.0, 0.0, 0.0),
+                        PointZ::new(0.0, 17.0, 5.0, 0.0),
+                    ], PatchType::OuterRing
+                )
+            ]
+        );
+
+        assert_eq!(mp.parts, vec![0, 3]);
+        assert_eq!(mp.parts_type, vec![PatchType::OuterRing, PatchType::OuterRing]);
     }
 }
