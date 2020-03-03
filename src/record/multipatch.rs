@@ -52,6 +52,7 @@ impl PatchType {
 /// 1) Ring types must be closed
 /// 2) InnerRings must follow their OuterRings
 /// 3) Parts must not intersects or penetrate each others
+#[derive(Debug, PartialEq, Clone)]
 pub struct Multipatch {
     pub bbox: BBox,
     pub points: Vec<PointZ>,
