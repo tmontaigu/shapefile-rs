@@ -21,6 +21,7 @@ use geo_types;
 #[cfg(feature = "geo-types")]
 use std::convert::TryFrom;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct GenericPolyline<PointType> {
     pub bbox: BBox,
     pub points: Vec<PointType>,
@@ -521,6 +522,7 @@ impl EsriShape for PolylineZ {
  */
 
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct GenericPolygon<PointType> {
     pub bbox: BBox,
     pub points: Vec<PointType>,

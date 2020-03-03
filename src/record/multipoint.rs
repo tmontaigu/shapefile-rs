@@ -25,6 +25,7 @@ use {Error, ShapeType};
 use geo_types;
 
 /// Generic struct to create the Multipoint, MultipointM, MultipointZ types
+#[derive(Debug, Clone, PartialEq)]
 pub struct GenericMultipoint<PointType> {
     /// The 2D bounding box
     pub bbox: BBox,

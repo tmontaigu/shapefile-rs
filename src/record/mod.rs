@@ -334,7 +334,7 @@ impl TryFrom<geo_types::Geometry<f64>> for Shape {
 
 
 /// 2D (x, y) Bounding box
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct BBox {
     pub xmin: f64,
     pub ymin: f64,
