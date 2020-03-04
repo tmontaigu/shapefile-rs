@@ -98,9 +98,7 @@ impl<T: Write> Writer<T> {
         }
         file_length /= 2; // file size is in 16bit words
 
-        if file_length > i32::max_value() as usize {
-            panic!("To big"); //TODO convert in proper error
-        }
+        assert!(file_length <= i32::max_value() as usize);
 
         let mut point_min = [std::f64::MAX, std::f64::MAX, std::f64::MAX];
         let mut point_max = [std::f64::MIN, std::f64::MIN, std::f64::MIN];
