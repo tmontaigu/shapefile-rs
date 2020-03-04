@@ -26,13 +26,6 @@ fn check_line<T: Read>(reader: shapefile::Reader<T>) {
     let shapes = reader.read().unwrap();
 
     assert_eq!(shapes.len(), 1);
-    match &shapes[0] {
-        shapefile::record::Shape::Polyline(_poly) => {}
-        _ => {
-            assert!(false);
-        }
-    }
-
     testfiles::check_line_first_shape(&shapes[0]);
 }
 
