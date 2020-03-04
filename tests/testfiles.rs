@@ -15,6 +15,8 @@ pub const POINTM_PATH: &str = "./tests/data/pointm.shp";
 pub const POINTZ_PATH: &str = "./tests/data/pointz.shp";
 
 pub const POLYGON_PATH: &str = "./tests/data/polygon.shp";
+pub const POLYGON_HOLE_PATH: &str = "./tests/data/polygon_hole.shp";
+pub const POLYGON_HOLE_SHX_PATH: &str = "./tests/data/polygon_hole.shx";
 pub const POLYGONM_PATH: &str = "./tests/data/polygonm.shp";
 pub const POLYGONZ_PATH: &str = "./tests/data/polygonz.shp";
 

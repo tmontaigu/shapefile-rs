@@ -565,6 +565,8 @@ impl<PointType: HasXY + PartialEq + Copy> GenericPolygon<PointType> {
             if super::ring_type_from_points_ordering(&points) == super::RingType::InnerRing && !has_outer_ring {
                 points.reverse();
                 has_outer_ring = true;
+            } else {
+                has_outer_ring = true;
             }
         }
         Self::from(GenericPolyline::<PointType>::with_parts(parts_points))
