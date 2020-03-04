@@ -14,9 +14,9 @@ use std::slice::SliceIndex;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use record::io::*;
-use record::traits::{HasXY, MultipointShape};
-use record::ConcreteReadableShape;
-use record::{BBox, EsriShape};
+use record::traits::{GrowablePoint, MultipointShape, ShrinkablePoint};
+use record::EsriShape;
+use record::{ConcreteReadableShape, GenericBBox};
 use record::{HasShapeType, WritableShape};
 use record::{Point, PointM, PointZ};
 use {Error, ShapeType};
@@ -25,26 +25,34 @@ use {Error, ShapeType};
 use geo_types;
 
 /// Generic struct to create the Multipoint, MultipointM, MultipointZ types
+///
+/// Multipoints are a collection of... multiple points,
+/// they can be created from [`Vec`] of points using the [`From`] trait
+/// or using the [`new`] method.
+///
+/// `Multipoint` shapes only offers non-mutable access to the points data,
+/// to be able to mutate it you have to move the points data out of the struct.
+///
+/// ```
+/// use shapefile::{Multipoint, Point};
+/// let multipoint = Multipoint::from(vec![
+///     Point::new(1.0, 1.0),
+///     Point::new(2.0, 2.0),
+/// ]);
+///
+/// let points: Vec<Point> = multipoint.into();
+/// assert_eq!(points.len(), 2);
+///
+/// ```
+///
+/// [`new`]: #method.new
 #[derive(Debug, Clone, PartialEq)]
 pub struct GenericMultipoint<PointType> {
-    /// The 2D bounding box
-    pub bbox: BBox,
-    pub points: Vec<PointType>,
+    pub(crate) bbox: GenericBBox<PointType>,
+    pub(crate) points: Vec<PointType>,
 }
 
-impl<PointType> MultipointShape<PointType> for GenericMultipoint<PointType> {
-    fn point<I: SliceIndex<[PointType]>>(
-        &self,
-        index: I,
-    ) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
-        self.points.get(index)
-    }
-    fn points(&self) -> &[PointType] {
-        &self.points
-    }
-}
-
-impl<PointType: HasXY> GenericMultipoint<PointType> {
+impl<PointType: ShrinkablePoint + GrowablePoint + Copy> GenericMultipoint<PointType> {
     /// Creates a new Multipoint shape
     ///
     /// # Examples
@@ -80,17 +88,80 @@ impl<PointType: HasXY> GenericMultipoint<PointType> {
     /// ```
 
     pub fn new(points: Vec<PointType>) -> Self {
-        let bbox = BBox::from_points(&points);
+        let bbox = GenericBBox::<PointType>::from_points(&points);
         Self { bbox, points }
     }
 }
 
+impl<PointType> GenericMultipoint<PointType> {
+    /// Returns the bbox
+    ///
+    /// # Example
+    ///
+    ///
+    /// ```
+    /// use shapefile::{MultipointZ, PointZ, NO_DATA};
+    /// let multipointz = MultipointZ::new(vec![
+    ///     PointZ::new(1.0, 4.0, 1.2, 4.2),
+    ///     PointZ::new(2.0, 6.0, 4.0, 13.37),
+    /// ]);
+    ///
+    /// let bbox = multipointz.bbox();
+    /// assert_eq!(bbox.min.x, 1.0);
+    /// assert_eq!(bbox.max.x, 2.0);
+    /// assert_eq!(bbox.m_range(), [4.2, 13.37])
+    /// ```
+    pub fn bbox(&self) -> &GenericBBox<PointType> {
+        &self.bbox
+    }
+}
+
+impl<PointType> MultipointShape<PointType> for GenericMultipoint<PointType> {
+    fn point<I: SliceIndex<[PointType]>>(
+        &self,
+        index: I,
+    ) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
+        self.points.get(index)
+    }
+    fn points(&self) -> &[PointType] {
+        &self.points
+    }
+}
+
+impl<PointType> From<Vec<PointType>> for GenericMultipoint<PointType>
+where
+    PointType: ShrinkablePoint + GrowablePoint + Copy,
+{
+    fn from(points: Vec<PointType>) -> Self {
+        Self::new(points)
+    }
+}
+
+// We do this because we can't use generics:
+// error[E0210]: type parameter `PointType` must be used as the type parameter for some local type
+// (e.g., `MyStruct<PointType>`)
+macro_rules! impl_from_multipoint_to_vec_for_point_type {
+    ($PointType:ty) => {
+        impl From<GenericMultipoint<$PointType>> for Vec<$PointType> {
+            fn from(multipoints: GenericMultipoint<$PointType>) -> Self {
+                multipoints.points
+            }
+        }
+    };
+}
+
+impl_from_multipoint_to_vec_for_point_type!(Point);
+impl_from_multipoint_to_vec_for_point_type!(PointM);
+impl_from_multipoint_to_vec_for_point_type!(PointZ);
+
 #[cfg(feature = "geo-types")]
 impl<PointType> From<GenericMultipoint<PointType>> for geo_types::MultiPoint<f64>
-    where geo_types::Point<f64>: From<PointType>
+where
+    geo_types::Point<f64>: From<PointType>,
 {
     fn from(multi_points: GenericMultipoint<PointType>) -> Self {
-        multi_points.points
+        multi_points
+            .points
             .into_iter()
             .map(|p| geo_types::Point::from(p))
             .collect::<Vec<geo_types::Point<f64>>>()
@@ -100,13 +171,14 @@ impl<PointType> From<GenericMultipoint<PointType>> for geo_types::MultiPoint<f64
 
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::MultiPoint<f64>> for GenericMultipoint<PointType>
-    where PointType: From<geo_types::Point<f64>> + HasXY{
+where
+    PointType: From<geo_types::Point<f64>> + HasXY,
+{
     fn from(mp: geo_types::MultiPoint<f64>) -> Self {
         let points = mp.into_iter().map(|p| p.into()).collect();
         Self::new(points)
     }
 }
-
 
 /*
  * Multipoint
@@ -140,7 +212,9 @@ impl HasShapeType for Multipoint {
 
 impl ConcreteReadableShape for Multipoint {
     fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
-        let bbox = BBox::read_from(&mut source)?;
+        let mut bbox = GenericBBox::<Point>::default();
+        bbox_read_xy_from(&mut bbox, source)?;
+
         let num_points = source.read_i32::<LittleEndian>()?;
         if record_size == Self::size_of_record(num_points) as i32 {
             let points = read_xy_in_vec_of::<Point, T>(&mut source, num_points)?;
@@ -160,8 +234,8 @@ impl WritableShape for Multipoint {
         size
     }
 
-    fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
-        self.bbox.write_to(&mut dest)?;
+    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+        bbox_write_xy_to(&self.bbox, dest)?;
         dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
         for point in self.points {
             dest.write_f64::<LittleEndian>(point.x)?;
@@ -172,13 +246,14 @@ impl WritableShape for Multipoint {
 }
 
 impl EsriShape for Multipoint {
-    fn bbox(&self) -> BBox {
-        self.bbox
+    fn x_range(&self) -> [f64; 2] {
+        self.bbox.x_range()
+    }
+
+    fn y_range(&self) -> [f64; 2] {
+        self.bbox.y_range()
     }
 }
-
-
-
 
 /*
  * MultipointM
@@ -213,7 +288,8 @@ impl HasShapeType for MultipointM {
 
 impl ConcreteReadableShape for MultipointM {
     fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
-        let bbox = BBox::read_from(&mut source)?;
+        let mut bbox = GenericBBox::<PointM>::default();
+        bbox_read_xy_from(&mut bbox, source)?;
 
         let num_points = source.read_i32::<LittleEndian>()?;
 
@@ -227,7 +303,7 @@ impl ConcreteReadableShape for MultipointM {
             let mut points = read_xy_in_vec_of::<PointM, T>(&mut source, num_points)?;
 
             if m_is_used {
-                let _m_range = read_range(&mut source)?;
+                bbox_read_m_range_from(&mut bbox, source)?;
                 read_ms_into(&mut source, &mut points)?;
             }
             Ok(Self { bbox, points })
@@ -246,24 +322,28 @@ impl WritableShape for MultipointM {
     }
 
     fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
-        self.bbox.write_to(&mut dest)?;
+        bbox_write_xy_to(&self.bbox, dest)?;
         dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
 
         write_points(&mut dest, &self.points)?;
 
-        write_range(&mut dest, self.m_range())?;
+        bbox_write_m_range_to(&self.bbox, dest)?;
         write_ms(&mut dest, &self.points)?;
         Ok(())
     }
 }
 
 impl EsriShape for MultipointM {
-    fn bbox(&self) -> BBox {
-        self.bbox
+    fn x_range(&self) -> [f64; 2] {
+        self.bbox.x_range()
+    }
+
+    fn y_range(&self) -> [f64; 2] {
+        self.bbox.y_range()
     }
 
     fn m_range(&self) -> [f64; 2] {
-        calc_m_range(&self.points)
+        self.bbox.m_range()
     }
 }
 
@@ -303,7 +383,8 @@ impl HasShapeType for MultipointZ {
 
 impl ConcreteReadableShape for MultipointZ {
     fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
-        let bbox = BBox::read_from(&mut source)?;
+        let mut bbox = GenericBBox::<PointZ>::default();
+        bbox_read_xy_from(&mut bbox, source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
 
         let size_with_m = Self::size_of_record(num_points, true) as i32;
@@ -315,11 +396,11 @@ impl ConcreteReadableShape for MultipointZ {
             let m_is_used = size_with_m == record_size;
             let mut points = read_xy_in_vec_of::<PointZ, T>(&mut source, num_points)?;
 
-            let _z_range = read_range(&mut source)?;
+            bbox_read_z_range_from(&mut bbox, source)?;
             read_zs_into(&mut source, &mut points)?;
 
             if m_is_used {
-                let _m_range = read_range(&mut source)?;
+                bbox_read_m_range_from(&mut bbox, source)?;
                 read_ms_into(&mut source, &mut points)?;
             }
 
@@ -340,15 +421,15 @@ impl WritableShape for MultipointZ {
     }
 
     fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
-        self.bbox.write_to(&mut dest)?;
+        bbox_write_xy_to(&self.bbox, dest)?;
         dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
 
         write_points(&mut dest, &self.points)?;
 
-        write_range(&mut dest, self.z_range())?;
+        bbox_write_z_range_to(&self.bbox, dest)?;
         write_zs(&mut dest, &self.points)?;
 
-        write_range(&mut dest, self.m_range())?;
+        bbox_write_m_range_to(&self.bbox, dest)?;
         write_ms(&mut dest, &self.points)?;
 
         Ok(())
@@ -356,32 +437,32 @@ impl WritableShape for MultipointZ {
 }
 
 impl EsriShape for MultipointZ {
-    fn bbox(&self) -> BBox {
-        self.bbox
+    fn x_range(&self) -> [f64; 2] {
+        self.bbox.x_range()
+    }
+
+    fn y_range(&self) -> [f64; 2] {
+        self.bbox.y_range()
     }
 
     fn z_range(&self) -> [f64; 2] {
-        calc_z_range(&self.points)
+        self.bbox.z_range()
     }
 
     fn m_range(&self) -> [f64; 2] {
-        calc_m_range(&self.points)
+        self.bbox.m_range()
     }
 }
-
 
 #[cfg(test)]
 #[cfg(feature = "geo-types")]
 mod tests {
     use super::*;
-    use ::{geo_types, NO_DATA};
+    use {geo_types, NO_DATA};
 
     #[test]
     fn test_multipoint_to_geo_types_multipoint() {
-        let points = vec![
-            Point::new(1.0, 1.0),
-            Point::new(2.0, 2.0),
-        ];
+        let points = vec![Point::new(1.0, 1.0), Point::new(2.0, 2.0)];
         let shapefile_multipoint = Multipoint::new(points);
         let geo_types_multipoint = geo_types::MultiPoint::from(shapefile_multipoint);
 
@@ -394,7 +475,6 @@ mod tests {
         assert_eq!(p2.x(), 2.0);
         assert_eq!(p2.y(), 2.0);
     }
-
 
     #[test]
     fn test_multipoint_m_to_geo_types_multipoint() {
@@ -414,7 +494,6 @@ mod tests {
         assert_eq!(p2.x(), 6.0);
         assert_eq!(p2.y(), 18.7);
 
-
         let geo_types_multipoint: geo_types::MultiPoint<_> = vec![p1, p2].into();
         let shapefile_multipoint = MultipointM::from(geo_types_multipoint);
 
@@ -430,7 +509,7 @@ mod tests {
     #[test]
     fn test_multipoint_z_to_geo_types_multipoint() {
         let points = vec![
-            PointZ::new(1.0, 1.0,  17.0, 18.0),
+            PointZ::new(1.0, 1.0, 17.0, 18.0),
             PointZ::new(2.0, 2.0, 15.0, 16.0),
         ];
         let shapefile_multipoint = MultipointZ::new(points);
@@ -458,5 +537,4 @@ mod tests {
         assert_eq!(shapefile_multipoint.points[0].z, 0.0);
         assert_eq!(shapefile_multipoint.points[0].m, NO_DATA);
     }
-
 }

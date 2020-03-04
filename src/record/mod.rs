@@ -1,7 +1,9 @@
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
+//! Shape records
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::fmt;
 use std::io::{Read, Write};
 
+pub mod bbox;
 pub mod io;
 pub mod multipatch;
 pub mod multipoint;
@@ -10,6 +12,7 @@ pub mod poly;
 pub mod traits;
 
 use super::{Error, ShapeType};
+pub use record::bbox::{BBoxZ, GenericBBox};
 pub use record::multipatch::{Multipatch, PatchType};
 pub use record::multipoint::{Multipoint, MultipointM, MultipointZ};
 pub use record::point::{Point, PointM, PointZ};
@@ -75,12 +78,13 @@ pub trait WritableShape {
 }
 
 pub trait EsriShape: HasShapeType + WritableShape {
-    fn bbox(&self) -> BBox;
-    /// Should return the Z range of this shape (maybe require computing it)
+    fn x_range(&self) -> [f64; 2];
+    fn y_range(&self) -> [f64; 2];
+    /// Should return the Z range of this shape
     fn z_range(&self) -> [f64; 2] {
         [0.0, 0.0]
     }
-    /// Should return the M range of this shape (maybe require computing it)
+    /// Should return the M range of this shape
     fn m_range(&self) -> [f64; 2] {
         [0.0, 0.0]
     }
@@ -103,7 +107,7 @@ pub(crate) fn is_parts_array_valid<PointType, ST: MultipartShape<PointType>>(sha
         .all(|p| (*p >= 0) & (*p < num_points))
 }
 
-pub(crate) fn is_part_closed<PointType: PartialEq>(points:&Vec<PointType>) -> bool {
+pub(crate) fn is_part_closed<PointType: PartialEq>(points: &Vec<PointType>) -> bool {
     if let (Some(first), Some(last)) = (points.first(), points.last()) {
         if first == last {
             true
@@ -115,7 +119,9 @@ pub(crate) fn is_part_closed<PointType: PartialEq>(points:&Vec<PointType>) -> bo
     }
 }
 
-pub(crate) fn close_points_if_not_already<PointType: PartialEq + Copy>(points: &mut Vec<PointType>) {
+pub(crate) fn close_points_if_not_already<PointType: PartialEq + Copy>(
+    points: &mut Vec<PointType>,
+) {
     if !is_part_closed(points) {
         let maybe_first = points.first().cloned();
         if maybe_first.is_some() {
@@ -125,11 +131,10 @@ pub(crate) fn close_points_if_not_already<PointType: PartialEq + Copy>(points: &
     }
 }
 
-
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) enum RingType {
     OuterRing,
-    InnerRing
+    InnerRing,
 }
 
 /// Given the points, check if they represent an outer ring of a polygon
@@ -151,8 +156,9 @@ pub(crate) enum RingType {
 pub(crate) fn ring_type_from_points_ordering<PointType: HasXY>(points: &[PointType]) -> RingType {
     let area = points
         .windows(2)
-        .map(|pts| (pts[1].x() - pts[0].x()) * (pts[1].y() + pts[0].y()) )
-        .sum::<f64>() / 2.0f64;
+        .map(|pts| (pts[1].x() - pts[0].x()) * (pts[1].y() + pts[0].y()))
+        .sum::<f64>()
+        / 2.0f64;
 
     if area < 0.0 {
         RingType::InnerRing
@@ -160,8 +166,6 @@ pub(crate) fn ring_type_from_points_ordering<PointType: HasXY>(points: &[PointTy
         RingType::OuterRing
     }
 }
-
-
 
 /// enum of Shapes that can be read or written to a shapefile
 pub enum Shape {
@@ -294,16 +298,38 @@ impl TryFrom<Shape> for geo_types::Geometry<f64> {
             Shape::Point(point) => Ok(Geometry::Point(geo_types::Point::from(point))),
             Shape::PointM(point) => Ok(Geometry::Point(geo_types::Point::from(point))),
             Shape::PointZ(point) => Ok(Geometry::Point(geo_types::Point::from(point))),
-            Shape::Polyline(polyline) => Ok(Geometry::MultiLineString(geo_types::MultiLineString::<f64>::from(polyline))),
-            Shape::PolylineM(polyline) => Ok(Geometry::MultiLineString(geo_types::MultiLineString::<f64>::from(polyline))),
-            Shape::PolylineZ(polyline) => Ok(Geometry::MultiLineString(geo_types::MultiLineString::<f64>::from(polyline))),
-            Shape::Polygon(polygon) => Ok(Geometry::MultiPolygon(geo_types::MultiPolygon::<f64>::try_from(polygon)?)),
-            Shape::PolygonM(polygon) => Ok(Geometry::MultiPolygon(geo_types::MultiPolygon::<f64>::try_from(polygon)?)),
-            Shape::PolygonZ(polygon) => Ok(Geometry::MultiPolygon(geo_types::MultiPolygon::<f64>::try_from(polygon)?)),
-            Shape::Multipoint(multipoint) => Ok(Geometry::MultiPoint(geo_types::MultiPoint::<f64>::from(multipoint))),
-            Shape::MultipointM(multipoint) => Ok(Geometry::MultiPoint(geo_types::MultiPoint::<f64>::from(multipoint))),
-            Shape::MultipointZ(multipoint) => Ok(Geometry::MultiPoint(geo_types::MultiPoint::<f64>::from(multipoint))),
-            Shape::Multipatch(multipatch) => Ok(Geometry::MultiPolygon(geo_types::MultiPolygon::<f64>::try_from(multipatch)?)),
+            Shape::Polyline(polyline) => Ok(Geometry::MultiLineString(
+                geo_types::MultiLineString::<f64>::from(polyline),
+            )),
+            Shape::PolylineM(polyline) => Ok(Geometry::MultiLineString(
+                geo_types::MultiLineString::<f64>::from(polyline),
+            )),
+            Shape::PolylineZ(polyline) => Ok(Geometry::MultiLineString(
+                geo_types::MultiLineString::<f64>::from(polyline),
+            )),
+            Shape::Polygon(polygon) => Ok(Geometry::MultiPolygon(
+                geo_types::MultiPolygon::<f64>::try_from(polygon)?,
+            )),
+            Shape::PolygonM(polygon) => Ok(Geometry::MultiPolygon(
+                geo_types::MultiPolygon::<f64>::try_from(polygon)?,
+            )),
+            Shape::PolygonZ(polygon) => Ok(Geometry::MultiPolygon(
+                geo_types::MultiPolygon::<f64>::try_from(polygon)?,
+            )),
+            Shape::Multipoint(multipoint) => Ok(Geometry::MultiPoint(
+                geo_types::MultiPoint::<f64>::from(multipoint),
+            )),
+            Shape::MultipointM(multipoint) => Ok(Geometry::MultiPoint(
+                geo_types::MultiPoint::<f64>::from(multipoint),
+            )),
+            Shape::MultipointZ(multipoint) => Ok(Geometry::MultiPoint(
+                geo_types::MultiPoint::<f64>::from(multipoint),
+            )),
+            Shape::Multipatch(multipatch) => {
+                Ok(Geometry::MultiPolygon(
+                    geo_types::MultiPolygon::<f64>::try_from(multipatch)?,
+                ))
+            }
         }
     }
 }
@@ -324,75 +350,14 @@ impl TryFrom<geo_types::Geometry<f64>> for Shape {
             geo_types::Geometry::LineString(polyline) => Ok(Shape::Polyline(polyline.into())),
             geo_types::Geometry::Polygon(polygon) => Ok(Shape::Polygon(polygon.into())),
             geo_types::Geometry::MultiPoint(multipoint) => Ok(Shape::Multipoint(multipoint.into())),
-            geo_types::Geometry::MultiLineString(multi_linestring) => Ok(Shape::Polyline(multi_linestring.into())),
-            geo_types::Geometry::MultiPolygon(multi_polygon) => Ok(Shape::Polygon(multi_polygon.into())),
+            geo_types::Geometry::MultiLineString(multi_linestring) => {
+                Ok(Shape::Polyline(multi_linestring.into()))
+            }
+            geo_types::Geometry::MultiPolygon(multi_polygon) => {
+                Ok(Shape::Polygon(multi_polygon.into()))
+            }
             geo_types::Geometry::GeometryCollection(_) => Err(Error::GeometryCollectionConversion),
         }
-    }
-}
-
-
-
-/// 2D (x, y) Bounding box
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct BBox {
-    pub xmin: f64,
-    pub ymin: f64,
-    pub xmax: f64,
-    pub ymax: f64,
-}
-
-impl BBox {
-    /// Creates a new bounding box by computing the extent from
-    /// any slice of points that have a x and y coordinates
-    pub fn from_points<PointType: HasXY>(points: &[PointType]) -> Self {
-        let mut xmin = std::f64::MAX;
-        let mut ymin = std::f64::MAX;
-        let mut xmax = std::f64::MIN;
-        let mut ymax = std::f64::MIN;
-
-        for point in points {
-            xmin = f64::min(xmin, point.x());
-            ymin = f64::min(ymin, point.y());
-            xmax = f64::max(xmax, point.x());
-            ymax = f64::max(ymax, point.y());
-        }
-        Self {
-            xmin,
-            ymin,
-            xmax,
-            ymax,
-        }
-    }
-
-    pub fn new(xmin: f64, ymin: f64, xmax: f64, ymax: f64) -> Self {
-        BBox {
-            xmin,
-            ymin,
-            xmax,
-            ymax,
-        }
-    }
-
-    pub fn read_from<T: Read>(mut source: T) -> Result<BBox, std::io::Error> {
-        let xmin = source.read_f64::<LittleEndian>()?;
-        let ymin = source.read_f64::<LittleEndian>()?;
-        let xmax = source.read_f64::<LittleEndian>()?;
-        let ymax = source.read_f64::<LittleEndian>()?;
-        Ok(BBox {
-            xmin,
-            ymin,
-            xmax,
-            ymax,
-        })
-    }
-
-    pub fn write_to<T: Write>(&self, mut dest: T) -> Result<(), std::io::Error> {
-        dest.write_f64::<LittleEndian>(self.xmin)?;
-        dest.write_f64::<LittleEndian>(self.ymin)?;
-        dest.write_f64::<LittleEndian>(self.xmax)?;
-        dest.write_f64::<LittleEndian>(self.ymax)?;
-        Ok(())
     }
 }
 
@@ -591,6 +556,5 @@ mod tests {
         assert_eq!(ring_type_from_points_ordering(&points), RingType::InnerRing);
         points.reverse();
         assert_eq!(ring_type_from_points_ordering(&points), RingType::OuterRing);
-
     }
 }

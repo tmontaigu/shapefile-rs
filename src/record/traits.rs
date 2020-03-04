@@ -1,6 +1,7 @@
 use std::slice::SliceIndex;
 
 use record::{Point, PointM, PointZ};
+use writer::{f64_max, f64_min};
 
 /// Trait to acces the x, and y values of a point
 pub trait HasXY {
@@ -15,9 +16,20 @@ pub(crate) trait HasMutXY {
     fn y_mut(&mut self) -> &mut f64;
 }
 
-pub(crate) trait HasM {
+pub trait HasM {
     fn m(&self) -> f64;
+}
+
+pub(crate) trait HasMutM {
     fn m_mut(&mut self) -> &mut f64;
+}
+
+pub trait HasZ {
+    fn z(&self) -> f64;
+}
+
+pub(crate) trait HasMutZ {
+    fn z_mut(&mut self) -> &mut f64;
 }
 
 /// Trait that allows access to the slice of points of shapes that
@@ -188,7 +200,9 @@ macro_rules! impl_has_m_for {
             fn m(&self) -> f64 {
                 self.m
             }
+        }
 
+        impl HasMutM for $PointType {
             fn m_mut(&mut self) -> &mut f64 {
                 &mut self.m
             }
@@ -206,3 +220,71 @@ impl_has_mut_xy_for!(PointZ);
 
 impl_has_m_for!(PointM);
 impl_has_m_for!(PointZ);
+
+impl HasZ for PointZ {
+    fn z(&self) -> f64 {
+        self.z
+    }
+}
+
+impl HasMutZ for PointZ {
+    fn z_mut(&mut self) -> &mut f64 {
+        &mut self.z
+    }
+}
+
+pub trait ShrinkablePoint {
+    fn shrink(&mut self, other: &Self);
+}
+
+pub trait GrowablePoint {
+    fn grow(&mut self, other: &Self);
+}
+
+impl ShrinkablePoint for Point {
+    fn shrink(&mut self, other: &Self) {
+        self.x = f64_min(self.x, other.x);
+        self.y = f64_min(self.y, other.y);
+    }
+}
+
+impl ShrinkablePoint for PointM {
+    fn shrink(&mut self, other: &Self) {
+        self.x = f64_min(self.x, other.x);
+        self.y = f64_min(self.y, other.y);
+        self.m = f64_min(self.m, other.m);
+    }
+}
+
+impl ShrinkablePoint for PointZ {
+    fn shrink(&mut self, other: &Self) {
+        self.x = f64_min(self.x, other.x);
+        self.y = f64_min(self.y, other.y);
+        self.z = f64_min(self.z, other.z);
+        self.m = f64_min(self.m, other.m);
+    }
+}
+
+impl GrowablePoint for Point {
+    fn grow(&mut self, other: &Self) {
+        self.x = f64_max(self.x, other.x);
+        self.y = f64_max(self.y, other.y);
+    }
+}
+
+impl GrowablePoint for PointM {
+    fn grow(&mut self, other: &Self) {
+        self.x = f64_max(self.x, other.x);
+        self.y = f64_max(self.y, other.y);
+        self.m = f64_max(self.m, other.m);
+    }
+}
+
+impl GrowablePoint for PointZ {
+    fn grow(&mut self, other: &Self) {
+        self.x = f64_max(self.x, other.x);
+        self.y = f64_max(self.y, other.y);
+        self.z = f64_max(self.z, other.z);
+        self.m = f64_max(self.m, other.m);
+    }
+}

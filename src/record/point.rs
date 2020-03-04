@@ -5,13 +5,13 @@ use std::io::{Read, Write};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use record::EsriShape;
 use std::mem::size_of;
-use ::{ShapeType, NO_DATA};
+use {ShapeType, NO_DATA};
 
 use super::Error;
-use record::ConcreteReadableShape;
-use record::{is_no_data, BBox, HasShapeType, WritableShape};
-use std::fmt;
 use crate::record::traits::MultipointShape;
+use record::ConcreteReadableShape;
+use record::{is_no_data, HasShapeType, WritableShape};
+use std::fmt;
 
 #[cfg(feature = "geo-types")]
 use geo_types;
@@ -30,7 +30,6 @@ macro_rules! impl_multipoint_shape_for (
         }
     }
 );
-
 
 /// Point with only `x` and `y` coordinates
 #[derive(PartialEq, Debug, Default, Copy, Clone)]
@@ -93,13 +92,12 @@ impl WritableShape for Point {
 }
 
 impl EsriShape for Point {
-    fn bbox(&self) -> BBox {
-        BBox {
-            xmin: self.x,
-            ymin: self.y,
-            xmax: self.x,
-            ymax: self.y,
-        }
+    fn x_range(&self) -> [f64; 2] {
+        [self.x, self.x]
+    }
+
+    fn y_range(&self) -> [f64; 2] {
+        [self.y, self.y]
     }
 }
 
@@ -128,20 +126,16 @@ impl From<geo_types::Point<f64>> for Point {
 #[cfg(feature = "geo-types")]
 impl From<geo_types::Coordinate<f64>> for Point {
     fn from(c: geo_types::Coordinate<f64>) -> Self {
-        Point::new(c.x,c.y)
+        Point::new(c.x, c.y)
     }
 }
 
 #[cfg(feature = "geo-types")]
 impl From<Point> for geo_types::Coordinate<f64> {
     fn from(p: Point) -> Self {
-        geo_types::Coordinate{
-            x:p.x,
-            y: p.y
-        }
+        geo_types::Coordinate { x: p.x, y: p.y }
     }
 }
-
 
 /*
  * PointM
@@ -205,13 +199,12 @@ impl WritableShape for PointM {
 }
 
 impl EsriShape for PointM {
-    fn bbox(&self) -> BBox {
-        BBox {
-            xmin: self.x,
-            ymin: self.y,
-            xmax: self.x,
-            ymax: self.y,
-        }
+    fn x_range(&self) -> [f64; 2] {
+        [self.x, self.x]
+    }
+
+    fn y_range(&self) -> [f64; 2] {
+        [self.y, self.y]
     }
 
     fn m_range(&self) -> [f64; 2] {
@@ -238,13 +231,12 @@ impl Default for PointM {
         Self {
             x: 0.0,
             y: 0.0,
-            m: NO_DATA
+            m: NO_DATA,
         }
     }
 }
 
 impl_multipoint_shape_for!(PointM);
-
 
 #[cfg(feature = "geo-types")]
 impl From<PointM> for geo_types::Point<f64> {
@@ -256,28 +248,27 @@ impl From<PointM> for geo_types::Point<f64> {
 #[cfg(feature = "geo-types")]
 impl From<geo_types::Point<f64>> for PointM {
     fn from(p: geo_types::Point<f64>) -> Self {
-        PointM{x: p.x(), y: p.y(), ..Default::default()}
+        PointM {
+            x: p.x(),
+            y: p.y(),
+            ..Default::default()
+        }
     }
 }
 
 #[cfg(feature = "geo-types")]
 impl From<geo_types::Coordinate<f64>> for PointM {
     fn from(c: geo_types::Coordinate<f64>) -> Self {
-        PointM::new(c.x,c.y, NO_DATA)
+        PointM::new(c.x, c.y, NO_DATA)
     }
 }
 
 #[cfg(feature = "geo-types")]
 impl From<PointM> for geo_types::Coordinate<f64> {
     fn from(p: PointM) -> Self {
-        geo_types::Coordinate{
-            x:p.x,
-            y: p.y
-        }
+        geo_types::Coordinate { x: p.x, y: p.y }
     }
 }
-
-
 
 /*
  * PointZ
@@ -313,7 +304,12 @@ impl PointZ {
         let x = source.read_f64::<LittleEndian>()?;
         let y = source.read_f64::<LittleEndian>()?;
         let z = source.read_f64::<LittleEndian>()?;
-        Ok(Self { x, y, z, m: NO_DATA })
+        Ok(Self {
+            x,
+            y,
+            z,
+            m: NO_DATA,
+        })
     }
 }
 
@@ -353,13 +349,12 @@ impl WritableShape for PointZ {
 }
 
 impl EsriShape for PointZ {
-    fn bbox(&self) -> BBox {
-        BBox {
-            xmin: self.x,
-            ymin: self.y,
-            xmax: self.x,
-            ymax: self.y,
-        }
+    fn x_range(&self) -> [f64; 2] {
+        [self.x, self.x]
+    }
+
+    fn y_range(&self) -> [f64; 2] {
+        [self.y, self.y]
     }
 
     fn z_range(&self) -> [f64; 2] {
@@ -381,7 +376,7 @@ impl Default for PointZ {
             x: 0.0,
             y: 0.0,
             z: 0.0,
-            m: NO_DATA
+            m: NO_DATA,
         }
     }
 }
@@ -416,28 +411,27 @@ impl From<PointZ> for geo_types::Point<f64> {
 #[cfg(feature = "geo-types")]
 impl From<geo_types::Point<f64>> for PointZ {
     fn from(p: geo_types::Point<f64>) -> Self {
-        PointZ{x: p.x(), y: p.y(), ..Default::default()}
+        PointZ {
+            x: p.x(),
+            y: p.y(),
+            ..Default::default()
+        }
     }
 }
-
 
 #[cfg(feature = "geo-types")]
 impl From<geo_types::Coordinate<f64>> for PointZ {
     fn from(c: geo_types::Coordinate<f64>) -> Self {
-        PointZ::new(c.x,c.y, 0.0, NO_DATA)
+        PointZ::new(c.x, c.y, 0.0, NO_DATA)
     }
 }
 
 #[cfg(feature = "geo-types")]
 impl From<PointZ> for geo_types::Coordinate<f64> {
     fn from(p: PointZ) -> Self {
-        geo_types::Coordinate {
-            x: p.x,
-            y: p.y
-        }
+        geo_types::Coordinate { x: p.x, y: p.y }
     }
 }
-
 
 #[cfg(test)]
 #[cfg(feature = "geo-types")]

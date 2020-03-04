@@ -10,14 +10,22 @@
 //! 2) Reading directly as concrete shapes (ie Polyline, PolylineZ, Point, etc) this of course only
 //! works if the file actually contains shapes that matches the requested type
 //!
+//! # Shapefiles shapes
+//!
+//! The [`Point`], [`PointM`] and [`PointZ`] are the base data types of shapefiles,
+//! the other shapes (`Polyline, Multipoint`, ...) are collections of these type of points
+//! with different semantics (multiple parts or no, closed parts or no, ...)
+//!
+//! With the exception of the [`Multipatch`] shape, each shape as a variant for each type
+//! of point. ([`Multipatch`] always uses [`PointZ`])
+//! Eg: For the polyline, there is [`Polyline`], [`PolylineM`], [`PolylineZ`]
+//!
 //! # Reading
 //! For more details see the [reader](reader/index.html) module
-//!
 //!
 //! # Writing
 //!
 //! To write a file see the [writer](writer/index.html) module
-//!
 //!
 //!
 //! # Features
