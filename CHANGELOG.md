@@ -1,3 +1,11 @@
+# 0.1.1
+ - Fixed a problem in the Multipatch/Polygon/Polyline::with_parts ctor which resulted in
+   wrong parts creation (Github PR #10)
+ - Fixed another index file bug (Github PR #8)
+ - Fixed a bug in the Polygon::with_parts that would result in inner ring points
+   being reordered to outer ring point order (Github PR #12)
+ - Added #[derive(Debug, PartialEq, Clone)] for Polylines, Polygons, Multipoints
+
 # 0.1.0
 
  - Fix index file (.shx) that was incorrect (Github issue #6)
