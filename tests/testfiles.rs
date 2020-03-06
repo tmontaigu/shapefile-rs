@@ -27,10 +27,10 @@ pub const MULTIPATCH_PATH: &str = "./tests/data/multipatch.shp";
 
 pub fn check_line_first_shape(shape: &shapefile::Shape) {
     if let shapefile::Shape::Polyline(shp) = shape {
-        assert_eq!(shp.bbox.xmin, 1.0);
-        assert_eq!(shp.bbox.ymin, 1.0);
-        assert_eq!(shp.bbox.xmax, 5.0);
-        assert_eq!(shp.bbox.ymax, 6.0);
+        assert_eq!(shp.bbox().min.x, 1.0);
+        assert_eq!(shp.bbox().min.y, 1.0);
+        assert_eq!(shp.bbox().max.x, 5.0);
+        assert_eq!(shp.bbox().max.y, 6.0);
         assert_eq!(shp.parts_indices(), vec![0, 5].as_slice());
         let expected_point = vec![
             Point { x: 1.0, y: 5.0 },

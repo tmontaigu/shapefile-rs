@@ -18,9 +18,8 @@ fn check_line<T: Read>(reader: shapefile::Reader<T>) {
         let header = reader.header();
         assert_eq!(header.file_length, 136);
         assert_eq!(header.shape_type, shapefile::ShapeType::Polyline);
-        assert_eq!(header.point_min, [1.0, 1.0, 0.0]);
-        assert_eq!(header.point_max, [5.0, 6.0, 0.0]);
-        assert_eq!(header.m_range, [0.0, 0.0]);
+        assert_eq!(header.bbox.min, PointZ::new(1.0, 1.0, 0.0, 0.0));
+        assert_eq!(header.bbox.max, PointZ::new(5.0, 6.0, 0.0, 0.0));
     }
 
     let shapes = reader.read().unwrap();
@@ -35,19 +34,18 @@ fn check_linem<T: Read>(reader: shapefile::Reader<T>) {
         let header = reader.header();
         assert_eq!(header.file_length, 172);
         assert_eq!(header.shape_type, shapefile::ShapeType::PolylineM);
-        assert_eq!(header.point_min, [1.0, 1.0, 0.0]);
-        assert_eq!(header.point_max, [5.0, 6.0, 0.0]);
-        //assert_eq!(header.m_range, [0.0, 3.0]); //FIXME
+        assert_eq!(header.bbox.min, PointZ::new(1.0, 1.0, 0.0, 0.0));
+        assert_eq!(header.bbox.max, PointZ::new(5.0, 6.0, 0.0, 3.0));
     }
 
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1);
 
     if let shapefile::Shape::PolylineM(shape) = &shapes[0] {
-        assert_eq!(shape.bbox.xmin, 1.0);
-        assert_eq!(shape.bbox.ymin, 1.0);
-        assert_eq!(shape.bbox.xmax, 5.0);
-        assert_eq!(shape.bbox.ymax, 6.0);
+        assert_eq!(shape.bbox().min.x, 1.0);
+        assert_eq!(shape.bbox().min.y, 1.0);
+        assert_eq!(shape.bbox().max.x, 5.0);
+        assert_eq!(shape.bbox().max.y, 6.0);
         assert_eq!(shape.parts_indices(), vec![0, 5].as_slice());
         let expected_points = vec![
             PointM {
@@ -98,9 +96,8 @@ fn check_linez<T: Read>(reader: shapefile::Reader<T>) {
         let header = reader.header();
         assert_eq!(header.file_length, 258);
         assert_eq!(header.shape_type, shapefile::ShapeType::PolylineZ);
-        assert_eq!(header.point_min, [1.0, 1.0, 0.0]);
-        assert_eq!(header.point_max, [5.0, 9.0, 22.0]);
-        assert_eq!(header.m_range, [0.0, 3.0]);
+        assert_eq!(header.bbox.min, PointZ::new(1.0, 1.0, 0.0, 0.0));
+        assert_eq!(header.bbox.max, PointZ::new(5.0, 9.0, 22.0, 3.0));
     }
 
     let shapes = reader.read().unwrap();
@@ -190,9 +187,8 @@ fn check_point<T: Read>(reader: shapefile::Reader<T>) {
         let header = reader.header();
         assert_eq!(header.file_length, 64);
         assert_eq!(header.shape_type, shapefile::ShapeType::Point);
-        assert_eq!(header.point_min, [122.0, 37.0, 0.0]);
-        assert_eq!(header.point_max, [122.0, 37.0, 0.0]);
-        assert_eq!(header.m_range, [0.0, 0.0]);
+        assert_eq!(header.bbox.min, PointZ::new(122.0, 37.0, 0.0, 0.0));
+        assert_eq!(header.bbox.max, PointZ::new(122.0, 37.0, 0.0, 0.0));
     }
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
@@ -237,14 +233,13 @@ fn check_pointm<T: Read>(reader: shapefile::Reader<T>) {
         assert_eq!(header.file_length, 86);
         assert_eq!(header.shape_type, shapefile::ShapeType::PointM);
         assert_eq!(
-            header.point_min,
-            [160467.63787299366, 5403959.561417906, 0.0]
+            header.bbox.min,
+            PointZ::new(160467.63787299366, 5403959.561417906, 0.0, 0.0)
         );
         assert_eq!(
-            header.point_max,
-            [160477.9000324604, 5403971.985031904, 0.0]
+            header.bbox.max,
+            PointZ::new(160477.9000324604, 5403971.985031904, 0.0, 0.0)
         );
-        assert_eq!(header.m_range, [0.0, 0.0]);
     }
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 2, "Wrong number of shapes");
@@ -273,14 +268,23 @@ fn check_pointz<T: Read>(reader: shapefile::Reader<T>) {
         assert_eq!(header.file_length, 94);
         assert_eq!(header.shape_type, shapefile::ShapeType::PointZ);
         assert_eq!(
-            header.point_min,
-            [1422459.0908050265, 4188942.211755641, 72.40956470558095]
+            header.bbox.min,
+            PointZ::new(
+                1422459.0908050265,
+                4188942.211755641,
+                72.40956470558095,
+                0.0
+            )
         );
         assert_eq!(
-            header.point_max,
-            [1422464.3681007193, 4188962.3364355816, 72.58286959604922]
+            header.bbox.max,
+            PointZ::new(
+                1422464.3681007193,
+                4188962.3364355816,
+                72.58286959604922,
+                0.0
+            )
         );
-        assert_eq!(header.m_range, [0.0, 0.0]);
     }
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 2, "Wrong number of shapes");
@@ -303,9 +307,8 @@ fn check_polygon<T: Read>(reader: shapefile::Reader<T>) {
         let header = reader.header();
         assert_eq!(header.file_length, 170);
         assert_eq!(header.shape_type, shapefile::ShapeType::Polygon);
-        assert_eq!(header.point_min, [15.0, 2.0, 0.0]);
-        assert_eq!(header.point_max, [122.0, 37.0, 0.0]);
-        assert_eq!(header.m_range, [0.0, 0.0]);
+        assert_eq!(header.bbox.min, PointZ::new(15.0, 2.0, 0.0, 0.0));
+        assert_eq!(header.bbox.max, PointZ::new(122.0, 37.0, 0.0, 0.0));
     }
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
@@ -337,14 +340,13 @@ fn check_polygonm<T: Read>(reader: shapefile::Reader<T>) {
         assert_eq!(header.file_length, 134);
         assert_eq!(header.shape_type, shapefile::ShapeType::PolygonM);
         assert_eq!(
-            header.point_min,
-            [159374.30785312195, 5403473.287488617, 0.0]
+            header.bbox.min,
+            PointZ::new(159374.30785312195, 5403473.287488617, 0.0, 0.0)
         );
         assert_eq!(
-            header.point_max,
-            [160420.36722814097, 5404314.139043656, 0.0]
+            header.bbox.max,
+            PointZ::new(160420.36722814097, 5404314.139043656, 0.0, 0.0)
         );
-        assert_eq!(header.m_range, [0.0, 0.0]);
     }
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
@@ -372,8 +374,6 @@ fn check_polygonm<T: Read>(reader: shapefile::Reader<T>) {
                 m: 0.0,
             },
         ];
-        //assert_eq!(shp.ms, vec![0.0, 0.0, 0.0, 0.0]);
-        //assert_eq!(shp.m_range, [0.0, 0.0]);
         assert_eq!(shp.points(), expected_points.as_slice());
         assert_eq!(shp.parts_indices(), vec![0].as_slice());
     } else {
@@ -396,7 +396,6 @@ fn check_polygonz<T: Read>(reader: shapefile::Reader<T>) {
 
     //FIXME find a file with less values
     if let shapefile::Shape::PolygonZ(shp) = &shapes[0] {
-        //assert_eq!(shp.m_range, [shapefile::NO_DATA, shapefile::NO_DATA]);
         assert_eq!(shp.parts_indices(), vec![0].as_slice());
     } else {
         assert!(false, "The second shape is not a PolygonZ");
@@ -408,9 +407,8 @@ fn check_multipoint<T: Read>(reader: shapefile::Reader<T>) {
         let header = reader.header();
         assert_eq!(header.file_length, 90);
         assert_eq!(header.shape_type, shapefile::ShapeType::Multipoint);
-        assert_eq!(header.point_min, [122.0, 32., 0.0]);
-        assert_eq!(header.point_max, [124.0, 37.0, 0.0]);
-        assert_eq!(header.m_range, [0.0, 0.0]);
+        assert_eq!(header.bbox.min, PointZ::new(122.0, 32., 0.0, 0.0));
+        assert_eq!(header.bbox.max, PointZ::new(124.0, 37.0, 0.0, 0.0));
     }
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
@@ -429,15 +427,23 @@ fn check_multipointz<T: Read>(reader: shapefile::Reader<T>) {
         assert_eq!(header.file_length, 154);
         assert_eq!(header.shape_type, shapefile::ShapeType::MultipointZ);
         assert_eq!(
-            header.point_min,
-            [1422671.7232666016, 4188903.4295959473, 71.99445343017578]
+            header.bbox.min,
+            PointZ::new(
+                1422671.7232666016,
+                4188903.4295959473,
+                71.99445343017578,
+                -1e38
+            )
         );
         assert_eq!(
-            header.point_max,
-            [1422672.1022949219, 4188903.7578430176, 72.00995635986328]
+            header.bbox.max,
+            PointZ::new(
+                1422672.1022949219,
+                4188903.7578430176,
+                72.00995635986328,
+                -1e38
+            )
         );
-        //FIXME Input test file is wrong
-        //assert_eq!(header.m_range, [-1e38, -1e38]);
     }
     let shapes = reader.read().unwrap();
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
@@ -480,10 +486,9 @@ fn check_multipatch<T: Read>(reader: shapefile::Reader<T>) {
         let header = reader.header();
         assert_eq!(header.file_length, 356, "Wrong file length");
         assert_eq!(header.shape_type, shapefile::ShapeType::Multipatch);
-        assert_eq!(header.point_min, [0.0, 0.0, 0.0]);
-        //FIXME Input test file is wrong
-        //assert_eq!(header.point_max, [5.0, 5.0, 5.0]);
-        //assert_eq!(header.m_range, [0.0, 0.0]);
+        assert_eq!(header.bbox.min, PointZ::new(0.0, 0.0, 0.0, -10e38));
+        // FIXME max z in header of original file is wrong
+        // assert_eq!(header.bbox.max, PointZ::new(5.0, 5.0, 5.0, -10e38));
     }
     use shapefile::NO_DATA;
     let shapes = reader.read().unwrap();
@@ -591,11 +596,12 @@ fn check_multipatch<T: Read>(reader: shapefile::Reader<T>) {
         assert_eq!(shp.points(), expected_points.as_slice());
         assert_eq!(shp.parts_indices(), vec![0, 10].as_slice());
         assert_eq!(
-            shp.parts_type,
+            shp.part_types(),
             vec![
                 shapefile::PatchType::TriangleStrip,
                 shapefile::PatchType::TriangleFan
             ]
+            .as_slice()
         );
     } else {
         assert!(false, "Shape is not a Multipatch");
@@ -655,9 +661,9 @@ read_test!(read_pointm, check_pointm, testfiles::POINTM_PATH);
 read_test!(read_pointz, check_pointz, testfiles::POINTZ_PATH);
 
 /* Read tests on Polygon */
-//read_test!(read_polygon, check_polygon, testfiles::POLYGON_PATH);
+read_test!(read_polygon, check_polygon, testfiles::POLYGON_PATH);
 read_test!(read_polygonm, check_polygonm, testfiles::POLYGONM_PATH);
-//read_test!(read_polygonz, check_polygonz, testfiles::POLYGONZ_PATH);
+read_test!(read_polygonz, check_polygonz, testfiles::POLYGONZ_PATH);
 
 /* Read tests on Multipoint */
 read_test!(

@@ -8,11 +8,11 @@ use std::slice::SliceIndex;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use record::io::*;
-use record::{is_parts_array_valid, close_points_if_not_already};
-use record::traits::HasXY;
+use record::traits::{GrowablePoint, HasXY, ShrinkablePoint};
 use record::traits::{MultipartShape, MultipointShape};
 use record::ConcreteReadableShape;
-use record::{BBox, EsriShape, HasShapeType, WritableShape};
+use record::{close_points_if_not_already, is_parts_array_valid, GenericBBox};
+use record::{EsriShape, HasShapeType, WritableShape};
 use record::{Point, PointM, PointZ};
 use {Error, ShapeType};
 
@@ -21,15 +21,24 @@ use geo_types;
 #[cfg(feature = "geo-types")]
 use std::convert::TryFrom;
 
+/// Generic struct to create Polyline; PolylineM, PolylineZ
+///
+/// Polylines can have multiple parts.
+///
+/// To create a polyline with only one part use [`new`],
+/// to create a polyline with multiple parts use [`with_parts`]
+///
+/// [`new`]: #method.new
+/// [`with_parts`]: #method.with_parts
 #[derive(Debug, Clone, PartialEq)]
 pub struct GenericPolyline<PointType> {
-    pub bbox: BBox,
-    pub points: Vec<PointType>,
-    pub parts: Vec<i32>,
+    bbox: GenericBBox<PointType>,
+    points: Vec<PointType>,
+    parts: Vec<i32>,
 }
 
 /// Creating a Polyline
-impl<PointType: HasXY> GenericPolyline<PointType> {
+impl<PointType: ShrinkablePoint + GrowablePoint + Copy> GenericPolyline<PointType> {
     /// # Examples
     ///
     /// Polyline with single part
@@ -40,15 +49,11 @@ impl<PointType: HasXY> GenericPolyline<PointType> {
     ///     Point::new(2.0, 2.0),
     /// ];
     /// let poly = Polyline::new(points);
-    ///
-    /// assert_eq!(poly.points.len(), 2);
-    /// assert_eq!(poly.parts, vec![0]);
     /// ```
     ///
     pub fn new(points: Vec<PointType>) -> Self {
-        let bbox = BBox::from_points(&points);
         Self {
-            bbox,
+            bbox: GenericBBox::<PointType>::from_points(&points),
             points,
             parts: vec![0],
         }
@@ -63,6 +68,7 @@ impl<PointType: HasXY> GenericPolyline<PointType> {
     ///     Point::new(1.0, 1.0),
     ///     Point::new(2.0, 2.0),
     /// ];
+    ///
     /// let second_part = vec![
     ///     Point::new(3.0, 1.0),
     ///     Point::new(5.0, 6.0),
@@ -74,20 +80,17 @@ impl<PointType: HasXY> GenericPolyline<PointType> {
     ///     Point::new(20.0, 19.0),
     /// ];
     /// let poly = Polyline::with_parts(vec![first_part, second_part, third_part]);
-    ///
-    /// assert_eq!(poly.points.len(), 7);
-    /// assert_eq!(poly.parts, vec![0, 2, 4]);
     /// ```
     ///
     pub fn with_parts(parts: Vec<Vec<PointType>>) -> Self {
         let mut parts_indices = Vec::<i32>::with_capacity(parts.len());
         parts_indices.push(0);
         if let Some(following_parts) = parts.get(1..parts.len()) {
-           let mut sum = parts[0].len() as i32;
-           for points in  following_parts {
+            let mut sum = parts[0].len() as i32;
+            for points in following_parts {
                 parts_indices.push(sum);
                 sum += points.len() as i32;
-           }
+            }
         }
 
         let num_points = parts.iter().map(|pts| pts.len()).sum();
@@ -96,15 +99,20 @@ impl<PointType: HasXY> GenericPolyline<PointType> {
             all_points.append(&mut points);
         }
 
-        let bbox = BBox::from_points(&all_points);
         Self {
-            bbox,
+            bbox: GenericBBox::<PointType>::from_points(&all_points),
             points: all_points,
             parts: parts_indices,
         }
     }
 }
 
+impl<PointType> GenericPolyline<PointType> {
+    /// Returns the bounding box associated to the polyline
+    pub fn bbox(&self) -> &GenericBBox<PointType> {
+        &self.bbox
+    }
+}
 
 impl<PointType> From<GenericPolygon<PointType>> for GenericPolyline<PointType> {
     fn from(p: GenericPolygon<PointType>) -> Self {
@@ -144,30 +152,31 @@ impl<PointType> MultipartShape<PointType> for GenericPolyline<PointType> {
     }
 }
 
-
 #[cfg(feature = "geo-types")]
 impl<PointType> From<GenericPolyline<PointType>> for geo_types::MultiLineString<f64>
-    where PointType: Copy,
-         geo_types::Coordinate<f64>: From<PointType>
-    {
+where
+    PointType: Copy,
+    geo_types::Coordinate<f64>: From<PointType>,
+{
     fn from(polyline: GenericPolyline<PointType>) -> Self {
         use std::iter::FromIterator;
-        let mut lines = Vec::<geo_types::LineString<f64>>::with_capacity(polyline.parts_indices().len());
+        let mut lines =
+            Vec::<geo_types::LineString<f64>>::with_capacity(polyline.parts_indices().len());
         for parts in polyline.parts() {
-            let line: Vec<geo_types::Coordinate<f64>> =
-                parts.iter()
-                    .map(|point| geo_types::Coordinate::<f64>::from(*point))
-                    .collect();
+            let line: Vec<geo_types::Coordinate<f64>> = parts
+                .iter()
+                .map(|point| geo_types::Coordinate::<f64>::from(*point))
+                .collect();
             lines.push(line.into());
         }
         geo_types::MultiLineString::<f64>::from_iter(lines.into_iter())
     }
 }
 
-
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::Line<f64>> for GenericPolyline<PointType>
-    where PointType: From<geo_types::Point<f64>> + HasXY
+where
+    PointType: From<geo_types::Point<f64>> + HasXY,
 {
     fn from(line: geo_types::Line<f64>) -> Self {
         let (p1, p2) = line.points();
@@ -175,25 +184,21 @@ impl<PointType> From<geo_types::Line<f64>> for GenericPolyline<PointType>
     }
 }
 
-
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::LineString<f64>> for GenericPolyline<PointType>
-    where PointType: From<geo_types::Coordinate<f64>> + HasXY
+where
+    PointType: From<geo_types::Coordinate<f64>> + HasXY,
 {
     fn from(line: geo_types::LineString<f64>) -> Self {
-        let points: Vec<PointType> = line
-            .into_iter()
-            .map(|p| PointType::from(p))
-            .collect();
+        let points: Vec<PointType> = line.into_iter().map(|p| PointType::from(p)).collect();
         Self::new(points)
     }
 }
 
-
-
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::MultiLineString<f64>> for GenericPolyline<PointType>
-    where PointType: From<geo_types::Coordinate<f64>> + HasXY
+where
+    PointType: From<geo_types::Coordinate<f64>> + HasXY,
 {
     fn from(mls: geo_types::MultiLineString<f64>) -> Self {
         let mut points = Vec::<PointType>::new();
@@ -210,7 +215,7 @@ impl<PointType> From<geo_types::MultiLineString<f64>> for GenericPolyline<PointT
         Self {
             bbox,
             points,
-            parts
+            parts,
         }
     }
 }
@@ -248,7 +253,8 @@ impl HasShapeType for Polyline {
 
 impl ConcreteReadableShape for Polyline {
     fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
-        let bbox = BBox::read_from(&mut source)?;
+        let mut bbox = GenericBBox::<Point>::default();
+        bbox_read_xy_from(&mut bbox, source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
 
@@ -282,7 +288,7 @@ impl WritableShape for Polyline {
         if !is_parts_array_valid(&self) {
             return Err(Error::MalformedShape);
         }
-        self.bbox.write_to(&mut dest)?;
+        bbox_write_xy_to(&self.bbox, dest)?;
         dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
         dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
         write_parts(&mut dest, &self.parts)?;
@@ -292,8 +298,12 @@ impl WritableShape for Polyline {
 }
 
 impl EsriShape for Polyline {
-    fn bbox(&self) -> BBox {
-        self.bbox
+    fn x_range(&self) -> [f64; 2] {
+        self.bbox.x_range()
+    }
+
+    fn y_range(&self) -> [f64; 2] {
+        self.bbox.y_range()
     }
 }
 
@@ -333,7 +343,8 @@ impl HasShapeType for PolylineM {
 
 impl ConcreteReadableShape for PolylineM {
     fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
-        let bbox = BBox::read_from(&mut source)?;
+        let mut bbox = GenericBBox::<PointM>::default();
+        bbox_read_xy_from(&mut bbox, source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
 
@@ -349,7 +360,7 @@ impl ConcreteReadableShape for PolylineM {
             let mut points = read_xy_in_vec_of::<PointM, T>(&mut source, num_points)?;
 
             if is_m_used {
-                let _m_range = read_range(&mut source)?;
+                bbox_read_m_range_from(&mut bbox, source)?;
                 read_ms_into(&mut source, &mut points)?;
             }
 
@@ -378,25 +389,29 @@ impl WritableShape for PolylineM {
         if !is_parts_array_valid(&self) {
             return Err(Error::MalformedShape);
         }
-        self.bbox.write_to(&mut dest)?;
+        bbox_write_xy_to(&self.bbox, dest)?;
         dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
         dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
         write_parts(&mut dest, &self.parts)?;
         write_points(&mut dest, &self.points)?;
 
-        write_range(&mut dest, self.m_range())?;
+        bbox_write_m_range_to(&self.bbox, dest)?;
         write_ms(&mut dest, &self.points)?;
         Ok(())
     }
 }
 
 impl EsriShape for PolylineM {
-    fn bbox(&self) -> BBox {
-        self.bbox
+    fn x_range(&self) -> [f64; 2] {
+        self.bbox.x_range()
+    }
+
+    fn y_range(&self) -> [f64; 2] {
+        self.bbox.y_range()
     }
 
     fn m_range(&self) -> [f64; 2] {
-        calc_m_range(&self.points)
+        self.bbox.m_range()
     }
 }
 
@@ -438,7 +453,8 @@ impl HasShapeType for PolylineZ {
 
 impl ConcreteReadableShape for PolylineZ {
     fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
-        let bbox = BBox::read_from(&mut source)?;
+        let mut bbox = GenericBBox::<PointZ>::default();
+        bbox_read_xy_from(&mut bbox, source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
 
@@ -453,11 +469,11 @@ impl ConcreteReadableShape for PolylineZ {
 
             let mut points = read_xy_in_vec_of::<PointZ, T>(&mut source, num_points)?;
 
-            let _z_range = read_range(&mut source)?;
+            bbox_read_z_range_from(&mut bbox, source)?;
             read_zs_into(&mut source, &mut points)?;
 
             if is_m_used {
-                let _m_range = read_range(&mut source)?;
+                bbox_read_m_range_from(&mut bbox, source)?;
                 read_ms_into(&mut source, &mut points)?;
             }
 
@@ -487,33 +503,37 @@ impl WritableShape for PolylineZ {
         if !is_parts_array_valid(&self) {
             return Err(Error::MalformedShape);
         }
-        self.bbox.write_to(&mut dest)?;
+        bbox_write_xy_to(&self.bbox, dest)?;
         dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
         dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
         write_parts(&mut dest, &self.parts)?;
 
         write_points(&mut dest, &self.points)?;
 
-        write_range(&mut dest, self.z_range())?;
+        bbox_write_z_range_to(&self.bbox, dest)?;
         write_zs(&mut dest, &self.points)?;
 
-        write_range(&mut dest, self.m_range())?;
+        bbox_write_m_range_to(&self.bbox, dest)?;
         write_ms(&mut dest, &self.points)?;
         Ok(())
     }
 }
 
 impl EsriShape for PolylineZ {
-    fn bbox(&self) -> BBox {
-        self.bbox
+    fn x_range(&self) -> [f64; 2] {
+        self.bbox.x_range()
+    }
+
+    fn y_range(&self) -> [f64; 2] {
+        self.bbox.y_range()
     }
 
     fn z_range(&self) -> [f64; 2] {
-        calc_z_range(&self.points)
+        self.bbox.z_range()
     }
 
     fn m_range(&self) -> [f64; 2] {
-        calc_m_range(&self.points)
+        self.bbox.m_range()
     }
 }
 
@@ -521,15 +541,28 @@ impl EsriShape for PolylineZ {
  * Polygon
  */
 
-
+/// Generic struct to create Polygon; PolygonM, PolygonZ
+///
+/// Polygons can have multiple parts (or rings)
+///
+/// To create a polygon with only one part use [`new`],
+/// to create a polygon with multiple parts use [`with_parts`]
+///
+/// Polygon's rings (parts) must be closed: the first and last point must be the same
+/// the constructors will close your polygon if you did not do it yourself.
+///
+/// [`new`]: #method.new
+/// [`with_parts`]: #method.with_parts
 #[derive(Debug, Clone, PartialEq)]
 pub struct GenericPolygon<PointType> {
-    pub bbox: BBox,
-    pub points: Vec<PointType>,
-    pub parts: Vec<i32>,
+    bbox: GenericBBox<PointType>,
+    points: Vec<PointType>,
+    parts: Vec<i32>,
 }
 
-impl<PointType: HasXY + PartialEq + Copy> GenericPolygon<PointType> {
+impl<PointType: ShrinkablePoint + GrowablePoint + PartialEq + HasXY + Copy>
+    GenericPolygon<PointType>
+{
     /// # Examples
     ///
     /// Creating a PolygonZ with one ring,
@@ -542,10 +575,6 @@ impl<PointType: HasXY + PartialEq + Copy> GenericPolygon<PointType> {
     ///     PointZ::new(1.0, 0.0, 0.0, NO_DATA),
     /// ];
     /// let poly = PolygonZ::new(points);
-    ///
-    /// // The polygon gets closed 'explicitly'
-    /// assert_eq!(poly.points.len(), 4);
-    /// assert_eq!(poly.points.last(), poly.points.first());
     /// ```
     ///
     pub fn new(mut points: Vec<PointType>) -> Self {
@@ -557,12 +586,25 @@ impl<PointType: HasXY + PartialEq + Copy> GenericPolygon<PointType> {
     }
 }
 
-impl<PointType: HasXY + PartialEq + Copy> GenericPolygon<PointType> {
+impl<PointType> GenericPolygon<PointType> {
+    /// Returns the bounding box associated to the polygon
+    pub fn bbox(&self) -> &GenericBBox<PointType> {
+        &self.bbox
+    }
+}
+
+impl<PointType: GrowablePoint + ShrinkablePoint + PartialEq + HasXY + Copy>
+    GenericPolygon<PointType>
+{
     pub fn with_parts(mut parts_points: Vec<Vec<PointType>>) -> Self {
-        parts_points.iter_mut().for_each(close_points_if_not_already);
+        parts_points
+            .iter_mut()
+            .for_each(close_points_if_not_already);
         let mut has_outer_ring = false;
         for points in &mut parts_points {
-            if super::ring_type_from_points_ordering(&points) == super::RingType::InnerRing && !has_outer_ring {
+            if super::ring_type_from_points_ordering(&points) == super::RingType::InnerRing
+                && !has_outer_ring
+            {
                 points.reverse();
                 has_outer_ring = true;
             } else {
@@ -599,8 +641,10 @@ impl<PointType> MultipartShape<PointType> for GenericPolygon<PointType> {
 /// Vertices of rings defining holes in polygons are in a counterclockwise direction
 #[cfg(feature = "geo-types")]
 impl<PointType> TryFrom<GenericPolygon<PointType>> for geo_types::MultiPolygon<f64>
-    where PointType: HasXY + Copy,
-          geo_types::Point<f64>: From<PointType>{
+where
+    PointType: HasXY + Copy,
+    geo_types::Point<f64>: From<PointType>,
+{
     type Error = Error;
     fn try_from(p: GenericPolygon<PointType>) -> Result<Self, Self::Error> {
         let mut last_poly = None;
@@ -621,7 +665,7 @@ impl<PointType> TryFrom<GenericPolygon<PointType>> for geo_types::MultiPolygon<f
                 if let Some(ref mut polygon) = last_poly {
                     polygon.interiors_push(points);
                 } else {
-                    return Err(Error::OrphanInnerRing)
+                    return Err(Error::OrphanInnerRing);
                 }
             }
         }
@@ -630,20 +674,25 @@ impl<PointType> TryFrom<GenericPolygon<PointType>> for geo_types::MultiPolygon<f
         }
         Ok(polygons.into())
     }
-
 }
 
 #[cfg(feature = "geo-types")]
 /// geo_types guarantees that Polygons exterior and interiors are closed
 impl<PointType> From<geo_types::Polygon<f64>> for GenericPolygon<PointType>
-    where  PointType: HasXY + From<geo_types::Coordinate<f64>> + PartialEq + Copy {
+where
+    PointType: HasXY + From<geo_types::Coordinate<f64>> + PartialEq + Copy,
+{
     fn from(polygon: geo_types::Polygon<f64>) -> Self {
-        if polygon.exterior(). num_coords() == 0 {
+        if polygon.exterior().num_coords() == 0 {
             return Self::new(vec![]);
         }
 
         let mut total_num_points = polygon.exterior().num_coords();
-        total_num_points += polygon.interiors().iter().map(|ls| ls.num_coords()).sum::<usize>();
+        total_num_points += polygon
+            .interiors()
+            .iter()
+            .map(|ls| ls.num_coords())
+            .sum::<usize>();
 
         let mut all_points = Vec::<PointType>::with_capacity(total_num_points);
 
@@ -679,14 +728,16 @@ impl<PointType> From<geo_types::Polygon<f64>> for GenericPolygon<PointType>
         Self {
             bbox,
             points: all_points,
-            parts
+            parts,
         }
     }
 }
 
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::MultiPolygon<f64>> for GenericPolygon<PointType>
-    where  PointType: HasXY + From<geo_types::Coordinate<f64>> + PartialEq + Copy {
+where
+    PointType: HasXY + From<geo_types::Coordinate<f64>> + PartialEq + Copy,
+{
     fn from(multi_polygon: geo_types::MultiPolygon<f64>) -> Self {
         let polygons = multi_polygon
             .into_iter()
@@ -712,10 +763,14 @@ impl<PointType> From<geo_types::MultiPolygon<f64>> for GenericPolygon<PointType>
         Self {
             bbox,
             points: all_points,
-            parts
+            parts,
         }
     }
 }
+
+/*
+ * Polygon
+*/
 
 pub type Polygon = GenericPolygon<Point>;
 
@@ -761,8 +816,12 @@ impl WritableShape for Polygon {
 }
 
 impl EsriShape for Polygon {
-    fn bbox(&self) -> BBox {
-        self.bbox
+    fn x_range(&self) -> [f64; 2] {
+        self.bbox.x_range()
+    }
+
+    fn y_range(&self) -> [f64; 2] {
+        self.bbox.y_range()
     }
 }
 
@@ -814,12 +873,16 @@ impl WritableShape for PolygonM {
 }
 
 impl EsriShape for PolygonM {
-    fn bbox(&self) -> BBox {
-        self.bbox
+    fn x_range(&self) -> [f64; 2] {
+        self.bbox.x_range()
+    }
+
+    fn y_range(&self) -> [f64; 2] {
+        self.bbox.y_range()
     }
 
     fn m_range(&self) -> [f64; 2] {
-        calc_m_range(&self.points)
+        self.bbox.m_range()
     }
 }
 
@@ -872,27 +935,19 @@ impl WritableShape for PolygonZ {
 }
 
 impl EsriShape for PolygonZ {
-    fn bbox(&self) -> BBox {
-        self.bbox
+    fn x_range(&self) -> [f64; 2] {
+        self.bbox.x_range()
+    }
+
+    fn y_range(&self) -> [f64; 2] {
+        self.bbox.y_range()
     }
 
     fn z_range(&self) -> [f64; 2] {
-        calc_z_range(&self.points)
+        self.bbox.z_range()
     }
 
     fn m_range(&self) -> [f64; 2] {
-        calc_m_range(&self.points)
+        self.bbox.m_range()
     }
 }
-
-/*
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_size_of_polyline_z() {
-        assert_eq!(PolylineZ::size_of_record(10, 3), 404);
-    }
-}
-*/

@@ -2,8 +2,66 @@ use std::io::{Read, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use record::traits::{HasM, HasMutXY, HasXY};
-use record::{is_no_data, PointZ, NO_DATA};
+use record::traits::{HasM, HasMutM, HasMutXY, HasMutZ, HasXY, HasZ};
+use record::{GenericBBox, PointZ, NO_DATA};
+
+pub(crate) fn bbox_read_xy_from<PointType: HasMutXY, R: Read>(
+    bbox: &mut GenericBBox<PointType>,
+    src: &mut R,
+) -> std::io::Result<()> {
+    *bbox.min.x_mut() = src.read_f64::<LittleEndian>()?;
+    *bbox.min.y_mut() = src.read_f64::<LittleEndian>()?;
+    *bbox.max.x_mut() = src.read_f64::<LittleEndian>()?;
+    *bbox.max.y_mut() = src.read_f64::<LittleEndian>()?;
+    Ok(())
+}
+
+pub(crate) fn bbox_write_xy_to<PointType: HasXY, W: Write>(
+    bbox: &GenericBBox<PointType>,
+    dst: &mut W,
+) -> std::io::Result<()> {
+    dst.write_f64::<LittleEndian>(bbox.min.x())?;
+    dst.write_f64::<LittleEndian>(bbox.min.y())?;
+    dst.write_f64::<LittleEndian>(bbox.max.x())?;
+    dst.write_f64::<LittleEndian>(bbox.max.y())?;
+    Ok(())
+}
+
+pub(crate) fn bbox_read_m_range_from<PointType: HasMutM, R: Read>(
+    bbox: &mut GenericBBox<PointType>,
+    src: &mut R,
+) -> std::io::Result<()> {
+    *bbox.min.m_mut() = src.read_f64::<LittleEndian>()?;
+    *bbox.max.m_mut() = src.read_f64::<LittleEndian>()?;
+    Ok(())
+}
+
+pub(crate) fn bbox_read_z_range_from<PointType: HasMutZ, R: Read>(
+    bbox: &mut GenericBBox<PointType>,
+    src: &mut R,
+) -> std::io::Result<()> {
+    *bbox.min.z_mut() = src.read_f64::<LittleEndian>()?;
+    *bbox.max.z_mut() = src.read_f64::<LittleEndian>()?;
+    Ok(())
+}
+
+pub(crate) fn bbox_write_m_range_to<PointType: HasM, W: Write>(
+    bbox: &GenericBBox<PointType>,
+    dst: &mut W,
+) -> std::io::Result<()> {
+    dst.write_f64::<LittleEndian>(bbox.min.m())?;
+    dst.write_f64::<LittleEndian>(bbox.max.m())?;
+    Ok(())
+}
+
+pub(crate) fn bbox_write_z_range_to<PointType: HasZ, W: Write>(
+    bbox: &GenericBBox<PointType>,
+    dst: &mut W,
+) -> std::io::Result<()> {
+    dst.write_f64::<LittleEndian>(bbox.min.z())?;
+    dst.write_f64::<LittleEndian>(bbox.max.z())?;
+    Ok(())
+}
 
 pub(crate) fn read_xy_in_vec_of<PointType, T>(
     source: &mut T,
@@ -23,7 +81,7 @@ where
     Ok(points)
 }
 
-pub(crate) fn read_ms_into<T: Read, D: HasM>(
+pub(crate) fn read_ms_into<T: Read, D: HasMutM>(
     source: &mut T,
     points: &mut Vec<D>,
 ) -> Result<(), std::io::Error> {
@@ -43,12 +101,6 @@ pub(crate) fn read_zs_into<T: Read>(
     Ok(())
 }
 
-pub(crate) fn read_range<T: Read>(source: &mut T) -> Result<[f64; 2], std::io::Error> {
-    let mut range = [0.0, 0.0];
-    range[0] = source.read_f64::<LittleEndian>()?;
-    range[1] = source.read_f64::<LittleEndian>()?;
-    Ok(range)
-}
 
 pub(crate) fn read_parts<T: Read>(
     source: &mut T,
@@ -94,37 +146,4 @@ pub(crate) fn write_parts<T: Write>(dest: &mut T, parts: &[i32]) -> Result<(), s
         dest.write_i32::<LittleEndian>(*p)?;
     }
     Ok(())
-}
-
-pub(crate) fn write_range<T: Write>(dest: &mut T, range: [f64; 2]) -> Result<(), std::io::Error> {
-    dest.write_f64::<LittleEndian>(range[0])?;
-    dest.write_f64::<LittleEndian>(range[1])?;
-    Ok(())
-}
-
-pub(crate) fn calc_m_range<PointType: HasM>(points: &[PointType]) -> [f64; 2] {
-    let mut range = [std::f64::MAX, std::f64::MIN];
-    for point in points {
-        range[0] = f64::min(range[0], point.m());
-        range[1] = f64::max(range[1], point.m());
-    }
-
-    if is_no_data(range[0]) {
-        range[0] = 0.0;
-    }
-
-    if is_no_data(range[1]) {
-        range[1] = 0.0;
-    }
-
-    range
-}
-
-pub(crate) fn calc_z_range(points: &[PointZ]) -> [f64; 2] {
-    let mut range = [std::f64::MAX, std::f64::MIN];
-    for point in points {
-        range[0] = f64::min(range[0], point.z);
-        range[1] = f64::max(range[1], point.z);
-    }
-    range
 }

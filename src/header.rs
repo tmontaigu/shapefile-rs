@@ -1,25 +1,25 @@
 use super::{Error, ShapeType};
 
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
+use record::BBoxZ;
 use std::io::{Read, Write};
 
 pub(crate) const HEADER_SIZE: i32 = 100;
 const FILE_CODE: i32 = 9994;
+/// Size of reserved bytes in the header, that have do defined use
 const SIZE_OF_SKIP: usize = std::mem::size_of::<i32>() * 5;
 
 /// struct representing the Header of a shapefile
 /// can be retrieved via the reader used to read
-//TODO replace  pointmin/max with bbox + z_range
 #[derive(Copy, Clone, PartialEq)]
 pub struct Header {
     /// Total file length (Header + Shapes) in 16bit word
     pub file_length: i32,
-    /// min values of x, y, z for all the shapes
-    pub point_min: [f64; 3],
-    /// max values of x, y, z for all the shapes
-    pub point_max: [f64; 3],
-    /// min and max values for the measure dimension
-    pub m_range: [f64; 2],
+    /// The bbox contained all the shapes in this shapefile
+    ///
+    /// For shapefiles where the shapes do not have `m` or `z` values
+    /// the associated min and max will be `0`s.
+    pub bbox: BBoxZ,
     /// Type of all the shapes in the file
     /// (as mixing shapes is not allowed)
     pub shape_type: ShapeType,
@@ -30,9 +30,7 @@ pub struct Header {
 impl Default for Header {
     fn default() -> Self {
         Header {
-            point_min: [0.0; 3],
-            point_max: [0.0; 3],
-            m_range: [0.0; 2],
+            bbox: BBoxZ::default(),
             shape_type: ShapeType::NullShape,
             file_length: HEADER_SIZE / 2,
             version: 1000,
@@ -60,17 +58,14 @@ impl Header {
         hdr.version = version;
         hdr.file_length = file_length_16_bit;
 
-        hdr.point_min[0] = source.read_f64::<LittleEndian>()?;
-        hdr.point_min[1] = source.read_f64::<LittleEndian>()?;
-
-        hdr.point_max[0] = source.read_f64::<LittleEndian>()?;
-        hdr.point_max[1] = source.read_f64::<LittleEndian>()?;
-
-        hdr.point_min[2] = source.read_f64::<LittleEndian>()?;
-        hdr.point_max[2] = source.read_f64::<LittleEndian>()?;
-
-        hdr.m_range[0] = source.read_f64::<LittleEndian>()?;
-        hdr.m_range[1] = source.read_f64::<LittleEndian>()?;
+        hdr.bbox.min.x = source.read_f64::<LittleEndian>()?;
+        hdr.bbox.min.y = source.read_f64::<LittleEndian>()?;
+        hdr.bbox.max.x = source.read_f64::<LittleEndian>()?;
+        hdr.bbox.max.y = source.read_f64::<LittleEndian>()?;
+        hdr.bbox.min.z = source.read_f64::<LittleEndian>()?;
+        hdr.bbox.max.z = source.read_f64::<LittleEndian>()?;
+        hdr.bbox.min.m = source.read_f64::<LittleEndian>()?;
+        hdr.bbox.max.m = source.read_f64::<LittleEndian>()?;
 
         Ok(hdr)
     }
@@ -85,16 +80,14 @@ impl Header {
         dest.write_i32::<LittleEndian>(self.version)?;
         dest.write_i32::<LittleEndian>(self.shape_type as i32)?;
 
-        dest.write_f64::<LittleEndian>(self.point_min[0])?;
-        dest.write_f64::<LittleEndian>(self.point_min[1])?;
-        dest.write_f64::<LittleEndian>(self.point_max[0])?;
-        dest.write_f64::<LittleEndian>(self.point_max[1])?;
-
-        dest.write_f64::<LittleEndian>(self.point_min[2])?;
-        dest.write_f64::<LittleEndian>(self.point_max[2])?;
-
-        dest.write_f64::<LittleEndian>(self.m_range[0])?;
-        dest.write_f64::<LittleEndian>(self.m_range[1])?;
+        dest.write_f64::<LittleEndian>(self.bbox.min.x)?;
+        dest.write_f64::<LittleEndian>(self.bbox.min.y)?;
+        dest.write_f64::<LittleEndian>(self.bbox.max.x)?;
+        dest.write_f64::<LittleEndian>(self.bbox.max.y)?;
+        dest.write_f64::<LittleEndian>(self.bbox.min.z)?;
+        dest.write_f64::<LittleEndian>(self.bbox.max.z)?;
+        dest.write_f64::<LittleEndian>(self.bbox.min.m)?;
+        dest.write_f64::<LittleEndian>(self.bbox.max.m)?;
 
         Ok(())
     }
