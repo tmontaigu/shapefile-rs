@@ -2,7 +2,7 @@ extern crate shapefile;
 
 mod testfiles;
 
-use shapefile::{Point, Polyline, Writer};
+use shapefile::{Point, Polyline, Polygon, Writer};
 /*
 use std::io::Cursor;
 
@@ -67,6 +67,39 @@ fn multi_line() {
     assert_eq!(shp, expected.unwrap());
 
     let expected = read_a_file(testfiles::LINE_SHX_PATH);
+    assert_eq!(expected.is_ok(), true);
+    assert_eq!(shx, expected.unwrap());
+}
+
+#[test]
+fn polygon_inner() {
+    let point = Polygon::with_parts(vec![
+        vec![
+            Point::new(-120.0, 60.0),
+            Point::new(120.0, 60.0),
+            Point::new(120.0, -60.0),
+            Point::new(-120.0, -60.0),
+            Point::new(-120.0, 60.0),
+        ],
+        vec![
+            Point::new(-60.0, 30.0),
+            Point::new(-60.0, -30.0),
+            Point::new(60.0, -30.0),
+            Point::new(60.0, 30.0),
+            Point::new(-60.0, 30.0),
+        ],
+    ]);
+    let mut shp: Vec<u8> = vec![];
+    let mut shx: Vec<u8> = vec![];
+    let mut writer = Writer::new(&mut shp);
+    writer.add_index_dest(&mut shx);
+    writer.write_shapes(vec![point]).unwrap();
+
+    let expected = read_a_file(testfiles::POLYGON_HOLE_PATH);
+    assert_eq!(expected.is_ok(), true);
+    assert_eq!(shp, expected.unwrap());
+
+    let expected = read_a_file(testfiles::POLYGON_HOLE_SHX_PATH);
     assert_eq!(expected.is_ok(), true);
     assert_eq!(shx, expected.unwrap());
 }
