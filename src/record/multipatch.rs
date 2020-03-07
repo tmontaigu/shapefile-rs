@@ -11,10 +11,10 @@ use record::{close_points_if_not_already, GenericBBox};
 use record::{EsriShape, HasShapeType, Point, PointZ, WritableShape};
 use {Error, ShapeType};
 
-// #[cfg(feature = "geo-types")]
-// use geo_types;
-// #[cfg(feature = "geo-types")]
-// use std::convert::TryFrom;
+#[cfg(feature = "geo-types")]
+use geo_types;
+#[cfg(feature = "geo-types")]
+use std::convert::TryFrom;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 enum PatchType {
@@ -304,7 +304,6 @@ impl EsriShape for Multipatch {
         self.bbox.m_range()
     }
 }
-/*
 /// Converts a Multipatch to Multipolygon
 ///
 /// For simplicity,reasons, Triangle Fan & Triangle Strip are considered
@@ -315,184 +314,47 @@ impl EsriShape for Multipatch {
 /// followed by a number of Rings. A sequence of Rings not preceded by an First Ring
 /// is treated as a sequence of Outer Rings without holes.
 /// `
-*/
-// #[cfg(feature = "geo-types")]
-// impl TryFrom<Multipatch> for geo_types::MultiPolygon<f64> {
-//     type Error = Error;
-//
-//     fn try_from(mp: Multipatch) -> Result<Self, Self::Error> {
-//         let mut polygons = Vec::<geo_types::Polygon<f64>>::new();
-//         let mut last_poly = None;
-//         for (points, part_type) in mp.parts().zip(&mp.parts_type) {
-//             let points = points
-//                 .iter()
-//                 .map(|p| geo_types::Point::<f64>::from(*p))
-//                 .collect::<Vec<geo_types::Point<f64>>>();
-//             match part_type {
-//                 PatchType::TriangleStrip | PatchType::TriangleFan => {
-//                     polygons.push(geo_types::Polygon::new(points.into(), vec![]));
-//                 }
-//                 PatchType::OuterRing => {
-//                     last_poly = Some(geo_types::Polygon::new(points.into(), vec![]));
-//                 }
-//                 PatchType::InnerRing => {
-//                     if let Some(ref mut polygon) = last_poly {
-//                         polygon.interiors_push(points);
-//                     } else {
-//                         return Err(Error::OrphanInnerRing);
-//                     }
-//                 }
-//                 PatchType::FirstRing => {
-//                     if last_poly.is_some() {
-//                         polygons.push(last_poly.take().unwrap());
-//                     } else {
-//                         last_poly = Some(geo_types::Polygon::new(points.into(), vec![]));
-//                     }
-//                 }
-//                 PatchType::Ring => {
-//                     if let Some(ref mut polygon) = last_poly {
-//                         polygon.interiors_push(points);
-//                     } else {
-//                         // treat as sequence of outer ring without hole -> a simple polygon
-//                         polygons.push(geo_types::Polygon::new(points.into(), vec![]));
-//                     }
-//                 }
-//             }
-//         }
-//         if let Some(poly) = last_poly {
-//             polygons.push(poly);
-//         }
-//         Ok(polygons.into())
-//     }
-// }
-//
-// #[cfg(feature = "geo-types")]
-// impl From<geo_types::Polygon<f64>> for Multipatch {
-//     fn from(polygon: geo_types::Polygon<f64>) -> Self {
-//         if polygon.exterior().num_coords() == 0 {
-//             return Self::empty();
-//         }
-//
-//         let mut total_num_points = polygon.exterior().num_coords();
-//         total_num_points += polygon
-//             .interiors()
-//             .iter()
-//             .map(|ls| ls.num_coords())
-//             .sum::<usize>();
-//
-//         let mut parts = vec![0i32];
-//         let mut parts_type = vec![PatchType::OuterRing];
-//         let mut all_points = Vec::<PointZ>::with_capacity(total_num_points);
-//
-//         let (outer_ls, inners_ls) = polygon.into_inner();
-//         let mut outer_points = outer_ls
-//             .into_iter()
-//             .map(|c| PointZ::from(c))
-//             .collect::<Vec<PointZ>>();
-//
-//         if super::ring_type_from_points_ordering(&outer_points) == super::RingType::InnerRing {
-//             outer_points.reverse();
-//         }
-//         all_points.append(&mut outer_points);
-//
-//         for inner_ls in inners_ls {
-//             parts.push((all_points.len() - 1) as i32);
-//             let mut inner_points = inner_ls
-//                 .into_iter()
-//                 .map(|c| PointZ::from(c))
-//                 .collect::<Vec<PointZ>>();
-//
-//             if super::ring_type_from_points_ordering(&inner_points) == super::RingType::OuterRing {
-//                 inner_points.reverse();
-//             }
-//             all_points.append(&mut inner_points);
-//             parts_type.push(PatchType::InnerRing);
-//         }
-//
-//         let m_range = calc_m_range(&all_points);
-//         let z_range = calc_z_range(&all_points);
-//         Self {
-//             bbox: BBox::from_points(&all_points),
-//             points: all_points,
-//             parts,
-//             parts_type,
-//             z_range,
-//             m_range,
-//         }
-//     }
-// }
-//
-// #[cfg(feature = "geo-types")]
-// impl From<geo_types::MultiPolygon<f64>> for Multipatch {
-//     fn from(multi_polygon: geo_types::MultiPolygon<f64>) -> Self {
-//         let multipatches = multi_polygon
-//             .into_iter()
-//             .map(|polyg| Multipatch::from(polyg))
-//             .collect::<Vec<Multipatch>>();
-//
-//         let total_points_count = multipatches
-//             .iter()
-//             .fold(0usize, |count, multipatch| count + multipatch.points.len());
-//
-//         let total_part_count = multipatches
-//             .iter()
-//             .fold(0usize, |count, multipatch| count + multipatch.parts.len());
-//
-//         let mut all_points = Vec::<PointZ>::with_capacity(total_points_count);
-//         let mut all_parts = Vec::<i32>::with_capacity(total_part_count);
-//         let mut all_parts_type = Vec::<PatchType>::with_capacity(total_part_count);
-//
-//         for mut multipatch in multipatches {
-//             multipatch
-//                 .parts
-//                 .into_iter()
-//                 .map(|index| index + (all_points.len() as i32))
-//                 .for_each(|index| all_parts.push(index));
-//             all_points.append(&mut multipatch.points);
-//             all_parts_type.append(&mut multipatch.parts_type);
-//         }
-//         let m_range = calc_m_range(&all_points);
-//         let z_range = calc_z_range(&all_points);
-//         Self {
-//             bbox: BBox::from_points(&all_points),
-//             points: all_points,
-//             parts: all_parts,
-//             parts_type: all_parts_type,
-//             z_range,
-//             m_range,
-//         }
-//     }
-// }
+#[cfg(feature = "geo-types")]
+impl TryFrom<Multipatch> for geo_types::MultiPolygon<f64> {
+    type Error = &'static str;
 
-// #[cfg(test)]
-// mod test {
-//     use super::{Multipatch, PatchType, PointZ};
-//
-//     #[test]
-//     fn test_multipatch_creation() {
-//         let mp = Multipatch::with_parts(vec![
-//             (
-//                 vec![
-//                     PointZ::new(0.0, 1.0, 0.0, 0.0),
-//                     PointZ::new(0.0, 2.0, 0.0, 0.0),
-//                     PointZ::new(0.0, 1.0, 0.0, 0.0),
-//                 ],
-//                 PatchType::OuterRing,
-//             ),
-//             (
-//                 vec![
-//                     PointZ::new(0.0, 17.0, 5.0, 0.0),
-//                     PointZ::new(0.0, 28.0, 0.0, 0.0),
-//                     PointZ::new(0.0, 17.0, 5.0, 0.0),
-//                 ],
-//                 PatchType::OuterRing,
-//             ),
-//         ]);
-//
-//         assert_eq!(mp.parts, vec![0, 3]);
-//         assert_eq!(
-//             mp.parts_type,
-//             vec![PatchType::OuterRing, PatchType::OuterRing]
-//         );
-//     }
-// }
+    fn try_from(mp: Multipatch) -> Result<Self, Self::Error> {
+        use geo_types::{Coordinate, LineString};
+
+        let mut polygons = Vec::<geo_types::Polygon<f64>>::new();
+        let mut last_poly = None;
+        for patch in mp.patches {
+            match patch {
+                Patch::TriangleStrip(_) => return Err("Cannot convert Multipatch::TriangleStrip to Multipolygon"),
+                Patch::TriangleFan(_) => return Err("Cannot convert Multipatch::TriangleFan to Multipolygon"),
+                Patch::OuterRing(points) | Patch::FirstRing(points) => {
+                    let exterior = points
+                        .into_iter().map(Coordinate::<f64>::from).collect::<Vec<Coordinate<f64>>>();
+
+                    if let Some(poly) = last_poly.take() {
+                        polygons.push(poly);
+                    }
+                    last_poly = Some(geo_types::Polygon::new(LineString::from(exterior), vec![]))
+                },
+                Patch::InnerRing(points) | Patch::Ring(points) => {
+                    let interior = points
+                        .into_iter().map(Coordinate::<f64>::from).collect::<Vec<Coordinate<f64>>>();
+
+                    if let Some(poly) = last_poly.as_mut() {
+                        poly.interiors_push(interior);
+                    } else {
+                        // This is the strange (?) case: inner ring without a previous outer ring
+                        polygons.push(geo_types::Polygon::<f64>::new(
+                            LineString::<f64>::from(Vec::<Coordinate<f64>>::new()),
+                            vec![LineString::from(interior)]));
+                    }
+                }
+            }
+        }
+
+        if let Some(poly) = last_poly {
+            polygons.push(poly);
+        }
+        Ok(polygons.into())
+    }
+}

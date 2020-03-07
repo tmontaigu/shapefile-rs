@@ -92,12 +92,6 @@ pub enum Error {
     DbaseError(dbase::Error),
     MissingDbf,
     MissingIndexFile,
-    /// This error can happen when trying to convert a multipatch or polgyon into
-    /// geo_types::Multipolygon, this error happen when during such conversion,
-    /// an inner ring has no corresponding outer ring.
-    OrphanInnerRing,
-    NullShapeConversion,
-    GeometryCollectionConversion,
 }
 
 impl From<std::io::Error> for Error {
