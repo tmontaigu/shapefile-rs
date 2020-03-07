@@ -1,4 +1,4 @@
-//! Module with the definition of Multipoint(M, Z)
+//! Module with the definition of Multipoint, MultipointM and MultipointZ
 //!
 //! All three variant of Multipoint Shape (Multipoint, MultipointM, MultipointZ)
 //! are specialization of the `GenericMultipoint`
@@ -9,12 +9,11 @@
 use std::fmt;
 use std::io::{Read, Write};
 use std::mem::size_of;
-use std::slice::SliceIndex;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use record::io::*;
-use record::traits::{GrowablePoint, MultipointShape, ShrinkablePoint};
+use record::traits::{GrowablePoint, ShrinkablePoint};
 use record::EsriShape;
 use record::{ConcreteReadableShape, GenericBBox};
 use record::{HasShapeType, WritableShape};
@@ -114,19 +113,13 @@ impl<PointType> GenericMultipoint<PointType> {
     pub fn bbox(&self) -> &GenericBBox<PointType> {
         &self.bbox
     }
-}
 
-impl<PointType> MultipointShape<PointType> for GenericMultipoint<PointType> {
-    fn point<I: SliceIndex<[PointType]>>(
-        &self,
-        index: I,
-    ) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
-        self.points.get(index)
-    }
-    fn points(&self) -> &[PointType] {
+    /// Returns a non-mutable slice of point
+    pub fn points(&self) -> &[PointType] {
         &self.points
     }
 }
+
 
 impl<PointType> From<Vec<PointType>> for GenericMultipoint<PointType>
 where

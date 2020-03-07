@@ -21,18 +21,26 @@
 //! Eg: For the polyline, there is [`Polyline`], [`PolylineM`], [`PolylineZ`]
 //!
 //! # Reading
+//!
 //! For more details see the [reader](reader/index.html) module
 //!
 //! # Writing
 //!
 //! To write a file see the [writer](writer/index.html) module
 //!
-//!
 //! # Features
 //!
 //! The `geo-types` feature can be enabled to have access to `From` and `TryFrom`
 //! implementations allowing to convert (or try to) back and forth between shapefile's type and
 //! the one in `geo_types`
+//!
+//! [`Point`]: record/point/struct.Point.html
+//! [`PointM`]: record/point/struct.PointM.html
+//! [`PointZ`]: record/point/struct.PointZ.html
+//! [`Polyline`]: record/polyline/type.Polyline.html
+//! [`PolylineM`]: record/polyline/type.PolylineM.html
+//! [`PolylineZ`]: record/polyline/type.PolylineZ.html
+//! [`Multipatch`]: record/multipatch/struct.Multipatch.html
 extern crate byteorder;
 pub extern crate dbase;
 
@@ -47,18 +55,18 @@ use std::fmt;
 use std::io::{Read, Write};
 
 pub use reader::{read, read_as, Reader};
-pub use record::traits::{MultipartShape, MultipointShape};
 pub use record::Multipatch;
 pub use record::{convert_shapes_to_vec_of, HasShapeType, ReadableShape};
 pub use record::{Multipoint, MultipointM, MultipointZ};
-pub use record::{PatchType, Shape, NO_DATA};
+pub use record::{Patch,  Shape, NO_DATA};
 pub use record::{Point, PointM, PointZ};
-pub use record::{Polygon, PolygonM, PolygonZ};
+pub use record::{Polygon, PolygonM, PolygonZ, PolygonRing};
 pub use record::{Polyline, PolylineM, PolylineZ};
 pub use writer::Writer;
 
 #[cfg(feature = "geo-types")]
 extern crate geo_types;
+extern crate core;
 
 /// All Errors that can happen when using this library
 #[derive(Debug)]
@@ -72,9 +80,6 @@ pub enum Error {
     InvalidShapeType(i32),
     /// The Multipatch shape read from the file had an invalid [PatchType](enum.PatchType.html) code
     InvalidPatchType(i32),
-    /// Emitted when the file read mixes [ShapeType](enum.ShapeType.html)
-    /// Which is not allowed by the specification (expect for NullShape)
-    MalformedShape,
     /// Error returned when trying to read the shape records as a certain shape type
     /// but the actual shape type does not correspond to the one asked
     MismatchShapeType {
@@ -84,7 +89,6 @@ pub enum Error {
         actual: ShapeType,
     },
     InvalidShapeRecordSize,
-
     DbaseError(dbase::Error),
     MissingDbf,
     MissingIndexFile,

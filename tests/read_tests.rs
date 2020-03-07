@@ -7,8 +7,7 @@ use std::io::SeekFrom;
 
 mod testfiles;
 
-use shapefile::record::{MultipartShape, MultipointShape};
-use shapefile::{Multipatch, Point, PointM, PointZ};
+use shapefile::{Multipatch, Point, PointM, PointZ, Patch, PolygonRing};
 use shapefile::{Multipoint, MultipointZ};
 use shapefile::{Polygon, PolygonM, PolygonZ};
 use shapefile::{Polyline, PolylineM, PolylineZ};
@@ -46,8 +45,7 @@ fn check_linem<T: Read>(reader: shapefile::Reader<T>) {
         assert_eq!(shape.bbox().min.y, 1.0);
         assert_eq!(shape.bbox().max.x, 5.0);
         assert_eq!(shape.bbox().max.y, 6.0);
-        assert_eq!(shape.parts_indices(), vec![0, 5].as_slice());
-        let expected_points = vec![
+        let first_part = vec![
             PointM {
                 x: 1.0,
                 y: 5.0,
@@ -73,6 +71,8 @@ fn check_linem<T: Read>(reader: shapefile::Reader<T>) {
                 y: 1.0,
                 m: 0.0,
             },
+        ];
+        let second_part = vec![
             PointM {
                 x: 3.0,
                 y: 2.0,
@@ -84,7 +84,8 @@ fn check_linem<T: Read>(reader: shapefile::Reader<T>) {
                 m: NO_DATA,
             },
         ];
-        assert_eq!(shape.points(), expected_points.as_slice());
+        assert_eq!(shape.parts()[0], first_part.as_slice());
+        assert_eq!(shape.parts()[1], second_part.as_slice());
     } else {
         assert!(false, "The shape is not a PolylineM");
     }
@@ -105,8 +106,7 @@ fn check_linez<T: Read>(reader: shapefile::Reader<T>) {
 
     for shape in shapes {
         if let shapefile::Shape::PolylineZ(shp) = shape {
-            assert_eq!(shp.parts_indices(), vec![0, 5, 7].as_slice());
-            let expected_points = vec![
+            let first_part = vec![
                 PointZ {
                     x: 1.0,
                     y: 5.0,
@@ -137,6 +137,8 @@ fn check_linez<T: Read>(reader: shapefile::Reader<T>) {
                     z: 0.0,
                     m: NO_DATA,
                 },
+            ];
+            let second_part = vec![
                 PointZ {
                     x: 3.0,
                     y: 2.0,
@@ -149,6 +151,8 @@ fn check_linez<T: Read>(reader: shapefile::Reader<T>) {
                     z: 0.0,
                     m: NO_DATA,
                 },
+            ];
+            let third_part = vec![
                 PointZ {
                     x: 3.0,
                     y: 2.0,
@@ -168,8 +172,10 @@ fn check_linez<T: Read>(reader: shapefile::Reader<T>) {
                     m: 2.0,
                 },
             ];
-            assert_eq!(shp.points(), expected_points.as_slice());
-        //assert_eq!(shp.z_range, [0.0, 22.0]);
+            assert_eq!(shp.parts()[0], first_part.as_slice());
+            assert_eq!(shp.parts()[1], second_part.as_slice());
+            assert_eq!(shp.parts()[2], third_part.as_slice());
+            //assert_eq!(shp.z_range, [0.0, 22.0]);
         //assert_eq!(shp.m_range, [0.0, 3.0]);
         } else {
             assert!(false, "The shape is not a PolylineZ");
@@ -314,21 +320,26 @@ fn check_polygon<T: Read>(reader: shapefile::Reader<T>) {
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
 
     if let shapefile::Shape::Polygon(shp) = &shapes[0] {
-        let expected_points = vec![
+        let first_part = PolygonRing::Inner(vec![
             Point { x: 122.0, y: 37.0 },
             Point { x: 117.0, y: 36.0 },
             Point { x: 115.0, y: 32.0 },
             Point { x: 118.0, y: 20.0 },
             Point { x: 113.0, y: 24.0 },
+        ]);
+        let second_part = PolygonRing::Outer(vec![
             Point { x: 15.0, y: 2.0 },
             Point { x: 17.0, y: 6.0 },
             Point { x: 22.0, y: 7.0 },
+        ]);
+        let third_part = PolygonRing::Inner(vec![
             Point { x: 122.0, y: 37.0 },
             Point { x: 117.0, y: 36.0 },
             Point { x: 115.0, y: 32.0 },
-        ];
-        assert_eq!(shp.points(), expected_points.as_slice());
-        assert_eq!(shp.parts_indices(), vec![0, 5, 8].as_slice());
+        ]);
+        assert_eq!(shp.ring(0), Some(&first_part));
+        assert_eq!(shp.ring(1), Some(&second_part));
+        assert_eq!(shp.ring(2), Some(&third_part));
     } else {
         assert!(false, "The second shape is not a Polygon");
     }
@@ -352,7 +363,7 @@ fn check_polygonm<T: Read>(reader: shapefile::Reader<T>) {
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
 
     if let shapefile::Shape::PolygonM(shp) = &shapes[0] {
-        let expected_points = vec![
+        let first_ring = PolygonRing::Outer(vec![
             PointM {
                 x: 159814.75390576152,
                 y: 5404314.139043656,
@@ -373,9 +384,8 @@ fn check_polygonm<T: Read>(reader: shapefile::Reader<T>) {
                 y: 5404314.139043656,
                 m: 0.0,
             },
-        ];
-        assert_eq!(shp.points(), expected_points.as_slice());
-        assert_eq!(shp.parts_indices(), vec![0].as_slice());
+        ]);
+        assert_eq!(shp.ring(0), Some(&first_ring));
     } else {
         assert!(false, "The second shape is not a PolygonZ");
     }
@@ -396,7 +406,7 @@ fn check_polygonz<T: Read>(reader: shapefile::Reader<T>) {
 
     //FIXME find a file with less values
     if let shapefile::Shape::PolygonZ(shp) = &shapes[0] {
-        assert_eq!(shp.parts_indices(), vec![0].as_slice());
+        assert_eq!(shp.rings().len(), 1);
     } else {
         assert!(false, "The second shape is not a PolygonZ");
     }
@@ -495,7 +505,7 @@ fn check_multipatch<T: Read>(reader: shapefile::Reader<T>) {
     assert_eq!(shapes.len(), 1, "Wrong number of shapes");
 
     if let shapefile::Shape::Multipatch(shp) = &shapes[0] {
-        let expected_points = vec![
+        let first_patch = Patch::TriangleStrip(vec![
             PointZ {
                 x: 0.0,
                 y: 0.0,
@@ -556,6 +566,8 @@ fn check_multipatch<T: Read>(reader: shapefile::Reader<T>) {
                 z: 3.0,
                 m: NO_DATA,
             },
+        ]);
+        let second_patch = Patch::TriangleFan(vec![
             PointZ {
                 x: 2.5,
                 y: 2.5,
@@ -592,17 +604,9 @@ fn check_multipatch<T: Read>(reader: shapefile::Reader<T>) {
                 z: 3.0,
                 m: NO_DATA,
             },
-        ];
-        assert_eq!(shp.points(), expected_points.as_slice());
-        assert_eq!(shp.parts_indices(), vec![0, 10].as_slice());
-        assert_eq!(
-            shp.part_types(),
-            vec![
-                shapefile::PatchType::TriangleStrip,
-                shapefile::PatchType::TriangleFan
-            ]
-            .as_slice()
-        );
+        ]);
+        assert_eq!(shp.patch(0), Some(&first_patch));
+        assert_eq!(shp.patch(1), Some(&second_patch));
     } else {
         assert!(false, "Shape is not a Multipatch");
     }

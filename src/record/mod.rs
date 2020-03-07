@@ -8,18 +8,18 @@ pub mod io;
 pub mod multipatch;
 pub mod multipoint;
 pub mod point;
-pub mod poly;
+pub mod polyline;
+pub mod polygon;
 pub mod traits;
 
 use super::{Error, ShapeType};
 pub use record::bbox::{BBoxZ, GenericBBox};
-pub use record::multipatch::{Multipatch, PatchType};
+pub use record::multipatch::{Multipatch, Patch};
 pub use record::multipoint::{Multipoint, MultipointM, MultipointZ};
 pub use record::point::{Point, PointM, PointZ};
-pub use record::poly::{Polygon, PolygonM, PolygonZ};
-pub use record::poly::{Polyline, PolylineM, PolylineZ};
+pub use record::polygon::{Polygon, PolygonM, PolygonZ, PolygonRing};
+pub use record::polyline::{Polyline, PolylineM, PolylineZ};
 use record::traits::HasXY;
-pub use record::traits::{MultipartShape, MultipointShape};
 use std::convert::TryFrom;
 
 #[cfg(feature = "geo-types")]
@@ -90,22 +90,6 @@ pub trait EsriShape: HasShapeType + WritableShape {
     }
 }
 
-/// Validate the `parts array` of the any `MultipartShape`.
-///
-/// Requirements for a parts array to be valid are
-///
-/// 1) at least one part
-/// 2) indices must be in range [0, num_points[
-pub(crate) fn is_parts_array_valid<PointType, ST: MultipartShape<PointType>>(shape: &ST) -> bool {
-    if shape.parts_indices().is_empty() {
-        return false;
-    }
-    let num_points = shape.points().len() as i32;
-    shape
-        .parts_indices()
-        .iter()
-        .all(|p| (*p >= 0) & (*p < num_points))
-}
 
 pub(crate) fn is_part_closed<PointType: PartialEq>(points: &Vec<PointType>) -> bool {
     if let (Some(first), Some(last)) = (points.first(), points.last()) {

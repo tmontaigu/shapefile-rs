@@ -2,20 +2,8 @@ extern crate shapefile;
 
 mod testfiles;
 
-use shapefile::{Point, Polyline, Polygon, Writer};
-/*
-use std::io::Cursor;
+use shapefile::{Point, Polyline, Polygon, Writer, PolygonRing};
 
-#[test]
-fn write_polyline() {
-    let mut polys = Vec::<shapefile::record::Polyline>::with_capacity(1);
-    polys.push(shapefile::record::Polyline::default());
-
-    let v = Vec::<u8>::new();
-    let cursor = Cursor::new(v);
-    let mut writer = shapefile::writer::Writer::new(cursor);
-    writer.write_shapes(polys).unwrap();
-}*/
 
 fn read_a_file(path: &str) -> std::io::Result<Vec<u8>> {
     use std::io::Read;
@@ -74,20 +62,55 @@ fn multi_line() {
 #[test]
 fn polygon_inner() {
     let point = Polygon::with_parts(vec![
-        vec![
+        PolygonRing::Outer(vec![
             Point::new(-120.0, 60.0),
             Point::new(120.0, 60.0),
             Point::new(120.0, -60.0),
             Point::new(-120.0, -60.0),
             Point::new(-120.0, 60.0),
-        ],
-        vec![
+        ]),
+        PolygonRing::Inner(vec![
             Point::new(-60.0, 30.0),
             Point::new(-60.0, -30.0),
             Point::new(60.0, -30.0),
             Point::new(60.0, 30.0),
             Point::new(-60.0, 30.0),
-        ],
+        ]),
+    ]);
+    let mut shp: Vec<u8> = vec![];
+    let mut shx: Vec<u8> = vec![];
+    let mut writer = Writer::new(&mut shp);
+    writer.add_index_dest(&mut shx);
+    writer.write_shapes(vec![point]).unwrap();
+
+    let expected = read_a_file(testfiles::POLYGON_HOLE_PATH);
+    assert_eq!(expected.is_ok(), true);
+    assert_eq!(shp, expected.unwrap());
+
+    let expected = read_a_file(testfiles::POLYGON_HOLE_SHX_PATH);
+    assert_eq!(expected.is_ok(), true);
+    assert_eq!(shx, expected.unwrap());
+}
+
+/// Same polygon as test above, but the points for the ring are in the
+/// incorrect order for a shapefile, so this test if we reorder points correctly
+#[test]
+fn polygon_inner_is_correctly_reordered() {
+    let point = Polygon::with_parts(vec![
+        PolygonRing::Outer(vec![
+            Point::new(-120.0, 60.0),
+            Point::new(-120.0, -60.0),
+            Point::new(120.0, -60.0),
+            Point::new(120.0, 60.0),
+            Point::new(-120.0, 60.0),
+        ]),
+        PolygonRing::Inner(vec![
+            Point::new(-60.0, 30.0),
+            Point::new(60.0, 30.0),
+            Point::new(60.0, -30.0),
+            Point::new(-60.0, -30.0),
+            Point::new(-60.0, 30.0),
+        ]),
     ]);
     let mut shp: Vec<u8> = vec![];
     let mut shx: Vec<u8> = vec![];
