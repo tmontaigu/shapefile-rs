@@ -3,8 +3,8 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::fmt;
 use std::io::{Read, Write};
 
+pub(crate) mod io;
 pub mod bbox;
-pub mod io;
 pub mod multipatch;
 pub mod multipoint;
 pub mod point;
@@ -91,13 +91,9 @@ pub trait EsriShape: HasShapeType + WritableShape {
 }
 
 
-pub(crate) fn is_part_closed<PointType: PartialEq>(points: &Vec<PointType>) -> bool {
+pub(crate) fn is_part_closed<PointType: PartialEq>(points: &[PointType]) -> bool {
     if let (Some(first), Some(last)) = (points.first(), points.last()) {
-        if first == last {
-            true
-        } else {
-            false
-        }
+        first == last
     } else {
         false
     }
@@ -107,10 +103,8 @@ pub(crate) fn close_points_if_not_already<PointType: PartialEq + Copy>(
     points: &mut Vec<PointType>,
 ) {
     if !is_part_closed(points) {
-        let maybe_first = points.first().cloned();
-        if maybe_first.is_some() {
-            let first: PointType = maybe_first.unwrap();
-            points.push(first);
+        if let Some(point) = points.first().copied() {
+            points.push(point)
         }
     }
 }

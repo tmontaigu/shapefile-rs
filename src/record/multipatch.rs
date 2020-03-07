@@ -223,7 +223,7 @@ impl ConcreteReadableShape for Multipatch {
                 .read_xy()
                 .and_then(|rdr| rdr.read_zs())
                 .and_then(|rdr| rdr.read_ms_if(record_size == record_size_with_m))
-                .map_err(|err| Error::IoError(err))
+                .map_err(Error::IoError)
                 .map(|rdr| (rdr.bbox, rdr.parts))?;
 
             for (patch_type, points) in patch_types.iter().zip(patches_points) {
@@ -282,7 +282,7 @@ impl WritableShape for Multipatch {
             .and_then(|wrt| wrt.write_zs())
             .and_then(|wrt| wrt.write_bbox_m_range())
             .and_then(|wrt| wrt.write_ms())
-            .map_err(|err| Error::IoError(err))
+            .map_err(Error::IoError)
             .map(|_wrt| {})
     }
 }

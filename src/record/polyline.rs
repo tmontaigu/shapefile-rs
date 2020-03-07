@@ -142,7 +142,7 @@ impl ConcreteReadableShape for Polyline {
             Err(Error::InvalidShapeRecordSize)
         } else {
             rdr.read_xy()
-                .map_err(|io_err| Error::IoError(io_err))
+                .map_err(Error::IoError)
                 .and_then(|rdr| Ok(Self{
                     bbox: rdr.bbox,
                     parts: rdr.parts
@@ -225,7 +225,7 @@ impl ConcreteReadableShape for PolylineM {
         } else {
             rdr.read_xy()
                 .and_then(|rdr| rdr.read_ms_if(record_size == record_size_with_m))
-                .map_err(|io_err| Error::IoError(io_err))
+                .map_err(Error::IoError)
                 .and_then(|rdr| Ok(Self {bbox: rdr.bbox, parts: rdr.parts }))
         }
     }
@@ -314,7 +314,7 @@ impl ConcreteReadableShape for PolylineZ {
                 .read_xy()
                 .and_then(|rdr| rdr.read_zs())
                 .and_then(|rdr| rdr.read_ms_if(record_size == record_size_with_m))
-                .map_err(|err| Error::IoError(err))
+                .map_err( Error::IoError)
                 .and_then(|rdr| Ok(Self { bbox: rdr.bbox, parts: rdr.parts }))
         }
     }

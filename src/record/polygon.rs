@@ -291,7 +291,7 @@ impl HasShapeType for Polygon {
 impl ConcreteReadableShape for Polygon {
     fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
         Polyline::read_shape_content(source, record_size)
-            .map(|polyline| Polygon::from(polyline))
+            .map(Polygon::from)
     }
 
 }
@@ -350,7 +350,7 @@ impl HasShapeType for PolygonM {
 impl ConcreteReadableShape for PolygonM {
     fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
         PolylineM::read_shape_content(source, record_size)
-            .map(|polyline| PolygonM::from(polyline))
+            .map(PolygonM::from)
     }
 }
 
@@ -413,7 +413,7 @@ impl HasShapeType for PolygonZ {
 impl ConcreteReadableShape for PolygonZ {
     fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
         PolylineZ::read_shape_content(source, record_size)
-            .map(|polyline| PolygonZ::from(polyline))
+            .map(PolygonZ::from)
     }
 }
 

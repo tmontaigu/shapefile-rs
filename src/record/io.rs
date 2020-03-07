@@ -289,8 +289,8 @@ impl<'a, PointType, T, W> MultiPartShapeWriter<'a, PointType, T, W>
           W: Write,
           PointType: HasXY
 {
-    pub(crate) fn write_bbox_xy(mut self) -> std::io::Result<Self> {
-        bbox_write_xy_to(&mut self.bbox, self.dst)?;
+    pub(crate) fn write_bbox_xy(self) -> std::io::Result<Self> {
+        bbox_write_xy_to(&self.bbox, self.dst)?;
         Ok(self)
     }
 
@@ -307,8 +307,8 @@ impl<'a, PointType, T, W> MultiPartShapeWriter<'a, PointType, T, W>
           W: Write,
           PointType: HasM
 {
-    pub(crate) fn write_bbox_m_range(mut self) -> std::io::Result<Self> {
-        bbox_write_m_range_to(&mut self.bbox, self.dst)?;
+    pub(crate) fn write_bbox_m_range(self) -> std::io::Result<Self> {
+        bbox_write_m_range_to(&self.bbox, self.dst)?;
         Ok(self)
     }
 
@@ -325,8 +325,8 @@ impl<'a, T, W> MultiPartShapeWriter<'a, PointZ, T, W>
           W: Write
 
 {
-    pub(crate) fn write_bbox_z_range(mut self) -> std::io::Result<Self> {
-        bbox_write_z_range_to(&mut self.bbox, self.dst)?;
+    pub(crate) fn write_bbox_z_range(self) -> std::io::Result<Self> {
+        bbox_write_z_range_to(&self.bbox, self.dst)?;
         Ok(self)
     }
 
