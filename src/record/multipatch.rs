@@ -256,7 +256,7 @@ impl WritableShape for Multipatch {
         size
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         let parts_iter = self.patches.iter().map(|patch| patch.points());
         let writer = MultiPartShapeWriter::new(&self.bbox, parts_iter, dest);
         writer

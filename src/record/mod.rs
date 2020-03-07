@@ -74,7 +74,7 @@ pub trait WritableShape {
     fn size_in_bytes(&self) -> usize;
 
     /// Writes the shape to the dest
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error>;
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error>;
 }
 
 pub trait EsriShape: HasShapeType + WritableShape {

@@ -69,7 +69,7 @@ impl WritableShape for Point {
         2 * size_of::<f64>()
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         dest.write_f64::<LittleEndian>(self.x)?;
         dest.write_f64::<LittleEndian>(self.y)?;
         Ok(())
@@ -182,7 +182,7 @@ impl WritableShape for PointM {
         3 * size_of::<f64>()
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         dest.write_f64::<LittleEndian>(self.x)?;
         dest.write_f64::<LittleEndian>(self.y)?;
         dest.write_f64::<LittleEndian>(self.m)?;
@@ -330,7 +330,7 @@ impl WritableShape for PointZ {
         4 * size_of::<f64>()
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         dest.write_f64::<LittleEndian>(self.x)?;
         dest.write_f64::<LittleEndian>(self.y)?;
         dest.write_f64::<LittleEndian>(self.z)?;

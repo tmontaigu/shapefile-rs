@@ -634,7 +634,7 @@ macro_rules! read_write_read_test {
             let v = Vec::<u8>::new();
             let mut cursor = Cursor::new(v);
             let mut writer = shapefile::writer::Writer::new(cursor);
-            writer.write_shapes(shapes).unwrap();
+            writer.write_shapes(&shapes).unwrap();
 
             cursor = writer.dest;
 

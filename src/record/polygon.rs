@@ -307,7 +307,7 @@ impl WritableShape for Polygon {
         size
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         let parts_iter = self.rings().iter().map(|ring| ring.points());
         let writer = MultiPartShapeWriter::new(&self.bbox,parts_iter, dest);
         writer.write_point_shape()?;
@@ -366,7 +366,7 @@ impl WritableShape for PolygonM {
         size
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         let parts_iter = self.rings().iter().map(|ring| ring.points());
         let writer = MultiPartShapeWriter::new(&self.bbox, parts_iter, dest);
         writer.write_point_m_shape()?;
@@ -430,7 +430,7 @@ impl WritableShape for PolygonZ {
         size
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         let parts_iter = self.rings().iter().map(|ring| ring.points());
         let writer = MultiPartShapeWriter::new(&self.bbox, parts_iter, dest);
         writer.write_point_z_shape()?;

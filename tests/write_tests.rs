@@ -21,7 +21,7 @@ fn single_point() {
     let mut shx: Vec<u8> = vec![];
     let mut writer = Writer::new(&mut shp);
     writer.add_index_dest(&mut shx);
-    writer.write_shapes(vec![point]).unwrap();
+    writer.write_shapes(&vec![point]).unwrap();
 
     let expected = read_a_file(testfiles::POINT_PATH);
     assert_eq!(expected.is_ok(), true);
@@ -48,7 +48,7 @@ fn multi_line() {
     let mut shx: Vec<u8> = vec![];
     let mut writer = Writer::new(&mut shp);
     writer.add_index_dest(&mut shx);
-    writer.write_shapes(vec![point]).unwrap();
+    writer.write_shapes(&vec![point]).unwrap();
 
     let expected = read_a_file(testfiles::LINE_PATH);
     assert_eq!(expected.is_ok(), true);
@@ -81,7 +81,7 @@ fn polygon_inner() {
     let mut shx: Vec<u8> = vec![];
     let mut writer = Writer::new(&mut shp);
     writer.add_index_dest(&mut shx);
-    writer.write_shapes(vec![point]).unwrap();
+    writer.write_shapes(&vec![point]).unwrap();
 
     let expected = read_a_file(testfiles::POLYGON_HOLE_PATH);
     assert_eq!(expected.is_ok(), true);
@@ -116,7 +116,7 @@ fn polygon_inner_is_correctly_reordered() {
     let mut shx: Vec<u8> = vec![];
     let mut writer = Writer::new(&mut shp);
     writer.add_index_dest(&mut shx);
-    writer.write_shapes(vec![point]).unwrap();
+    writer.write_shapes(&vec![point]).unwrap();
 
     let expected = read_a_file(testfiles::POLYGON_HOLE_PATH);
     assert_eq!(expected.is_ok(), true);

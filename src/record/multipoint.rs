@@ -227,10 +227,10 @@ impl WritableShape for Multipoint {
         size
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         bbox_write_xy_to(&self.bbox, dest)?;
         dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
-        for point in self.points {
+        for point in self.points.iter() {
             dest.write_f64::<LittleEndian>(point.x)?;
             dest.write_f64::<LittleEndian>(point.y)?;
         }
@@ -314,7 +314,7 @@ impl WritableShape for MultipointM {
         size
     }
 
-    fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, mut dest: &mut T) -> Result<(), Error> {
         bbox_write_xy_to(&self.bbox, dest)?;
         dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
 
@@ -413,7 +413,7 @@ impl WritableShape for MultipointZ {
         size
     }
 
-    fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, mut dest: &mut T) -> Result<(), Error> {
         bbox_write_xy_to(&self.bbox, dest)?;
         dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
 

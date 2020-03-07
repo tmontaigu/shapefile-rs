@@ -162,7 +162,7 @@ impl WritableShape for Polyline {
         size
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         let parts_iter = self.parts.iter().map(|part| part.as_slice());
         let writer = MultiPartShapeWriter::new(&self.bbox, parts_iter, dest);
         writer.write_point_shape()?;
@@ -243,7 +243,7 @@ impl WritableShape for PolylineM {
         size
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         let parts_iter = self.parts.iter().map(|part| part.as_slice());
         let writer = MultiPartShapeWriter::new(&self.bbox, parts_iter, dest);
         writer.write_point_m_shape()?;
@@ -333,7 +333,7 @@ impl WritableShape for PolylineZ {
         size
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         let parts_iter = self.parts.iter().map(|part| part.as_slice());
         let writer = MultiPartShapeWriter::new(&self.bbox, parts_iter, dest);
         writer.write_point_z_shape()?;
