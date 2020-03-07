@@ -7,20 +7,20 @@ use std::mem::size_of;
 
 use record::io::*;
 use record::traits::{GrowablePoint, ShrinkablePoint};
-use record::{ConcreteReadableShape};
-use record::{GenericBBox};
+use record::ConcreteReadableShape;
+use record::GenericBBox;
 use record::{EsriShape, HasShapeType, WritableShape};
 use record::{Point, PointM, PointZ};
 use {Error, ShapeType};
 
 #[cfg(feature = "geo-types")]
 use geo_types;
-#[cfg(feature = "geo-types")]
-use std::convert::TryFrom;
 
 /// Generic struct to create Polyline; PolylineM, PolylineZ
 ///
 /// Polylines can have multiple parts.
+///
+/// Polylines parts must have 2 at least 2 points
 ///
 /// To create a polyline with only one part use [`new`],
 /// to create a polyline with multiple parts use [`with_parts`]
@@ -47,10 +47,14 @@ impl<PointType: ShrinkablePoint + GrowablePoint + Copy> GenericPolyline<PointTyp
     /// let poly = Polyline::new(points);
     /// ```
     ///
+    /// # panic
+    ///
+    /// This will panic if the vec has las than 2 points
     pub fn new(points: Vec<PointType>) -> Self {
+        assert!(points.len() >= 2, "Polylines parts must have at least 2 points");
         Self {
             bbox: GenericBBox::<PointType>::from_points(&points),
-            parts: vec![points]
+            parts: vec![points],
         }
     }
 
@@ -77,10 +81,14 @@ impl<PointType: ShrinkablePoint + GrowablePoint + Copy> GenericPolyline<PointTyp
     /// let poly = Polyline::with_parts(vec![first_part, second_part, third_part]);
     /// ```
     ///
+    /// # panic
+    ///
+    /// This will panic if the vec has las than 2 points
     pub fn with_parts(parts: Vec<Vec<PointType>>) -> Self {
+        assert!(parts.iter().all(|p| p.len() >= 2), "Polylines parts must have at least 2 points");
         Self {
             bbox: GenericBBox::<PointType>::from_parts(&parts),
-            parts
+            parts,
         }
     }
 }
@@ -143,9 +151,9 @@ impl ConcreteReadableShape for Polyline {
         } else {
             rdr.read_xy()
                 .map_err(Error::IoError)
-                .and_then(|rdr| Ok(Self{
+                .and_then(|rdr| Ok(Self {
                     bbox: rdr.bbox,
-                    parts: rdr.parts
+                    parts: rdr.parts,
                 }))
         }
     }
@@ -215,18 +223,18 @@ impl HasShapeType for PolylineM {
 
 impl ConcreteReadableShape for PolylineM {
     fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
-        let rdr= MultiPartShapeReader::<PointM, T>::new(source)?;
+        let rdr = MultiPartShapeReader::<PointM, T>::new(source)?;
 
         let record_size_with_m = Self::size_of_record(rdr.num_points, rdr.num_parts, true) as i32;
         let record_size_without_m = Self::size_of_record(rdr.num_points, rdr.num_parts, false) as i32;
 
         if (record_size != record_size_with_m) && (record_size != record_size_without_m) {
-           Err(Error::InvalidShapeRecordSize)
+            Err(Error::InvalidShapeRecordSize)
         } else {
             rdr.read_xy()
                 .and_then(|rdr| rdr.read_ms_if(record_size == record_size_with_m))
                 .map_err(Error::IoError)
-                .and_then(|rdr| Ok(Self {bbox: rdr.bbox, parts: rdr.parts }))
+                .and_then(|rdr| Ok(Self { bbox: rdr.bbox, parts: rdr.parts }))
         }
     }
 }
@@ -314,7 +322,7 @@ impl ConcreteReadableShape for PolylineZ {
                 .read_xy()
                 .and_then(|rdr| rdr.read_zs())
                 .and_then(|rdr| rdr.read_ms_if(record_size == record_size_with_m))
-                .map_err( Error::IoError)
+                .map_err(Error::IoError)
                 .and_then(|rdr| Ok(Self { bbox: rdr.bbox, parts: rdr.parts }))
         }
     }
@@ -369,11 +377,12 @@ impl<PointType> From<GenericPolyline<PointType>> for geo_types::MultiLineString<
     fn from(polyline: GenericPolyline<PointType>) -> Self {
         use std::iter::FromIterator;
         let mut lines =
-            Vec::<geo_types::LineString<f64>>::with_capacity(polyline.parts_indices().len());
-        for parts in polyline.parts() {
-            let line: Vec<geo_types::Coordinate<f64>> = parts
-                .iter()
-                .map(|point| geo_types::Coordinate::<f64>::from(*point))
+            Vec::<geo_types::LineString<f64>>::with_capacity(polyline.parts().len());
+
+        for points in polyline.parts {
+            let line: Vec<geo_types::Coordinate<f64>> = points
+                .into_iter()
+                .map(geo_types::Coordinate::<f64>::from)
                 .collect();
             lines.push(line.into());
         }
@@ -384,7 +393,7 @@ impl<PointType> From<GenericPolyline<PointType>> for geo_types::MultiLineString<
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::Line<f64>> for GenericPolyline<PointType>
     where
-        PointType: From<geo_types::Point<f64>> + HasXY,
+        PointType: From<geo_types::Point<f64>> + ShrinkablePoint + GrowablePoint + Copy
 {
     fn from(line: geo_types::Line<f64>) -> Self {
         let (p1, p2) = line.points();
@@ -395,10 +404,10 @@ impl<PointType> From<geo_types::Line<f64>> for GenericPolyline<PointType>
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::LineString<f64>> for GenericPolyline<PointType>
     where
-        PointType: From<geo_types::Coordinate<f64>> + HasXY,
+        PointType: From<geo_types::Coordinate<f64>> + ShrinkablePoint + GrowablePoint + Copy
 {
     fn from(line: geo_types::LineString<f64>) -> Self {
-        let points: Vec<PointType> = line.into_iter().map(|p| PointType::from(p)).collect();
+        let points: Vec<PointType> = line.into_iter().map(PointType::from).collect();
         Self::new(points)
     }
 }
@@ -406,24 +415,139 @@ impl<PointType> From<geo_types::LineString<f64>> for GenericPolyline<PointType>
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::MultiLineString<f64>> for GenericPolyline<PointType>
     where
-        PointType: From<geo_types::Coordinate<f64>> + HasXY,
+        PointType: From<geo_types::Coordinate<f64>> + ShrinkablePoint + GrowablePoint + Copy
 {
     fn from(mls: geo_types::MultiLineString<f64>) -> Self {
-        let mut points = Vec::<PointType>::new();
-        let mut point_index: i32 = 0;
-        let mut parts = Vec::<i32>::new();
-        for line_string in mls {
-            parts.push(point_index);
-            for point in line_string {
-                points.push(point.into());
-            }
-            point_index += points.len() as i32;
+        let mut parts = Vec::<Vec<PointType>>::with_capacity(mls.0.len());
+        for linestring in mls.0.into_iter() {
+            parts.push(linestring.into_iter().map(PointType::from).collect());
         }
-        let bbox = BBox::from_points(&points);
-        Self {
-            bbox,
-            points,
-            parts,
-        }
+        Self::with_parts(parts)
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "Polylines parts must have at least 2 points")]
+    fn test_polyline_new_less_than_2_points() {
+        let _polyline = Polyline::new(vec![
+            Point::new(1.0, 1.0),
+        ]);
+    }
+
+    #[test]
+    #[should_panic(expected = "Polylines parts must have at least 2 points")]
+    fn test_polyline_with_parts_less_than_2_points() {
+        let _polyline = Polyline::with_parts(vec![
+            vec![
+                Point::new(1.0, 1.0),
+                Point::new(2.0, 2.0),
+            ],
+            vec![
+                Point::new(1.0, 1.0),
+            ]
+        ]);
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "geo-types")]
+mod test_geo_types_conversions {
+    use super::*;
+    use ::{PolylineM, PointM};
+    use NO_DATA;
+    use geo_types::{MultiLineString, LineString, Coordinate};
+
+    #[test]
+    fn test_polyline_into_multiline_string() {
+        let polyline_m = PolylineM::with_parts(vec![
+            vec![
+                PointM::new(1.0, 5.0, 0.0),
+                PointM::new(5.0, 5.0, NO_DATA),
+                PointM::new(5.0, 1.0, 3.0),
+            ],
+            vec![
+                PointM::new(1.0, 5.0, 0.0),
+                PointM::new(1.0, 1.0, 0.0),
+            ]
+        ]);
+
+        let multiline_string: MultiLineString<f64> = polyline_m.into();
+
+        let expected_multiline = geo_types::MultiLineString(vec![
+            LineString::<f64>(vec![
+                Coordinate { x: 1.0, y: 5.0 },
+                Coordinate { x: 5.0, y: 5.0 },
+                Coordinate { x: 5.0, y: 1.0 },
+            ]),
+            LineString::<f64>(vec![
+                Coordinate { x: 1.0, y: 5.0 },
+                Coordinate { x: 1.0, y: 1.0 },
+            ]),
+        ]);
+        assert_eq!(multiline_string, expected_multiline);
+    }
+
+    #[test]
+    fn test_line_into_polyline() {
+        let line = geo_types::Line::new(
+            Coordinate{x: 2.0, y: 3.0},
+            Coordinate{x: 6.0, y: -6.0}
+        );
+        let polyline: PolylineZ = line.into();
+
+        assert_eq!(polyline.parts, vec![vec![PointZ::new(2.0, 3.0, 0.0, NO_DATA), PointZ::new(6.0, -6.0, 0.0, NO_DATA)]]);
+    }
+
+    #[test]
+    fn test_linestring_into_polyline() {
+        let linestring = LineString::from(vec![
+            Coordinate { x: 1.0, y: 5.0 },
+            Coordinate { x: 5.0, y: 5.0 },
+            Coordinate { x: 5.0, y: 1.0 },
+        ]);
+
+        let polyline: Polyline = linestring.into();
+        assert_eq!(polyline.parts, vec![
+            vec![
+                Point::new(1.0, 5.0),
+                Point::new(5.0, 5.0),
+                Point::new(5.0, 1.0),
+            ]
+        ])
+    }
+
+    #[test]
+    fn test_multi_line_string_into_polyline() {
+        let multiline_string = geo_types::MultiLineString(vec![
+            LineString::<f64>(vec![
+                Coordinate { x: 1.0, y: 5.0 },
+                Coordinate { x: 5.0, y: 5.0 },
+                Coordinate { x: 5.0, y: 1.0 },
+            ]),
+            LineString::<f64>(vec![
+                Coordinate { x: 1.0, y: 5.0 },
+                Coordinate { x: 1.0, y: 1.0 },
+            ]),
+        ]);
+
+        let expected_polyline_z = PolylineZ::with_parts(vec![
+            vec![
+                PointZ::new(1.0, 5.0, 0.0, NO_DATA),
+                PointZ::new(5.0, 5.0, 0.0, NO_DATA),
+                PointZ::new(5.0, 1.0, 0.0, NO_DATA),
+            ],
+            vec![
+                PointZ::new(1.0, 5.0, 0.0, NO_DATA),
+                PointZ::new(1.0, 1.0, 0.0, NO_DATA),
+            ]
+        ]);
+
+        let polyline_z: PolylineZ = multiline_string.into();
+        assert_eq!(polyline_z, expected_polyline_z);
     }
 }
