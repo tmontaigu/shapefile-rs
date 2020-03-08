@@ -105,6 +105,7 @@ impl<PointType> PolygonRing<PointType> {
         }
     }
 
+    /// Consumes the ring and returns its points
     pub fn into_inner(self) -> Vec<PointType> {
         match self {
             PolygonRing::Outer(points) => points,
@@ -208,11 +209,10 @@ impl<PointType> GenericPolygon<PointType>
     /// [`PolygonRing`]: enum.PolygonRing.html
     pub fn new(mut ring: PolygonRing<PointType>) -> Self {
         ring.close_and_reorder();
-        Self::with_parts(vec![ring])
+        Self::with_rings(vec![ring])
     }
 }
 
-//TODO rename to with_rings
 impl<PointType> GenericPolygon<PointType>
     where PointType: GrowablePoint + ShrinkablePoint + PartialEq + HasXY + Copy
 {
@@ -226,7 +226,7 @@ impl<PointType> GenericPolygon<PointType>
     ///
     ///
     /// [`PolygonRing`]: enum.PolygonRing.html
-    pub fn with_parts(mut rings: Vec<PolygonRing<PointType>>) -> Self {
+    pub fn with_rings(mut rings: Vec<PolygonRing<PointType>>) -> Self {
         rings.iter_mut()
             .for_each(PolygonRing::close_and_reorder);
         let mut bbox = GenericBBox::<PointType>::from_points(rings[0].points());
@@ -243,24 +243,31 @@ impl<PointType> GenericPolygon<PointType>
 
 impl<PointType> GenericPolygon<PointType> {
     /// Returns the bounding box associated to the polygon
+    #[inline]
     pub fn bbox(&self) -> &GenericBBox<PointType> {
         &self.bbox
     }
 
     /// Returns the rings of the polygon
+    #[inline]
     pub fn rings(&self) -> &[PolygonRing<PointType>] {
         &self.rings
     }
 
+    /// Returns the ring
+    #[inline]
     pub fn ring(&self, index: usize) -> Option<&PolygonRing<PointType>> {
         self.rings.get(index)
     }
 
+    /// Consumes the shape and returns the rings
+    #[inline]
     pub fn into_inner(self) -> Vec<PolygonRing<PointType>> {
         self.rings
     }
 
     /// Returns the sum of points of all the rings
+    #[inline]
     pub fn total_point_count(&self) -> usize {
         self.rings.iter().map(|ring| ring.len()).sum()
     }
@@ -284,7 +291,8 @@ impl<PointType: HasXY> From<GenericPolyline<PointType>> for GenericPolygon<Point
 /*
  * Polygon
 */
-
+/// Specialization of the `GenericPolygon` struct to represent a `Polygon` shape
+/// ( collection of [Point](../point/struct.Point.html))
 pub type Polygon = GenericPolygon<Point>;
 
 impl fmt::Display for Polygon {
@@ -344,6 +352,8 @@ impl EsriShape for Polygon {
  * PolygonM
  */
 
+/// Specialization of the `GenericPolygon` struct to represent a `PolygonM` shape
+/// ( collection of [PointM](../point/struct.PointM.html))
 pub type PolygonM = GenericPolygon<PointM>;
 
 impl fmt::Display for PolygonM {
@@ -407,6 +417,8 @@ impl EsriShape for PolygonM {
  * PolygonZ
  */
 
+/// Specialization of the `GenericPolygon` struct to represent a `PolygonZ` shape
+/// ( collection of [PointZ](../point/struct.PointZ.html))
 pub type PolygonZ = GenericPolygon<PointZ>;
 
 impl fmt::Display for PolygonZ {
@@ -528,7 +540,7 @@ impl<PointType> From<geo_types::Polygon<f64>> for GenericPolygon<PointType>
         for inner in inners {
             rings.push(PolygonRing::Inner(inner.0.into_iter().map(PointType::from).collect()));
         }
-        Self::with_parts(rings)
+        Self::with_rings(rings)
     }
 }
 
@@ -544,7 +556,7 @@ impl<PointType> From<geo_types::MultiPolygon<f64>> for GenericPolygon<PointType>
                 .into_inner();
             all_rings.append(&mut rings);
         }
-        Self::with_parts(all_rings)
+        Self::with_rings(all_rings)
     }
 }
 

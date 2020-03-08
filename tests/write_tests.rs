@@ -61,7 +61,7 @@ fn multi_line() {
 
 #[test]
 fn polygon_inner() {
-    let point = Polygon::with_parts(vec![
+    let point = Polygon::with_rings(vec![
         PolygonRing::Outer(vec![
             Point::new(-120.0, 60.0),
             Point::new(120.0, 60.0),
@@ -96,7 +96,7 @@ fn polygon_inner() {
 /// incorrect order for a shapefile, so this test if we reorder points correctly
 #[test]
 fn polygon_inner_is_correctly_reordered() {
-    let point = Polygon::with_parts(vec![
+    let point = Polygon::with_rings(vec![
         PolygonRing::Outer(vec![
             Point::new(-120.0, 60.0),
             Point::new(-120.0, -60.0),

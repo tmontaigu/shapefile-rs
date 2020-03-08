@@ -288,7 +288,7 @@ impl RecordHeader {
 }
 
 /// Function that can converts a `Vec<Shape>` to a vector of any real struct
-/// (ie [Polyline](poly/type.Polyline.html), [Multipatch](multipatch/struct.Multipatch.html), etc)
+/// (ie [Polyline](polyline/type.Polyline.html), [Multipatch](multipatch/struct.Multipatch.html), etc)
 /// if all the `Shapes` in the `Vec` are of the correct corresponding variant.
 ///
 /// # Examples

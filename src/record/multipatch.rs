@@ -122,6 +122,29 @@ impl Multipatch {
         Self::with_parts(vec![patch])
     }
 
+    /// Creates a Multipatch with multiple patches
+    ///
+    /// Closes any patch part that is a ring
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use shapefile::{PointZ, Multipatch, NO_DATA, Patch};
+    /// let multipatch = Multipatch::with_parts(vec![
+    ///     Patch::OuterRing(vec![
+    ///         PointZ::new(0.0, 0.0, 0.0, NO_DATA),
+    ///         PointZ::new(0.0, 4.0, 0.0, NO_DATA),
+    ///         PointZ::new(4.0, 4.0, 0.0, NO_DATA),
+    ///         PointZ::new(4.0, 0.0, 0.0, NO_DATA),
+    ///     ]),
+    ///     Patch::InnerRing(vec![
+    ///         PointZ::new(0.0, 0.0, 0.0, NO_DATA),
+    ///         PointZ::new(0.0, 2.0, 0.0, NO_DATA),
+    ///         PointZ::new(2.0, 2.0, 0.0, NO_DATA),
+    ///         PointZ::new(2.0, 0.0, 0.0, NO_DATA),
+    ///     ])
+    /// ]);
+    /// ```
     pub fn with_parts(mut patches: Vec<Patch>) -> Self {
         for patch in patches.iter_mut() {
             match patch {
@@ -152,17 +175,31 @@ impl Multipatch {
         }
     }
 
-    pub fn patches(&self) -> &Vec<Patch> {
-        &self.patches
-    }
-    pub fn patch(&self, index: usize) -> Option<&Patch> {
-        self.patches.get(index)
-    }
-
+    /// Returns the bounding box of the points contained in this multipatch
+    #[inline]
     pub fn bbox(&self) -> &GenericBBox<PointZ> {
         &self.bbox
     }
 
+    /// Returns a reference to the patches of the Multipatch Shape
+    #[inline]
+    pub fn patches(&self) -> &Vec<Patch> {
+        &self.patches
+    }
+
+    /// Returns a reference to the patch at given index
+    #[inline]
+    pub fn patch(&self, index: usize) -> Option<&Patch> {
+        self.patches.get(index)
+    }
+
+    /// Consumes the shape and returns the patches
+    #[inline]
+    pub fn into_inner(self) -> Vec<Patch> {
+        self.patches
+    }
+
+    #[inline]
     pub fn total_point_count(&self) -> usize {
         self.patches.iter().map(|patch| patch.points().len()).sum()
     }

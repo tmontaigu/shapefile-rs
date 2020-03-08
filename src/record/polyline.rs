@@ -95,24 +95,39 @@ impl<PointType: ShrinkablePoint + GrowablePoint + Copy> GenericPolyline<PointTyp
 
 impl<PointType> GenericPolyline<PointType> {
     /// Returns the bounding box associated to the polyline
+    #[inline]
     pub fn bbox(&self) -> &GenericBBox<PointType> {
         &self.bbox
     }
 
+    /// Returns a reference to all the parts
+    #[inline]
     pub fn parts(&self) -> &Vec<Vec<PointType>> {
         &self.parts
     }
 
+    /// Returns a reference to a part
+    #[inline]
     pub fn part(&self, index: usize) -> Option<&Vec<PointType>> {
         self.parts.get(index)
     }
 
+    /// Consumes the polyline and returns the parts
+    #[inline]
+    pub fn into_inner(self) -> Vec<Vec<PointType>> {
+        self.parts
+    }
+
+    /// Returns the number of points contained in all the parts
+    #[inline]
     pub fn total_point_count(&self) -> usize {
         self.parts.iter().map(|part| part.len()).sum()
     }
 }
 
 
+/// Specialization of the `GenericPolyline` struct to represent a `Polyline` shape
+/// ( collection of [Point](../point/struct.Point.html))
 pub type Polyline = GenericPolyline<Point>;
 
 impl Polyline {
@@ -192,6 +207,8 @@ impl EsriShape for Polyline {
  * PolylineM
  */
 
+/// Specialization of the `GenericPolyline` struct to represent a `PolylineM` shape
+/// ( collection of [PointM](../point/struct.PointM.html))
 pub type PolylineM = GenericPolyline<PointM>;
 
 impl PolylineM {
@@ -277,6 +294,8 @@ impl EsriShape for PolylineM {
  * PolylineZ
  */
 
+/// Specialization of the `GenericPolyline` struct to represent a `PolylineZ` shape
+/// ( collection of [PointZ](../point/struct.PointZ.html))
 pub type PolylineZ = GenericPolyline<PointZ>;
 
 impl PolylineZ {

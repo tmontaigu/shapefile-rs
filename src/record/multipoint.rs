@@ -3,9 +3,6 @@
 //! All three variant of Multipoint Shape (Multipoint, MultipointM, MultipointZ)
 //! are specialization of the `GenericMultipoint`
 //!
-//! The `GenericMultipoint` Shape implements the [MultipointShape](../trait.MultipointShape.html) trait
-//! which means that to access the points of a multipoint you will have to use the
-//! [points](../trait.MultipointShape.html#method.points) method
 use std::fmt;
 use std::io::{Read, Write};
 use std::mem::size_of;
@@ -97,7 +94,6 @@ impl<PointType> GenericMultipoint<PointType> {
     ///
     /// # Example
     ///
-    ///
     /// ```
     /// use shapefile::{MultipointZ, PointZ, NO_DATA};
     /// let multipointz = MultipointZ::new(vec![
@@ -110,13 +106,40 @@ impl<PointType> GenericMultipoint<PointType> {
     /// assert_eq!(bbox.max.x, 2.0);
     /// assert_eq!(bbox.m_range(), [4.2, 13.37])
     /// ```
+    #[inline]
     pub fn bbox(&self) -> &GenericBBox<PointType> {
         &self.bbox
     }
 
     /// Returns a non-mutable slice of point
+    #[inline]
     pub fn points(&self) -> &[PointType] {
         &self.points
+    }
+
+    /// Returns a reference to a point
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use shapefile::{MultipointZ, PointZ};
+    /// let multipointz = MultipointZ::new(vec![
+    ///     PointZ::new(1.0, 4.0, 1.2, 4.2),
+    ///     PointZ::new(2.0, 6.0, 4.0, 13.37),
+    /// ]);
+    ///
+    /// assert_eq!(multipointz.point(0), Some(&PointZ::new(1.0, 4.0, 1.2, 4.2)));
+    /// assert_eq!(multipointz.point(2), None);
+    /// ```
+    #[inline]
+    pub fn point(&self, index: usize) -> Option<&PointType> {
+        self.points.get(index)
+    }
+
+    /// Consumes the shape, returning the points
+    #[inline]
+    pub fn into_inner(self) -> Vec<PointType> {
+        self.points
     }
 }
 
