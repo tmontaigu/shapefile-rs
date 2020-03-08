@@ -58,15 +58,15 @@ pub use reader::{read, read_as, Reader};
 pub use record::Multipatch;
 pub use record::{convert_shapes_to_vec_of, HasShapeType, ReadableShape};
 pub use record::{Multipoint, MultipointM, MultipointZ};
-pub use record::{Patch,  Shape, NO_DATA};
+pub use record::{Patch, Shape, NO_DATA};
 pub use record::{Point, PointM, PointZ};
-pub use record::{Polygon, PolygonM, PolygonZ, PolygonRing};
+pub use record::{Polygon, PolygonM, PolygonRing, PolygonZ};
 pub use record::{Polyline, PolylineM, PolylineZ};
 pub use writer::Writer;
 
+extern crate core;
 #[cfg(feature = "geo-types")]
 extern crate geo_types;
-extern crate core;
 
 /// All Errors that can happen when using this library
 #[derive(Debug)]

@@ -2,8 +2,7 @@ extern crate shapefile;
 
 mod testfiles;
 
-use shapefile::{Point, Polyline, Polygon, Writer, PolygonRing};
-
+use shapefile::{Point, Polygon, PolygonRing, Polyline, Writer};
 
 fn read_a_file(path: &str) -> std::io::Result<Vec<u8>> {
     use std::io::Read;

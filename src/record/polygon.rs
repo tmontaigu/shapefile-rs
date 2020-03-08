@@ -1,15 +1,18 @@
 //! Module with the definition of Polygon, PolygonM, PolygonZ
-use record::{RingType, ring_type_from_points_ordering, GenericBBox, ConcreteReadableShape, WritableShape, EsriShape, close_points_if_not_already};
-use record::traits::{GrowablePoint, ShrinkablePoint, HasXY};
-use std::io::{Write, Read};
-use record::io::MultiPartShapeWriter;
-use core::fmt;
-use ::{Point, HasShapeType};
-use ::{ShapeType, Error};
-use std::mem::size_of;
-use ::{PointM, PointZ};
 use super::{Polyline, PolylineM, PolylineZ};
+use core::fmt;
+use record::io::MultiPartShapeWriter;
 use record::polyline::GenericPolyline;
+use record::traits::{GrowablePoint, HasXY, ShrinkablePoint};
+use record::{
+    close_points_if_not_already, ring_type_from_points_ordering, ConcreteReadableShape, EsriShape,
+    GenericBBox, RingType, WritableShape,
+};
+use std::io::{Read, Write};
+use std::mem::size_of;
+use {Error, ShapeType};
+use {HasShapeType, Point};
+use {PointM, PointZ};
 
 #[cfg(feature = "geo-types")]
 use geo_types::{Coordinate, LineString};
@@ -62,7 +65,7 @@ pub enum PolygonRing<PointType> {
     /// The outer ring of a polygon.
     Outer(Vec<PointType>),
     /// Defines a hole in a polygon
-    Inner(Vec<PointType>)
+    Inner(Vec<PointType>),
 }
 
 impl<PointType> PolygonRing<PointType> {
@@ -121,9 +124,10 @@ impl<PointType> PolygonRing<PointType> {
     }
 }
 
-
 impl<PointType> PolygonRing<PointType>
-    where PointType: Copy + PartialEq + HasXY {
+where
+    PointType: Copy + PartialEq + HasXY,
+{
     fn close_and_reorder(&mut self) {
         self.close_if_not_already_closed();
         self.correctly_order_points();
@@ -137,8 +141,8 @@ impl<PointType> PolygonRing<PointType>
         let points = self.points_vec_mut();
         let actual_ring_type = super::ring_type_from_points_ordering(&points);
         match (self, actual_ring_type) {
-            (PolygonRing::Outer(points), RingType::InnerRing) |
-            (PolygonRing::Inner(points), RingType::OuterRing) => {
+            (PolygonRing::Outer(points), RingType::InnerRing)
+            | (PolygonRing::Inner(points), RingType::OuterRing) => {
                 points.reverse();
             }
             _ => {}
@@ -182,7 +186,8 @@ pub struct GenericPolygon<PointType> {
 }
 
 impl<PointType> GenericPolygon<PointType>
-    where PointType: ShrinkablePoint + GrowablePoint + PartialEq + HasXY + Copy
+where
+    PointType: ShrinkablePoint + GrowablePoint + PartialEq + HasXY + Copy,
 {
     /// Creates a polygon with only one ring
     ///
@@ -214,7 +219,8 @@ impl<PointType> GenericPolygon<PointType>
 }
 
 impl<PointType> GenericPolygon<PointType>
-    where PointType: GrowablePoint + ShrinkablePoint + PartialEq + HasXY + Copy
+where
+    PointType: GrowablePoint + ShrinkablePoint + PartialEq + HasXY + Copy,
 {
     /// Creates a polygon with multiple rings
     ///
@@ -227,19 +233,14 @@ impl<PointType> GenericPolygon<PointType>
     ///
     /// [`PolygonRing`]: enum.PolygonRing.html
     pub fn with_rings(mut rings: Vec<PolygonRing<PointType>>) -> Self {
-        rings.iter_mut()
-            .for_each(PolygonRing::close_and_reorder);
+        rings.iter_mut().for_each(PolygonRing::close_and_reorder);
         let mut bbox = GenericBBox::<PointType>::from_points(rings[0].points());
         for ring in &rings[1..] {
             bbox.grow_from_points(ring.points());
         }
-        Self {
-            bbox,
-            rings,
-        }
+        Self { bbox, rings }
     }
 }
-
 
 impl<PointType> GenericPolygon<PointType> {
     /// Returns the bounding box associated to the polygon
@@ -273,7 +274,6 @@ impl<PointType> GenericPolygon<PointType> {
     }
 }
 
-
 impl<PointType: HasXY> From<GenericPolyline<PointType>> for GenericPolygon<PointType> {
     fn from(polyline: GenericPolyline<PointType>) -> Self {
         let mut rings = Vec::<PolygonRing<PointType>>::with_capacity(polyline.parts.len());
@@ -287,7 +287,6 @@ impl<PointType: HasXY> From<GenericPolyline<PointType>> for GenericPolygon<Point
     }
 }
 
-
 /*
  * Polygon
 */
@@ -297,11 +296,7 @@ pub type Polygon = GenericPolygon<Point>;
 
 impl fmt::Display for Polygon {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Polygon({} rings)",
-            self.rings.len()
-        )
+        write!(f, "Polygon({} rings)", self.rings.len())
     }
 }
 
@@ -313,10 +308,8 @@ impl HasShapeType for Polygon {
 
 impl ConcreteReadableShape for Polygon {
     fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
-        Polyline::read_shape_content(source, record_size)
-            .map(Polygon::from)
+        Polyline::read_shape_content(source, record_size).map(Polygon::from)
     }
-
 }
 
 impl WritableShape for Polygon {
@@ -332,7 +325,7 @@ impl WritableShape for Polygon {
 
     fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         let parts_iter = self.rings().iter().map(|ring| ring.points());
-        let writer = MultiPartShapeWriter::new(&self.bbox,parts_iter, dest);
+        let writer = MultiPartShapeWriter::new(&self.bbox, parts_iter, dest);
         writer.write_point_shape()?;
         Ok(())
     }
@@ -358,11 +351,7 @@ pub type PolygonM = GenericPolygon<PointM>;
 
 impl fmt::Display for PolygonM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "PolygonM({} rings)",
-            self.rings.len()
-        )
+        write!(f, "PolygonM({} rings)", self.rings.len())
     }
 }
 
@@ -374,8 +363,7 @@ impl HasShapeType for PolygonM {
 
 impl ConcreteReadableShape for PolygonM {
     fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
-        PolylineM::read_shape_content(source, record_size)
-            .map(PolygonM::from)
+        PolylineM::read_shape_content(source, record_size).map(PolygonM::from)
     }
 }
 
@@ -423,11 +411,7 @@ pub type PolygonZ = GenericPolygon<PointZ>;
 
 impl fmt::Display for PolygonZ {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "PolygonZ({} rings)",
-            self.rings.len()
-        )
+        write!(f, "PolygonZ({} rings)", self.rings.len())
     }
 }
 
@@ -439,8 +423,7 @@ impl HasShapeType for PolygonZ {
 
 impl ConcreteReadableShape for PolygonZ {
     fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
-        PolylineZ::read_shape_content(source, record_size)
-            .map(PolygonZ::from)
+        PolylineZ::read_shape_content(source, record_size).map(PolygonZ::from)
     }
 }
 
@@ -483,12 +466,11 @@ impl EsriShape for PolygonZ {
     }
 }
 
-
 #[cfg(feature = "geo-types")]
 impl<PointType> From<GenericPolygon<PointType>> for geo_types::MultiPolygon<f64>
-    where
-        PointType: ShrinkablePoint + GrowablePoint + Copy,
-        geo_types::Coordinate<f64>: From<PointType>,
+where
+    PointType: ShrinkablePoint + GrowablePoint + Copy,
+    geo_types::Coordinate<f64>: From<PointType>,
 {
     fn from(p: GenericPolygon<PointType>) -> Self {
         let mut last_poly = None;
@@ -497,16 +479,20 @@ impl<PointType> From<GenericPolygon<PointType>> for geo_types::MultiPolygon<f64>
             match ring {
                 PolygonRing::Outer(points) => {
                     let exterior = points
-                        .into_iter().map(Coordinate::<f64>::from).collect::<Vec<Coordinate<f64>>>();
+                        .into_iter()
+                        .map(Coordinate::<f64>::from)
+                        .collect::<Vec<Coordinate<f64>>>();
 
                     if let Some(poly) = last_poly.take() {
                         polygons.push(poly);
                     }
                     last_poly = Some(geo_types::Polygon::new(LineString::from(exterior), vec![]))
-                },
+                }
                 PolygonRing::Inner(points) => {
                     let interior = points
-                        .into_iter().map(Coordinate::<f64>::from).collect::<Vec<Coordinate<f64>>>();
+                        .into_iter()
+                        .map(Coordinate::<f64>::from)
+                        .collect::<Vec<Coordinate<f64>>>();
 
                     if let Some(poly) = last_poly.as_mut() {
                         poly.interiors_push(interior);
@@ -514,9 +500,10 @@ impl<PointType> From<GenericPolygon<PointType>> for geo_types::MultiPolygon<f64>
                         // This is the strange (?) case: inner ring without a previous outer ring
                         polygons.push(geo_types::Polygon::<f64>::new(
                             LineString::<f64>::from(Vec::<Coordinate<f64>>::new()),
-                            vec![LineString::from(interior)]));
+                            vec![LineString::from(interior)],
+                        ));
                     }
-                },
+                }
             }
         }
         if let Some(poly) = last_poly.take() {
@@ -528,17 +515,25 @@ impl<PointType> From<GenericPolygon<PointType>> for geo_types::MultiPolygon<f64>
 
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::Polygon<f64>> for GenericPolygon<PointType>
-    where
-        PointType:  From<geo_types::Coordinate<f64>> + GrowablePoint + ShrinkablePoint + PartialEq + HasXY + Copy
+where
+    PointType: From<geo_types::Coordinate<f64>>
+        + GrowablePoint
+        + ShrinkablePoint
+        + PartialEq
+        + HasXY
+        + Copy,
 {
     fn from(polygon: geo_types::Polygon<f64>) -> Self {
         let (outer, inners) = polygon.into_inner();
         let mut rings = Vec::<PolygonRing<PointType>>::with_capacity(inners.len() + 1);
 
-
-        rings.push(PolygonRing::Outer(outer.0.into_iter().map(PointType::from).collect()));
+        rings.push(PolygonRing::Outer(
+            outer.0.into_iter().map(PointType::from).collect(),
+        ));
         for inner in inners {
-            rings.push(PolygonRing::Inner(inner.0.into_iter().map(PointType::from).collect()));
+            rings.push(PolygonRing::Inner(
+                inner.0.into_iter().map(PointType::from).collect(),
+            ));
         }
         Self::with_rings(rings)
     }
@@ -546,17 +541,21 @@ impl<PointType> From<geo_types::Polygon<f64>> for GenericPolygon<PointType>
 
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::MultiPolygon<f64>> for GenericPolygon<PointType>
-    where
-        PointType: HasXY + From<geo_types::Coordinate<f64>> + GrowablePoint + ShrinkablePoint + PartialEq + HasXY + Copy
+where
+    PointType: HasXY
+        + From<geo_types::Coordinate<f64>>
+        + GrowablePoint
+        + ShrinkablePoint
+        + PartialEq
+        + HasXY
+        + Copy,
 {
     fn from(multi_polygon: geo_types::MultiPolygon<f64>) -> Self {
         let mut all_rings = Vec::<PolygonRing<PointType>>::new();
         for polygon in multi_polygon {
-            let mut rings = GenericPolygon::<PointType>::from(polygon)
-                .into_inner();
+            let mut rings = GenericPolygon::<PointType>::from(polygon).into_inner();
             all_rings.append(&mut rings);
         }
         Self::with_rings(all_rings)
     }
 }
-

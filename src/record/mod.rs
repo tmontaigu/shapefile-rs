@@ -3,13 +3,13 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::fmt;
 use std::io::{Read, Write};
 
-pub(crate) mod io;
 pub mod bbox;
+pub(crate) mod io;
 pub mod multipatch;
 pub mod multipoint;
 pub mod point;
-pub mod polyline;
 pub mod polygon;
+pub mod polyline;
 pub mod traits;
 
 use super::{Error, ShapeType};
@@ -17,7 +17,7 @@ pub use record::bbox::{BBoxZ, GenericBBox};
 pub use record::multipatch::{Multipatch, Patch};
 pub use record::multipoint::{Multipoint, MultipointM, MultipointZ};
 pub use record::point::{Point, PointM, PointZ};
-pub use record::polygon::{Polygon, PolygonM, PolygonZ, PolygonRing};
+pub use record::polygon::{Polygon, PolygonM, PolygonRing, PolygonZ};
 pub use record::polyline::{Polyline, PolylineM, PolylineZ};
 use record::traits::HasXY;
 use std::convert::TryFrom;
@@ -89,7 +89,6 @@ pub trait EsriShape: HasShapeType + WritableShape {
         [0.0, 0.0]
     }
 }
-
 
 pub(crate) fn is_part_closed<PointType: PartialEq>(points: &[PointType]) -> bool {
     if let (Some(first), Some(last)) = (points.first(), points.last()) {
@@ -261,7 +260,6 @@ impl fmt::Display for Shape {
     }
 }
 
-
 /// Header of a shape record, present before any shape record
 pub(crate) struct RecordHeader {
     pub record_number: i32,
@@ -400,7 +398,6 @@ impl_to_way_conversion!(Shape::MultipointM <=> MultipointM);
 impl_to_way_conversion!(Shape::MultipointZ <=> MultipointZ);
 impl_to_way_conversion!(Shape::Multipatch <=> Multipatch);
 
-
 /// Tries to convert a shapefile's Shape into a geo_types::Geometry
 ///
 /// This conversion can fail because the conversion of shapefile's polygons & multipatch into
@@ -444,13 +441,11 @@ impl TryFrom<Shape> for geo_types::Geometry<f64> {
                 geo_types::MultiPoint::<f64>::from(multipoint),
             )),
             Shape::Multipatch(multipatch) => {
-                geo_types::MultiPolygon::<f64>::try_from(multipatch)
-                    .map(Geometry::MultiPolygon)
+                geo_types::MultiPolygon::<f64>::try_from(multipatch).map(Geometry::MultiPolygon)
             }
         }
     }
 }
-
 
 /// Converts a Geometry to a Shape
 ///
@@ -474,12 +469,12 @@ impl TryFrom<geo_types::Geometry<f64>> for Shape {
             geo_types::Geometry::MultiPolygon(multi_polygon) => {
                 Ok(Shape::Polygon(multi_polygon.into()))
             }
-            geo_types::Geometry::GeometryCollection(_) =>
-                Err("Cannot convert geo_types::GeometryCollection into a Shape"),
+            geo_types::Geometry::GeometryCollection(_) => {
+                Err("Cannot convert geo_types::GeometryCollection into a Shape")
+            }
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -7,7 +7,7 @@ use std::io::SeekFrom;
 
 mod testfiles;
 
-use shapefile::{Multipatch, Point, PointM, PointZ, Patch, PolygonRing};
+use shapefile::{Multipatch, Patch, Point, PointM, PointZ, PolygonRing};
 use shapefile::{Multipoint, MultipointZ};
 use shapefile::{Polygon, PolygonM, PolygonZ};
 use shapefile::{Polyline, PolylineM, PolylineZ};
@@ -175,7 +175,7 @@ fn check_linez<T: Read>(reader: shapefile::Reader<T>) {
             assert_eq!(shp.parts()[0], first_part.as_slice());
             assert_eq!(shp.parts()[1], second_part.as_slice());
             assert_eq!(shp.parts()[2], third_part.as_slice());
-            //assert_eq!(shp.z_range, [0.0, 22.0]);
+        //assert_eq!(shp.z_range, [0.0, 22.0]);
         //assert_eq!(shp.m_range, [0.0, 3.0]);
         } else {
             assert!(false, "The shape is not a PolylineZ");

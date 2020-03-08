@@ -9,12 +9,10 @@ pub trait HasXY {
     fn y(&self) -> f64;
 }
 
-
 /// Trait to access the m value of a point
 pub trait HasM {
     fn m(&self) -> f64;
 }
-
 
 /// Trait to access the z value of a point
 pub trait HasZ {
@@ -33,7 +31,6 @@ pub(crate) trait HasMutM {
 pub(crate) trait HasMutZ {
     fn z_mut(&mut self) -> &mut f64;
 }
-
 
 macro_rules! impl_has_xy_for {
     ($PointType:ty) => {

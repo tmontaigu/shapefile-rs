@@ -15,7 +15,6 @@ use std::fmt;
 #[cfg(feature = "geo-types")]
 use geo_types;
 
-
 /// Point with only `x` and `y` coordinates
 #[derive(PartialEq, Debug, Default, Copy, Clone)]
 pub struct Point {
@@ -91,7 +90,6 @@ impl fmt::Display for Point {
         write!(f, "Point(x: {}, y: {})", self.x, self.y)
     }
 }
-
 
 #[cfg(feature = "geo-types")]
 impl From<Point> for geo_types::Point<f64> {
@@ -227,7 +225,6 @@ impl Default for PointM {
         }
     }
 }
-
 
 #[cfg(feature = "geo-types")]
 impl From<PointM> for geo_types::Point<f64> {
@@ -389,7 +386,6 @@ impl fmt::Display for PointZ {
         }
     }
 }
-
 
 #[cfg(feature = "geo-types")]
 impl From<PointZ> for geo_types::Point<f64> {

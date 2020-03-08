@@ -48,8 +48,9 @@ impl<PointType> GenericBBox<PointType> {
     }
 
     pub(crate) fn grow_from_points(&mut self, points: &[PointType])
-        where
-            PointType: ShrinkablePoint + GrowablePoint {
+    where
+        PointType: ShrinkablePoint + GrowablePoint,
+    {
         for point in points {
             self.min.shrink(point);
             self.max.grow(point);
@@ -57,8 +58,9 @@ impl<PointType> GenericBBox<PointType> {
     }
 
     pub(crate) fn from_parts(parts: &Vec<Vec<PointType>>) -> Self
-        where
-            PointType: ShrinkablePoint + GrowablePoint + Copy {
+    where
+        PointType: ShrinkablePoint + GrowablePoint + Copy,
+    {
         let mut bbox = Self::from_points(&parts[0]);
         for part in &parts[1..] {
             bbox.grow_from_points(part);

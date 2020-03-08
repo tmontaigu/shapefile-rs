@@ -37,10 +37,7 @@ pub fn check_line_first_shape(shape: &shapefile::Shape) {
             Point { x: 3.0, y: 3.0 },
             Point { x: 1.0, y: 1.0 },
         ];
-        let second_part = vec![
-            Point { x: 3.0, y: 2.0 },
-            Point { x: 2.0, y: 6.0 },
-        ];
+        let second_part = vec![Point { x: 3.0, y: 2.0 }, Point { x: 2.0, y: 6.0 }];
         assert_eq!(shp.parts()[0], first_part.as_slice());
         assert_eq!(shp.parts()[1], second_part.as_slice());
     } else {

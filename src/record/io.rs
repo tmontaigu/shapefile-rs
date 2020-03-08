@@ -4,7 +4,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use record::traits::{HasM, HasMutM, HasMutXY, HasMutZ, HasXY, HasZ};
 use record::{GenericBBox, PointZ, NO_DATA};
-use ::{Point, PointM};
+use {Point, PointM};
 
 pub(crate) fn bbox_read_xy_from<PointType: HasMutXY, R: Read>(
     bbox: &mut GenericBBox<PointType>,
@@ -102,7 +102,6 @@ pub(crate) fn read_zs_into<T: Read>(
     Ok(())
 }
 
-
 pub(crate) fn read_parts<T: Read>(
     source: &mut T,
     num_parts: i32,
@@ -142,7 +141,6 @@ pub(crate) fn write_zs<T: Write>(dest: &mut T, points: &[PointZ]) -> Result<(), 
     Ok(())
 }
 
-
 struct PartIndexIter<'a> {
     parts_indices: &'a Vec<i32>,
     current_part_index: usize,
@@ -154,7 +152,7 @@ impl<'a> PartIndexIter<'a> {
         Self {
             parts_indices,
             current_part_index: 0,
-            num_points
+            num_points,
         }
     }
 }
@@ -165,8 +163,11 @@ impl<'a> Iterator for PartIndexIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_part_index < self.parts_indices.len() {
             let start_of_part_index = self.parts_indices[self.current_part_index];
-            let end_of_part_index = self.parts_indices
-                .get(self.current_part_index + 1).copied().unwrap_or(self.num_points);
+            let end_of_part_index = self
+                .parts_indices
+                .get(self.current_part_index + 1)
+                .copied()
+                .unwrap_or(self.num_points);
             self.current_part_index += 1;
             debug_assert!(end_of_part_index >= start_of_part_index);
             Some((start_of_part_index, end_of_part_index))
@@ -175,7 +176,6 @@ impl<'a> Iterator for PartIndexIter<'a> {
         }
     }
 }
-
 
 pub(crate) struct MultiPartShapeReader<'a, PointType, R: Read> {
     pub(crate) num_points: i32,
@@ -188,7 +188,7 @@ pub(crate) struct MultiPartShapeReader<'a, PointType, R: Read> {
 
 impl<'a, PointType: Default + HasMutXY, R: Read> MultiPartShapeReader<'a, PointType, R> {
     pub(crate) fn new(source: &'a mut R) -> std::io::Result<Self> {
-        let  mut bbox = GenericBBox::<PointType>::default();
+        let mut bbox = GenericBBox::<PointType>::default();
         bbox_read_xy_from(&mut bbox, source)?;
         let num_parts = source.read_i32::<LittleEndian>()?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -207,7 +207,8 @@ impl<'a, PointType: Default + HasMutXY, R: Read> MultiPartShapeReader<'a, PointT
     pub(crate) fn read_xy(mut self) -> std::io::Result<Self> {
         for (start_index, end_index) in PartIndexIter::new(&self.parts_array, self.num_points) {
             let num_points_in_part = end_index - start_index;
-            self.parts.push(read_xy_in_vec_of(self.source, num_points_in_part)?);
+            self.parts
+                .push(read_xy_in_vec_of(self.source, num_points_in_part)?);
         }
         Ok(self)
     }
@@ -241,19 +242,21 @@ impl<'a, R: Read> MultiPartShapeReader<'a, PointZ, R> {
     }
 }
 
-
 pub(crate) struct MultiPartShapeWriter<'a, PointType, T, W>
-where T: Iterator<Item=&'a [PointType]> + Clone,
-      W: Write {
+where
+    T: Iterator<Item = &'a [PointType]> + Clone,
+    W: Write,
+{
     pub(crate) dst: &'a mut W,
     parts_iter: T,
     bbox: &'a GenericBBox<PointType>,
 }
 
 impl<'a, PointType, T, W> MultiPartShapeWriter<'a, PointType, T, W>
-    where T: Iterator<Item=&'a [PointType]> + Clone,
-          W: Write {
-
+where
+    T: Iterator<Item = &'a [PointType]> + Clone,
+    W: Write,
+{
     pub(crate) fn new(bbox: &'a GenericBBox<PointType>, parts_iter: T, dst: &'a mut W) -> Self {
         Self {
             parts_iter,
@@ -285,9 +288,10 @@ impl<'a, PointType, T, W> MultiPartShapeWriter<'a, PointType, T, W>
 }
 
 impl<'a, PointType, T, W> MultiPartShapeWriter<'a, PointType, T, W>
-    where T: Iterator<Item=&'a [PointType]> + Clone,
-          W: Write,
-          PointType: HasXY
+where
+    T: Iterator<Item = &'a [PointType]> + Clone,
+    W: Write,
+    PointType: HasXY,
 {
     pub(crate) fn write_bbox_xy(self) -> std::io::Result<Self> {
         bbox_write_xy_to(&self.bbox, self.dst)?;
@@ -303,9 +307,10 @@ impl<'a, PointType, T, W> MultiPartShapeWriter<'a, PointType, T, W>
 }
 
 impl<'a, PointType, T, W> MultiPartShapeWriter<'a, PointType, T, W>
-    where T: Iterator<Item=&'a [PointType]> + Clone,
-          W: Write,
-          PointType: HasM
+where
+    T: Iterator<Item = &'a [PointType]> + Clone,
+    W: Write,
+    PointType: HasM,
 {
     pub(crate) fn write_bbox_m_range(self) -> std::io::Result<Self> {
         bbox_write_m_range_to(&self.bbox, self.dst)?;
@@ -321,9 +326,9 @@ impl<'a, PointType, T, W> MultiPartShapeWriter<'a, PointType, T, W>
 }
 
 impl<'a, T, W> MultiPartShapeWriter<'a, PointZ, T, W>
-    where T: Iterator<Item=&'a [PointZ]> + Clone,
-          W: Write
-
+where
+    T: Iterator<Item = &'a [PointZ]> + Clone,
+    W: Write,
 {
     pub(crate) fn write_bbox_z_range(self) -> std::io::Result<Self> {
         bbox_write_z_range_to(&self.bbox, self.dst)?;
@@ -339,9 +344,10 @@ impl<'a, T, W> MultiPartShapeWriter<'a, PointZ, T, W>
 }
 
 impl<'a, T, W> MultiPartShapeWriter<'a, Point, T, W>
-    where T: Iterator<Item=&'a [Point]> + Clone,
-          W: Write {
-
+where
+    T: Iterator<Item = &'a [Point]> + Clone,
+    W: Write,
+{
     pub(crate) fn write_point_shape(self) -> std::io::Result<Self> {
         self.write_bbox_xy()
             .and_then(|wrt| wrt.write_num_parts())
@@ -352,8 +358,10 @@ impl<'a, T, W> MultiPartShapeWriter<'a, Point, T, W>
 }
 
 impl<'a, T, W> MultiPartShapeWriter<'a, PointM, T, W>
-    where T: Iterator<Item=&'a [PointM]> + Clone,
-          W: Write {
+where
+    T: Iterator<Item = &'a [PointM]> + Clone,
+    W: Write,
+{
     pub(crate) fn write_point_m_shape(self) -> std::io::Result<Self> {
         self.write_bbox_xy()
             .and_then(|wrt| wrt.write_num_parts())
@@ -366,8 +374,10 @@ impl<'a, T, W> MultiPartShapeWriter<'a, PointM, T, W>
 }
 
 impl<'a, T, W> MultiPartShapeWriter<'a, PointZ, T, W>
-    where T: Iterator<Item=&'a [PointZ]> + Clone,
-          W: Write {
+where
+    T: Iterator<Item = &'a [PointZ]> + Clone,
+    W: Write,
+{
     pub(crate) fn write_point_z_shape(self) -> std::io::Result<Self> {
         self.write_bbox_xy()
             .and_then(|wrt| wrt.write_num_parts())
