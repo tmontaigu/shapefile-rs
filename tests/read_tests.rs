@@ -340,6 +340,7 @@ fn check_polygon<T: Read>(reader: shapefile::Reader<T>) {
         assert_eq!(shp.ring(0), Some(&first_part));
         assert_eq!(shp.ring(1), Some(&second_part));
         assert_eq!(shp.ring(2), Some(&third_part));
+        assert_eq!(shp.rings().len(), 3);
     } else {
         assert!(false, "The second shape is not a Polygon");
     }
@@ -386,6 +387,7 @@ fn check_polygonm<T: Read>(reader: shapefile::Reader<T>) {
             },
         ]);
         assert_eq!(shp.ring(0), Some(&first_ring));
+        assert_eq!(shp.rings().len(), 1);
     } else {
         assert!(false, "The second shape is not a PolygonZ");
     }
