@@ -84,6 +84,7 @@ impl<PointType> PolygonRing<PointType> {
     /// ]);
     /// assert_eq!(ring.len(), 5);
     /// ```
+    #[inline]
     pub fn len(&self) -> usize {
         self.points().len()
     }
@@ -101,6 +102,7 @@ impl<PointType> PolygonRing<PointType> {
     /// ]);
     /// assert_eq!(ring.points()[2], Point::new(12.0, -6.0));
     /// ```
+    #[inline]
     pub fn points(&self) -> &[PointType] {
         match self {
             PolygonRing::Outer(points) => &points,
@@ -109,6 +111,7 @@ impl<PointType> PolygonRing<PointType> {
     }
 
     /// Consumes the ring and returns its points
+    #[inline]
     pub fn into_inner(self) -> Vec<PointType> {
         match self {
             PolygonRing::Outer(points) => points,
@@ -116,11 +119,18 @@ impl<PointType> PolygonRing<PointType> {
         }
     }
 
+    #[inline]
     fn points_vec_mut(&mut self) -> &mut Vec<PointType> {
         match self {
             PolygonRing::Outer(points) => points,
             PolygonRing::Inner(points) => points,
         }
+    }
+}
+
+impl<PointType> AsRef<[PointType]> for PolygonRing<PointType> {
+    fn as_ref(&self) -> &[PointType] {
+        self.points()
     }
 }
 

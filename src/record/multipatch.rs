@@ -71,6 +71,8 @@ pub enum Patch {
 }
 
 impl Patch {
+    /// Returns the slice of points contained within the patch
+    #[inline]
     pub fn points(&self) -> &[PointZ] {
         match self {
             Patch::TriangleStrip(points) => points,
@@ -80,6 +82,12 @@ impl Patch {
             Patch::FirstRing(points) => points,
             Patch::Ring(points) => points,
         }
+    }
+}
+
+impl AsRef<[PointZ]> for Patch {
+    fn as_ref(&self) -> &[PointZ] {
+        self.points()
     }
 }
 
@@ -211,6 +219,7 @@ impl Multipatch {
         size
     }
 }
+
 
 impl fmt::Display for Multipatch {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
