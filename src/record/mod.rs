@@ -4,22 +4,22 @@ use std::fmt;
 use std::io::{Read, Write};
 
 pub mod bbox;
-pub mod io;
+pub(crate) mod io;
 pub mod multipatch;
 pub mod multipoint;
 pub mod point;
-pub mod poly;
+pub mod polygon;
+pub mod polyline;
 pub mod traits;
 
 use super::{Error, ShapeType};
 pub use record::bbox::{BBoxZ, GenericBBox};
-pub use record::multipatch::{Multipatch, PatchType};
+pub use record::multipatch::{Multipatch, Patch};
 pub use record::multipoint::{Multipoint, MultipointM, MultipointZ};
 pub use record::point::{Point, PointM, PointZ};
-pub use record::poly::{Polygon, PolygonM, PolygonZ};
-pub use record::poly::{Polyline, PolylineM, PolylineZ};
+pub use record::polygon::{Polygon, PolygonM, PolygonRing, PolygonZ};
+pub use record::polyline::{Polyline, PolylineM, PolylineZ};
 use record::traits::HasXY;
-pub use record::traits::{MultipartShape, MultipointShape};
 use std::convert::TryFrom;
 
 #[cfg(feature = "geo-types")]
@@ -74,7 +74,7 @@ pub trait WritableShape {
     fn size_in_bytes(&self) -> usize;
 
     /// Writes the shape to the dest
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error>;
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error>;
 }
 
 pub trait EsriShape: HasShapeType + WritableShape {
@@ -90,30 +90,9 @@ pub trait EsriShape: HasShapeType + WritableShape {
     }
 }
 
-/// Validate the `parts array` of the any `MultipartShape`.
-///
-/// Requirements for a parts array to be valid are
-///
-/// 1) at least one part
-/// 2) indices must be in range [0, num_points[
-pub(crate) fn is_parts_array_valid<PointType, ST: MultipartShape<PointType>>(shape: &ST) -> bool {
-    if shape.parts_indices().is_empty() {
-        return false;
-    }
-    let num_points = shape.points().len() as i32;
-    shape
-        .parts_indices()
-        .iter()
-        .all(|p| (*p >= 0) & (*p < num_points))
-}
-
-pub(crate) fn is_part_closed<PointType: PartialEq>(points: &Vec<PointType>) -> bool {
+pub(crate) fn is_part_closed<PointType: PartialEq>(points: &[PointType]) -> bool {
     if let (Some(first), Some(last)) = (points.first(), points.last()) {
-        if first == last {
-            true
-        } else {
-            false
-        }
+        first == last
     } else {
         false
     }
@@ -123,10 +102,8 @@ pub(crate) fn close_points_if_not_already<PointType: PartialEq + Copy>(
     points: &mut Vec<PointType>,
 ) {
     if !is_part_closed(points) {
-        let maybe_first = points.first().cloned();
-        if maybe_first.is_some() {
-            let first: PointType = maybe_first.unwrap();
-            points.push(first);
+        if let Some(point) = points.first().copied() {
+            points.push(point)
         }
     }
 }
@@ -283,84 +260,6 @@ impl fmt::Display for Shape {
     }
 }
 
-/// Tries to convert a shapefile's Shape into a geo_types::Geometry
-///
-/// This conversion can fail because the conversion of shapefile's polygons & multipatch into
-/// their geo_types counter parts can fail. And the NullShape has no equivalent Geometry;
-#[cfg(feature = "geo-types")]
-impl TryFrom<Shape> for geo_types::Geometry<f64> {
-    type Error = Error;
-
-    fn try_from(shape: Shape) -> Result<Self, Self::Error> {
-        use geo_types::Geometry;
-        match shape {
-            Shape::NullShape => Err(Error::NullShapeConversion),
-            Shape::Point(point) => Ok(Geometry::Point(geo_types::Point::from(point))),
-            Shape::PointM(point) => Ok(Geometry::Point(geo_types::Point::from(point))),
-            Shape::PointZ(point) => Ok(Geometry::Point(geo_types::Point::from(point))),
-            Shape::Polyline(polyline) => Ok(Geometry::MultiLineString(
-                geo_types::MultiLineString::<f64>::from(polyline),
-            )),
-            Shape::PolylineM(polyline) => Ok(Geometry::MultiLineString(
-                geo_types::MultiLineString::<f64>::from(polyline),
-            )),
-            Shape::PolylineZ(polyline) => Ok(Geometry::MultiLineString(
-                geo_types::MultiLineString::<f64>::from(polyline),
-            )),
-            Shape::Polygon(polygon) => Ok(Geometry::MultiPolygon(
-                geo_types::MultiPolygon::<f64>::try_from(polygon)?,
-            )),
-            Shape::PolygonM(polygon) => Ok(Geometry::MultiPolygon(
-                geo_types::MultiPolygon::<f64>::try_from(polygon)?,
-            )),
-            Shape::PolygonZ(polygon) => Ok(Geometry::MultiPolygon(
-                geo_types::MultiPolygon::<f64>::try_from(polygon)?,
-            )),
-            Shape::Multipoint(multipoint) => Ok(Geometry::MultiPoint(
-                geo_types::MultiPoint::<f64>::from(multipoint),
-            )),
-            Shape::MultipointM(multipoint) => Ok(Geometry::MultiPoint(
-                geo_types::MultiPoint::<f64>::from(multipoint),
-            )),
-            Shape::MultipointZ(multipoint) => Ok(Geometry::MultiPoint(
-                geo_types::MultiPoint::<f64>::from(multipoint),
-            )),
-            Shape::Multipatch(multipatch) => {
-                Ok(Geometry::MultiPolygon(
-                    geo_types::MultiPolygon::<f64>::try_from(multipatch)?,
-                ))
-            }
-        }
-    }
-}
-
-/// Converts a Geometry to a Shape
-///
-/// Since all Geometries are in 2D, the resulting shape will be 2D
-/// (Polygon, Polyline, etc and not PolylineM, PolylineZ, etc)
-///
-/// Fails if the geometry is a GeometryCollection
-#[cfg(feature = "geo-types")]
-impl TryFrom<geo_types::Geometry<f64>> for Shape {
-    type Error = Error;
-    fn try_from(geometry: geo_types::Geometry<f64>) -> Result<Self, Self::Error> {
-        match geometry {
-            geo_types::Geometry::Point(point) => Ok(Shape::Point(point.into())),
-            geo_types::Geometry::Line(line) => Ok(Shape::Polyline(line.into())),
-            geo_types::Geometry::LineString(polyline) => Ok(Shape::Polyline(polyline.into())),
-            geo_types::Geometry::Polygon(polygon) => Ok(Shape::Polygon(polygon.into())),
-            geo_types::Geometry::MultiPoint(multipoint) => Ok(Shape::Multipoint(multipoint.into())),
-            geo_types::Geometry::MultiLineString(multi_linestring) => {
-                Ok(Shape::Polyline(multi_linestring.into()))
-            }
-            geo_types::Geometry::MultiPolygon(multi_polygon) => {
-                Ok(Shape::Polygon(multi_polygon.into()))
-            }
-            geo_types::Geometry::GeometryCollection(_) => Err(Error::GeometryCollectionConversion),
-        }
-    }
-}
-
 /// Header of a shape record, present before any shape record
 pub(crate) struct RecordHeader {
     pub record_number: i32,
@@ -387,7 +286,7 @@ impl RecordHeader {
 }
 
 /// Function that can converts a `Vec<Shape>` to a vector of any real struct
-/// (ie [Polyline](poly/type.Polyline.html), [Multipatch](multipatch/struct.Multipatch.html), etc)
+/// (ie [Polyline](polyline/type.Polyline.html), [Multipatch](multipatch/struct.Multipatch.html), etc)
 /// if all the `Shapes` in the `Vec` are of the correct corresponding variant.
 ///
 /// # Examples
@@ -498,6 +397,84 @@ impl_to_way_conversion!(Shape::Multipoint <=> Multipoint);
 impl_to_way_conversion!(Shape::MultipointM <=> MultipointM);
 impl_to_way_conversion!(Shape::MultipointZ <=> MultipointZ);
 impl_to_way_conversion!(Shape::Multipatch <=> Multipatch);
+
+/// Tries to convert a shapefile's Shape into a geo_types::Geometry
+///
+/// This conversion can fail because the conversion of shapefile's polygons & multipatch into
+/// their geo_types counter parts can fail. And the NullShape has no equivalent Geometry;
+#[cfg(feature = "geo-types")]
+impl TryFrom<Shape> for geo_types::Geometry<f64> {
+    type Error = &'static str;
+
+    fn try_from(shape: Shape) -> Result<Self, Self::Error> {
+        use geo_types::Geometry;
+        match shape {
+            Shape::NullShape => Err("Cannot convert NullShape into any geo_types Geometry"),
+            Shape::Point(point) => Ok(Geometry::Point(geo_types::Point::from(point))),
+            Shape::PointM(point) => Ok(Geometry::Point(geo_types::Point::from(point))),
+            Shape::PointZ(point) => Ok(Geometry::Point(geo_types::Point::from(point))),
+            Shape::Polyline(polyline) => Ok(Geometry::MultiLineString(
+                geo_types::MultiLineString::<f64>::from(polyline),
+            )),
+            Shape::PolylineM(polyline) => Ok(Geometry::MultiLineString(
+                geo_types::MultiLineString::<f64>::from(polyline),
+            )),
+            Shape::PolylineZ(polyline) => Ok(Geometry::MultiLineString(
+                geo_types::MultiLineString::<f64>::from(polyline),
+            )),
+            Shape::Polygon(polygon) => Ok(Geometry::MultiPolygon(
+                geo_types::MultiPolygon::<f64>::from(polygon),
+            )),
+            Shape::PolygonM(polygon) => Ok(Geometry::MultiPolygon(
+                geo_types::MultiPolygon::<f64>::from(polygon),
+            )),
+            Shape::PolygonZ(polygon) => Ok(Geometry::MultiPolygon(
+                geo_types::MultiPolygon::<f64>::from(polygon),
+            )),
+            Shape::Multipoint(multipoint) => Ok(Geometry::MultiPoint(
+                geo_types::MultiPoint::<f64>::from(multipoint),
+            )),
+            Shape::MultipointM(multipoint) => Ok(Geometry::MultiPoint(
+                geo_types::MultiPoint::<f64>::from(multipoint),
+            )),
+            Shape::MultipointZ(multipoint) => Ok(Geometry::MultiPoint(
+                geo_types::MultiPoint::<f64>::from(multipoint),
+            )),
+            Shape::Multipatch(multipatch) => {
+                geo_types::MultiPolygon::<f64>::try_from(multipatch).map(Geometry::MultiPolygon)
+            }
+        }
+    }
+}
+
+/// Converts a Geometry to a Shape
+///
+/// Since all Geometries are in 2D, the resulting shape will be 2D
+/// (Polygon, Polyline, etc and not PolylineM, PolylineZ, etc)
+///
+/// Fails if the geometry is a GeometryCollection
+#[cfg(feature = "geo-types")]
+impl TryFrom<geo_types::Geometry<f64>> for Shape {
+    type Error = &'static str;
+    fn try_from(geometry: geo_types::Geometry<f64>) -> Result<Self, Self::Error> {
+        match geometry {
+            geo_types::Geometry::Point(point) => Ok(Shape::Point(point.into())),
+            geo_types::Geometry::Line(line) => Ok(Shape::Polyline(line.into())),
+            geo_types::Geometry::LineString(polyline) => Ok(Shape::Polyline(polyline.into())),
+            geo_types::Geometry::Polygon(polygon) => Ok(Shape::Polygon(polygon.into())),
+            geo_types::Geometry::MultiPoint(multipoint) => Ok(Shape::Multipoint(multipoint.into())),
+            geo_types::Geometry::MultiLineString(multi_linestring) => {
+                Ok(Shape::Polyline(multi_linestring.into()))
+            }
+            geo_types::Geometry::MultiPolygon(multi_polygon) => {
+                Ok(Shape::Polygon(multi_polygon.into()))
+            }
+            geo_types::Geometry::GeometryCollection(_) => {
+                Err("Cannot convert geo_types::GeometryCollection into a Shape")
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

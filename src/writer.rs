@@ -78,7 +78,7 @@ impl<T: Write> Writer<T> {
     /// let mut writer = shapefile::Writer::from_path("points.shp").unwrap();
     /// let points = vec![Point::new(0.0, 0.0), Point::new(1.0, 0.0), Point::new(2.0, 0.0)];
     ///
-    /// writer.write_shapes(points).unwrap();
+    /// writer.write_shapes(&points).unwrap();
     /// ```
     ///
     /// ```
@@ -87,11 +87,11 @@ impl<T: Write> Writer<T> {
     /// let points = vec![Point::new(0.0, 0.0), Point::new(1.0, 0.0), Point::new(2.0, 0.0)];
     /// let polyline = Polyline::new(points);
     ///
-    /// writer.write_shapes(vec![polyline]).unwrap();
+    /// writer.write_shapes(&vec![polyline]).unwrap();
     /// ```
-    pub fn write_shapes<S: EsriShape>(&mut self, shapes: Vec<S>) -> Result<(), Error> {
+    pub fn write_shapes<S: EsriShape>(&mut self, shapes: &[S]) -> Result<(), Error> {
         let mut file_length = header::HEADER_SIZE as usize;
-        for shape in &shapes {
+        for shape in shapes {
             file_length += 2 * std::mem::size_of::<i32>(); // record_header
             file_length += std::mem::size_of::<i32>(); // shape_type
             file_length += shape.size_in_bytes();
@@ -103,7 +103,7 @@ impl<T: Write> Writer<T> {
         let file_length = file_length as i32;
         let shapetype = S::shapetype();
         let header = header::Header {
-            bbox: BBoxZ::from_shapes(&shapes),
+            bbox: BBoxZ::from_shapes(shapes),
             file_length,
             shape_type: shapetype,
             version: 1000,
@@ -112,7 +112,7 @@ impl<T: Write> Writer<T> {
         let mut pos = header::HEADER_SIZE / 2;
         header.write_to(&mut self.dest)?;
         let mut shapes_index = Vec::<ShapeIndex>::with_capacity(shapes.len());
-        for (i, shape) in (1..).zip(shapes.into_iter()) {
+        for (i, shape) in (1..).zip(shapes) {
             //TODO Check record size < i32_max ?
             let record_size = (shape.size_in_bytes() + std::mem::size_of::<i32>()) / 2;
             let rc_hdr = RecordHeader {
@@ -140,13 +140,13 @@ impl<T: Write> Writer<T> {
 
     pub fn write_shapes_and_records<S: EsriShape>(
         mut self,
-        shapes: Vec<S>,
+        shapes: &[S],
         records: Vec<dbase::Record>,
     ) -> Result<(), Error> {
         if shapes.len() != records.len() {
             panic!("The shapes and records vectors must have the same len");
         }
-        self.write_shapes(shapes)?;
+        self.write_shapes(&shapes)?;
         if let Some(dbase_dest) = self.dbase_dest {
             let dbase_writer = dbase::Writer::new(dbase_dest);
             dbase_writer.write(&records)?;

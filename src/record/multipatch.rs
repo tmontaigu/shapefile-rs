@@ -4,12 +4,10 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::fmt;
 use std::io::{Read, Write};
 use std::mem::size_of;
-use std::slice::SliceIndex;
 
 use record::io::*;
-use record::traits::{MultipartShape, MultipointShape};
 use record::ConcreteReadableShape;
-use record::{close_points_if_not_already, is_parts_array_valid, GenericBBox};
+use record::{close_points_if_not_already, GenericBBox};
 use record::{EsriShape, HasShapeType, Point, PointZ, WritableShape};
 use {Error, ShapeType};
 
@@ -19,7 +17,7 @@ use geo_types;
 use std::convert::TryFrom;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum PatchType {
+enum PatchType {
     TriangleStrip,
     TriangleFan,
     OuterRing,
@@ -47,93 +45,160 @@ impl PatchType {
     }
 }
 
-/// Following things are important with Multipatch shape:
+#[derive(Debug, Clone, PartialEq)]
+pub enum Patch {
+    /// A linked strip of triangles, where every vertex
+    /// (after the first two)completes a new triangle.
+    ///
+    /// A new triangle is always formed by connecting
+    /// the new vertex with its two immediate predecessors
+    TriangleStrip(Vec<PointZ>),
+    /// A linked fan of triangles,
+    /// where every vertex (after the first two) completes a new triangle.
+    ///
+    ///  A new triangle is always formed by connecting
+    /// the new vertex with its immediate predecessor
+    /// and the first vertex of the part.
+    TriangleFan(Vec<PointZ>),
+    /// The outer ring of a polygon.
+    OuterRing(Vec<PointZ>),
+    /// A hole of a polygon
+    InnerRing(Vec<PointZ>),
+    /// The first ring of a polygon of an unspecified type
+    FirstRing(Vec<PointZ>),
+    /// A ring of a polygon of an unspecified type
+    Ring(Vec<PointZ>),
+}
+
+impl Patch {
+    /// Returns the slice of points contained within the patch
+    #[inline]
+    pub fn points(&self) -> &[PointZ] {
+        match self {
+            Patch::TriangleStrip(points) => points,
+            Patch::TriangleFan(points) => points,
+            Patch::OuterRing(points) => points,
+            Patch::InnerRing(points) => points,
+            Patch::FirstRing(points) => points,
+            Patch::Ring(points) => points,
+        }
+    }
+}
+
+impl AsRef<[PointZ]> for Patch {
+    fn as_ref(&self) -> &[PointZ] {
+        self.points()
+    }
+}
+
+// TODO all the checks described at page 24/34
+/// Shapefile's Multipatch shape (p 24/34)
+///
+/// The following things are important with Multipatch shape:
 /// 1) Ring types must be closed
-/// 2) InnerRings must follow their OuterRings
-/// 3) Parts must not intersects or penetrate each others
+///    **(the various constructors will close the rings if you did not close them yourself)**
+/// 2) InnerRings must follow their OuterRings (**this is not checked**)
+/// 3) Parts must not intersects or penetrate each others (**this is not checked**)
+/// 4) The points organization of [`TriangleStrip`] and [`TriangleFan`] is **not checked**
+///
+/// [`TriangleStrip`]: enum.Patch.html#variant.TriangleStrip
+/// [`TriangleFan`]: enum.Patch.html#variant.TriangleFan
 #[derive(Debug, PartialEq, Clone)]
 pub struct Multipatch {
     bbox: GenericBBox<PointZ>,
-    points: Vec<PointZ>,
-    parts: Vec<i32>,
-    parts_type: Vec<PatchType>,
+    patches: Vec<Patch>,
 }
 
 impl Multipatch {
+    /// Creates a Multipatch with one patch
+    ///
+    /// The constructor closes rings patch
+    ///
     /// # Examples
     ///
-    /// Creating a Multipatch with one outer ring,
-    /// The constructor closes rings
     /// ```
-    /// use shapefile::{PointZ, Multipatch, NO_DATA, PatchType};
+    /// use shapefile::{PointZ, Multipatch, NO_DATA, Patch};
     /// let points = vec![
     ///     PointZ::new(0.0, 0.0, 0.0, NO_DATA),
     ///     PointZ::new(0.0, 1.0, 0.0, NO_DATA),
+    ///     PointZ::new(1.0, 1.0, 0.0, NO_DATA),
     ///     PointZ::new(1.0, 0.0, 0.0, NO_DATA),
     /// ];
-    /// let multip = Multipatch::new(points, PatchType::OuterRing);
+    /// let multip = Multipatch::new(Patch::OuterRing(points));
     /// ```
+    pub fn new(patch: Patch) -> Self {
+        Self::with_parts(vec![patch])
+    }
+
+    /// Creates a Multipatch with multiple patches
     ///
-    pub fn new(mut points: Vec<PointZ>, part_type: PatchType) -> Self {
-        match part_type {
-            PatchType::OuterRing | PatchType::InnerRing | PatchType::FirstRing => {
-                close_points_if_not_already(&mut points);
+    /// Closes any patch part that is a ring
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use shapefile::{PointZ, Multipatch, NO_DATA, Patch};
+    /// let multipatch = Multipatch::with_parts(vec![
+    ///     Patch::OuterRing(vec![
+    ///         PointZ::new(0.0, 0.0, 0.0, NO_DATA),
+    ///         PointZ::new(0.0, 4.0, 0.0, NO_DATA),
+    ///         PointZ::new(4.0, 4.0, 0.0, NO_DATA),
+    ///         PointZ::new(4.0, 0.0, 0.0, NO_DATA),
+    ///     ]),
+    ///     Patch::InnerRing(vec![
+    ///         PointZ::new(0.0, 0.0, 0.0, NO_DATA),
+    ///         PointZ::new(0.0, 2.0, 0.0, NO_DATA),
+    ///         PointZ::new(2.0, 2.0, 0.0, NO_DATA),
+    ///         PointZ::new(2.0, 0.0, 0.0, NO_DATA),
+    ///     ])
+    /// ]);
+    /// ```
+    pub fn with_parts(mut patches: Vec<Patch>) -> Self {
+        for patch in patches.iter_mut() {
+            match patch {
+                Patch::TriangleStrip(_) => {}
+                Patch::TriangleFan(_) => {}
+                Patch::OuterRing(points) => close_points_if_not_already(points),
+                Patch::InnerRing(points) => close_points_if_not_already(points),
+                Patch::FirstRing(points) => close_points_if_not_already(points),
+                Patch::Ring(points) => close_points_if_not_already(points),
             }
-            _ => {}
         }
-        let bbox = GenericBBox::<PointZ>::from_points(&points);
-        Self {
-            bbox,
-            points,
-            parts: vec![0],
-            parts_type: vec![part_type],
+        let mut bbox = GenericBBox::<PointZ>::from_points(patches[0].points());
+        for patch in &patches[1..] {
+            bbox.grow_from_points(patch.points());
         }
+
+        Self { bbox, patches }
     }
 
-    pub fn with_parts(parts_points: Vec<(Vec<PointZ>, PatchType)>) -> Self {
-        let num_parts = parts_points.len();
-        let num_points = parts_points.iter().map(|pts| pts.0.len()).sum();
-
-        let mut all_points = Vec::<PointZ>::with_capacity(num_points);
-        let mut parts = Vec::<i32>::with_capacity(num_parts);
-        let mut parts_type = Vec::<PatchType>::with_capacity(num_parts);
-
-        for (mut points, patch_type) in parts_points.into_iter() {
-            parts.push(all_points.len() as i32);
-            match patch_type {
-                PatchType::OuterRing | PatchType::InnerRing | PatchType::FirstRing => {
-                    close_points_if_not_already(&mut points);
-                }
-                _ => {}
-            }
-            all_points.append(&mut points);
-            parts_type.push(patch_type);
-        }
-
-        let bbox = GenericBBox::<PointZ>::from_points(&all_points);
-        Self {
-            bbox,
-            points: all_points,
-            parts,
-            parts_type,
-        }
-    }
-
-    pub fn empty() -> Self {
-        Self {
-            bbox: GenericBBox::<PointZ>::default(),
-            points: vec![],
-            parts: vec![],
-            parts_type: vec![],
-        }
-    }
-
-    pub fn part_types(&self) -> &[PatchType] {
-        &self.parts_type
-    }
-
+    /// Returns the bounding box of the points contained in this multipatch
+    #[inline]
     pub fn bbox(&self) -> &GenericBBox<PointZ> {
         &self.bbox
+    }
+
+    /// Returns a reference to the patches of the Multipatch Shape
+    #[inline]
+    pub fn patches(&self) -> &Vec<Patch> {
+        &self.patches
+    }
+
+    /// Returns a reference to the patch at given index
+    #[inline]
+    pub fn patch(&self, index: usize) -> Option<&Patch> {
+        self.patches.get(index)
+    }
+
+    /// Consumes the shape and returns the patches
+    #[inline]
+    pub fn into_inner(self) -> Vec<Patch> {
+        self.patches
+    }
+
+    #[inline]
+    pub fn total_point_count(&self) -> usize {
+        self.patches.iter().map(|patch| patch.points().len()).sum()
     }
 
     pub(crate) fn size_of_record(num_points: i32, num_parts: i32, is_m_used: bool) -> usize {
@@ -155,32 +220,10 @@ impl Multipatch {
     }
 }
 
+
 impl fmt::Display for Multipatch {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Multipatch({} points, {} parts)",
-            self.points.len(),
-            self.parts.len()
-        )
-    }
-}
-
-impl MultipointShape<PointZ> for Multipatch {
-    fn point<I: SliceIndex<[PointZ]>>(
-        &self,
-        index: I,
-    ) -> Option<&<I as SliceIndex<[PointZ]>>::Output> {
-        self.points.get(index)
-    }
-    fn points(&self) -> &[PointZ] {
-        &self.points
-    }
-}
-
-impl MultipartShape<PointZ> for Multipatch {
-    fn parts_indices(&self) -> &[i32] {
-        &self.parts
+        write!(f, "Multipatch({} patches)", self.patches.len())
     }
 }
 
@@ -191,47 +234,42 @@ impl HasShapeType for Multipatch {
 }
 
 impl ConcreteReadableShape for Multipatch {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
-        let mut bbox = GenericBBox::<PointZ>::default();
-        bbox_read_xy_from(&mut bbox, source)?;
-        let num_parts = source.read_i32::<LittleEndian>()?;
-        let num_points = source.read_i32::<LittleEndian>()?;
+    fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
+        let reader = MultiPartShapeReader::<PointZ, T>::new(source)?;
 
-        let record_size_with_m = Self::size_of_record(num_points, num_parts, true) as i32;
-        let record_size_without_m = Self::size_of_record(num_points, num_parts, false) as i32;
+        let record_size_with_m =
+            Self::size_of_record(reader.num_points, reader.num_parts, true) as i32;
+        let record_size_without_m =
+            Self::size_of_record(reader.num_points, reader.num_parts, false) as i32;
 
         if (record_size != record_size_with_m) & (record_size != record_size_without_m) {
-            return Err(Error::InvalidShapeRecordSize);
-        }
-
-        let is_m_used = record_size == record_size_with_m;
-
-        let parts = read_parts(&mut source, num_parts)?;
-
-        let mut parts_type = Vec::<PatchType>::with_capacity(num_parts as usize);
-        for _ in 0..num_parts {
-            let code = source.read_i32::<LittleEndian>()?;
-            match PatchType::from(code) {
-                Some(t) => parts_type.push(t),
-                None => return Err(Error::InvalidPatchType(code)),
+            Err(Error::InvalidShapeRecordSize)
+        } else {
+            let mut patch_types = vec![PatchType::Ring; reader.num_parts as usize];
+            let mut patches = Vec::<Patch>::with_capacity(reader.num_parts as usize);
+            for i in 0..reader.num_parts {
+                patch_types[i as usize] = PatchType::read_from(reader.source)?;
             }
+            let (bbox, patches_points) = reader
+                .read_xy()
+                .and_then(|rdr| rdr.read_zs())
+                .and_then(|rdr| rdr.read_ms_if(record_size == record_size_with_m))
+                .map_err(Error::IoError)
+                .map(|rdr| (rdr.bbox, rdr.parts))?;
+
+            for (patch_type, points) in patch_types.iter().zip(patches_points) {
+                let patch = match patch_type {
+                    PatchType::TriangleStrip => Patch::TriangleStrip(points),
+                    PatchType::TriangleFan => Patch::TriangleFan(points),
+                    PatchType::OuterRing => Patch::OuterRing(points),
+                    PatchType::InnerRing => Patch::InnerRing(points),
+                    PatchType::FirstRing => Patch::FirstRing(points),
+                    PatchType::Ring => Patch::Ring(points),
+                };
+                patches.push(patch);
+            }
+            Ok(Self { bbox, patches })
         }
-        let mut points = read_xy_in_vec_of::<PointZ, T>(&mut source, num_points)?;
-
-        bbox_read_z_range_from(&mut bbox, source)?;
-        read_zs_into(&mut source, &mut points)?;
-
-        if is_m_used {
-            bbox_read_m_range_from(&mut bbox, source)?;
-            read_ms_into(&mut source, &mut points)?;
-        }
-
-        Ok(Self {
-            bbox,
-            parts,
-            parts_type,
-            points,
-        })
     }
 }
 
@@ -241,33 +279,42 @@ impl WritableShape for Multipatch {
         size += 4 * size_of::<f64>();
         size += size_of::<i32>();
         size += size_of::<i32>();
-        size += size_of::<i32>() * self.parts.len();
-        size += size_of::<i32>() * self.parts_type.len();
-        size += 4 * size_of::<f64>() * self.points.len();
+        size += size_of::<i32>() * self.patches.len();
+        size += size_of::<i32>() * self.patches.len();
+        size += 4 * size_of::<f64>() * self.total_point_count();
         size += 2 * size_of::<f64>();
         size += 2 * size_of::<f64>();
         size
     }
 
-    fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
-        if !is_parts_array_valid(&self) {
-            return Err(Error::MalformedShape);
-        }
-        bbox_write_xy_to(&self.bbox, dest)?;
-        dest.write_i32::<LittleEndian>(self.parts.len() as i32)?;
-        dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
-        write_parts(&mut dest, &self.parts)?;
-        let part_types: Vec<i32> = self.parts_type.iter().map(|t| *t as i32).collect();
-        write_parts(&mut dest, &part_types)?;
-
-        write_points(&mut dest, &self.points)?;
-
-        bbox_write_z_range_to(&self.bbox, dest)?;
-        write_zs(&mut dest, &self.points)?;
-
-        bbox_write_m_range_to(&self.bbox, dest)?;
-        write_ms(&mut dest, &self.points)?;
-        Ok(())
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
+        let parts_iter = self.patches.iter().map(|patch| patch.points());
+        let writer = MultiPartShapeWriter::new(&self.bbox, parts_iter, dest);
+        writer
+            .write_bbox_xy()
+            .and_then(|wrt| wrt.write_num_parts())
+            .and_then(|wrt| wrt.write_num_points())
+            .and_then(|wrt| wrt.write_parts_array())
+            .and_then(|wrt| {
+                for patch in self.patches.iter() {
+                    match patch {
+                        Patch::TriangleStrip(_) => wrt.dst.write_i32::<LittleEndian>(0)?,
+                        Patch::TriangleFan(_) => wrt.dst.write_i32::<LittleEndian>(1)?,
+                        Patch::OuterRing(_) => wrt.dst.write_i32::<LittleEndian>(2)?,
+                        Patch::InnerRing(_) => wrt.dst.write_i32::<LittleEndian>(3)?,
+                        Patch::FirstRing(_) => wrt.dst.write_i32::<LittleEndian>(4)?,
+                        Patch::Ring(_) => wrt.dst.write_i32::<LittleEndian>(5)?,
+                    }
+                }
+                Ok(wrt)
+            })
+            .and_then(|wrt| wrt.write_xy())
+            .and_then(|wrt| wrt.write_bbox_z_range())
+            .and_then(|wrt| wrt.write_zs())
+            .and_then(|wrt| wrt.write_bbox_m_range())
+            .and_then(|wrt| wrt.write_ms())
+            .map_err(Error::IoError)
+            .map(|_wrt| {})
     }
 }
 
@@ -288,7 +335,6 @@ impl EsriShape for Multipatch {
         self.bbox.m_range()
     }
 }
-
 /// Converts a Multipatch to Multipolygon
 ///
 /// For simplicity,reasons, Triangle Fan & Triangle Strip are considered
@@ -301,181 +347,54 @@ impl EsriShape for Multipatch {
 /// `
 #[cfg(feature = "geo-types")]
 impl TryFrom<Multipatch> for geo_types::MultiPolygon<f64> {
-    type Error = Error;
+    type Error = &'static str;
 
     fn try_from(mp: Multipatch) -> Result<Self, Self::Error> {
+        use geo_types::{Coordinate, LineString};
+
         let mut polygons = Vec::<geo_types::Polygon<f64>>::new();
         let mut last_poly = None;
-        for (points, part_type) in mp.parts().zip(&mp.parts_type) {
-            let points = points
-                .iter()
-                .map(|p| geo_types::Point::<f64>::from(*p))
-                .collect::<Vec<geo_types::Point<f64>>>();
-            match part_type {
-                PatchType::TriangleStrip | PatchType::TriangleFan => {
-                    polygons.push(geo_types::Polygon::new(points.into(), vec![]));
+        for patch in mp.patches {
+            match patch {
+                Patch::TriangleStrip(_) => {
+                    return Err("Cannot convert Multipatch::TriangleStrip to Multipolygon")
                 }
-                PatchType::OuterRing => {
-                    last_poly = Some(geo_types::Polygon::new(points.into(), vec![]));
+                Patch::TriangleFan(_) => {
+                    return Err("Cannot convert Multipatch::TriangleFan to Multipolygon")
                 }
-                PatchType::InnerRing => {
-                    if let Some(ref mut polygon) = last_poly {
-                        polygon.interiors_push(points);
-                    } else {
-                        return Err(Error::OrphanInnerRing);
+                Patch::OuterRing(points) | Patch::FirstRing(points) => {
+                    let exterior = points
+                        .into_iter()
+                        .map(Coordinate::<f64>::from)
+                        .collect::<Vec<Coordinate<f64>>>();
+
+                    if let Some(poly) = last_poly.take() {
+                        polygons.push(poly);
                     }
+                    last_poly = Some(geo_types::Polygon::new(LineString::from(exterior), vec![]))
                 }
-                PatchType::FirstRing => {
-                    if last_poly.is_some() {
-                        polygons.push(last_poly.take().unwrap());
+                Patch::InnerRing(points) | Patch::Ring(points) => {
+                    let interior = points
+                        .into_iter()
+                        .map(Coordinate::<f64>::from)
+                        .collect::<Vec<Coordinate<f64>>>();
+
+                    if let Some(poly) = last_poly.as_mut() {
+                        poly.interiors_push(interior);
                     } else {
-                        last_poly = Some(geo_types::Polygon::new(points.into(), vec![]));
-                    }
-                }
-                PatchType::Ring => {
-                    if let Some(ref mut polygon) = last_poly {
-                        polygon.interiors_push(points);
-                    } else {
-                        // treat as sequence of outer ring without hole -> a simple polygon
-                        polygons.push(geo_types::Polygon::new(points.into(), vec![]));
+                        // This is the strange (?) case: inner ring without a previous outer ring
+                        polygons.push(geo_types::Polygon::<f64>::new(
+                            LineString::<f64>::from(Vec::<Coordinate<f64>>::new()),
+                            vec![LineString::from(interior)],
+                        ));
                     }
                 }
             }
         }
+
         if let Some(poly) = last_poly {
             polygons.push(poly);
         }
         Ok(polygons.into())
-    }
-}
-
-#[cfg(feature = "geo-types")]
-impl From<geo_types::Polygon<f64>> for Multipatch {
-    fn from(polygon: geo_types::Polygon<f64>) -> Self {
-        if polygon.exterior().num_coords() == 0 {
-            return Self::empty();
-        }
-
-        let mut total_num_points = polygon.exterior().num_coords();
-        total_num_points += polygon
-            .interiors()
-            .iter()
-            .map(|ls| ls.num_coords())
-            .sum::<usize>();
-
-        let mut parts = vec![0i32];
-        let mut parts_type = vec![PatchType::OuterRing];
-        let mut all_points = Vec::<PointZ>::with_capacity(total_num_points);
-
-        let (outer_ls, inners_ls) = polygon.into_inner();
-        let mut outer_points = outer_ls
-            .into_iter()
-            .map(|c| PointZ::from(c))
-            .collect::<Vec<PointZ>>();
-
-        if super::ring_type_from_points_ordering(&outer_points) == super::RingType::InnerRing {
-            outer_points.reverse();
-        }
-        all_points.append(&mut outer_points);
-
-        for inner_ls in inners_ls {
-            parts.push((all_points.len() - 1) as i32);
-            let mut inner_points = inner_ls
-                .into_iter()
-                .map(|c| PointZ::from(c))
-                .collect::<Vec<PointZ>>();
-
-            if super::ring_type_from_points_ordering(&inner_points) == super::RingType::OuterRing {
-                inner_points.reverse();
-            }
-            all_points.append(&mut inner_points);
-            parts_type.push(PatchType::InnerRing);
-        }
-
-        let m_range = calc_m_range(&all_points);
-        let z_range = calc_z_range(&all_points);
-        Self {
-            bbox: BBox::from_points(&all_points),
-            points: all_points,
-            parts,
-            parts_type,
-            z_range,
-            m_range,
-        }
-    }
-}
-
-#[cfg(feature = "geo-types")]
-impl From<geo_types::MultiPolygon<f64>> for Multipatch {
-    fn from(multi_polygon: geo_types::MultiPolygon<f64>) -> Self {
-        let multipatches = multi_polygon
-            .into_iter()
-            .map(|polyg| Multipatch::from(polyg))
-            .collect::<Vec<Multipatch>>();
-
-        let total_points_count = multipatches
-            .iter()
-            .fold(0usize, |count, multipatch| count + multipatch.points.len());
-
-        let total_part_count = multipatches
-            .iter()
-            .fold(0usize, |count, multipatch| count + multipatch.parts.len());
-
-        let mut all_points = Vec::<PointZ>::with_capacity(total_points_count);
-        let mut all_parts = Vec::<i32>::with_capacity(total_part_count);
-        let mut all_parts_type = Vec::<PatchType>::with_capacity(total_part_count);
-
-        for mut multipatch in multipatches {
-            multipatch
-                .parts
-                .into_iter()
-                .map(|index| index + (all_points.len() as i32))
-                .for_each(|index| all_parts.push(index));
-            all_points.append(&mut multipatch.points);
-            all_parts_type.append(&mut multipatch.parts_type);
-        }
-        let m_range = calc_m_range(&all_points);
-        let z_range = calc_z_range(&all_points);
-        Self {
-            bbox: BBox::from_points(&all_points),
-            points: all_points,
-            parts: all_parts,
-            parts_type: all_parts_type,
-            z_range,
-            m_range,
-        }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::{Multipatch, PatchType, PointZ};
-
-    #[test]
-    fn test_multipatch_creation() {
-        let mp = Multipatch::with_parts(vec![
-            (
-                vec![
-                    PointZ::new(0.0, 1.0, 0.0, 0.0),
-                    PointZ::new(0.0, 2.0, 0.0, 0.0),
-                    PointZ::new(0.0, 1.0, 0.0, 0.0),
-                ],
-                PatchType::OuterRing,
-            ),
-            (
-                vec![
-                    PointZ::new(0.0, 17.0, 5.0, 0.0),
-                    PointZ::new(0.0, 28.0, 0.0, 0.0),
-                    PointZ::new(0.0, 17.0, 5.0, 0.0),
-                ],
-                PatchType::OuterRing,
-            ),
-        ]);
-
-        assert_eq!(mp.parts, vec![0, 3]);
-        assert_eq!(
-            mp.parts_type,
-            vec![PatchType::OuterRing, PatchType::OuterRing]
-        );
     }
 }

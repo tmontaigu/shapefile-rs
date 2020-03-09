@@ -1,20 +1,16 @@
-//! Module with the definition of Multipoint(M, Z)
+//! Module with the definition of Multipoint, MultipointM and MultipointZ
 //!
 //! All three variant of Multipoint Shape (Multipoint, MultipointM, MultipointZ)
 //! are specialization of the `GenericMultipoint`
 //!
-//! The `GenericMultipoint` Shape implements the [MultipointShape](../trait.MultipointShape.html) trait
-//! which means that to access the points of a multipoint you will have to use the
-//! [points](../trait.MultipointShape.html#method.points) method
 use std::fmt;
 use std::io::{Read, Write};
 use std::mem::size_of;
-use std::slice::SliceIndex;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use record::io::*;
-use record::traits::{GrowablePoint, MultipointShape, ShrinkablePoint};
+use record::traits::{GrowablePoint, ShrinkablePoint};
 use record::EsriShape;
 use record::{ConcreteReadableShape, GenericBBox};
 use record::{HasShapeType, WritableShape};
@@ -98,7 +94,6 @@ impl<PointType> GenericMultipoint<PointType> {
     ///
     /// # Example
     ///
-    ///
     /// ```
     /// use shapefile::{MultipointZ, PointZ, NO_DATA};
     /// let multipointz = MultipointZ::new(vec![
@@ -111,20 +106,40 @@ impl<PointType> GenericMultipoint<PointType> {
     /// assert_eq!(bbox.max.x, 2.0);
     /// assert_eq!(bbox.m_range(), [4.2, 13.37])
     /// ```
+    #[inline]
     pub fn bbox(&self) -> &GenericBBox<PointType> {
         &self.bbox
     }
-}
 
-impl<PointType> MultipointShape<PointType> for GenericMultipoint<PointType> {
-    fn point<I: SliceIndex<[PointType]>>(
-        &self,
-        index: I,
-    ) -> Option<&<I as SliceIndex<[PointType]>>::Output> {
+    /// Returns a non-mutable slice of point
+    #[inline]
+    pub fn points(&self) -> &[PointType] {
+        &self.points
+    }
+
+    /// Returns a reference to a point
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use shapefile::{MultipointZ, PointZ};
+    /// let multipointz = MultipointZ::new(vec![
+    ///     PointZ::new(1.0, 4.0, 1.2, 4.2),
+    ///     PointZ::new(2.0, 6.0, 4.0, 13.37),
+    /// ]);
+    ///
+    /// assert_eq!(multipointz.point(0), Some(&PointZ::new(1.0, 4.0, 1.2, 4.2)));
+    /// assert_eq!(multipointz.point(2), None);
+    /// ```
+    #[inline]
+    pub fn point(&self, index: usize) -> Option<&PointType> {
         self.points.get(index)
     }
-    fn points(&self) -> &[PointType] {
-        &self.points
+
+    /// Consumes the shape, returning the points
+    #[inline]
+    pub fn into_inner(self) -> Vec<PointType> {
+        self.points
     }
 }
 
@@ -163,7 +178,7 @@ where
         multi_points
             .points
             .into_iter()
-            .map(|p| geo_types::Point::from(p))
+            .map(geo_types::Point::from)
             .collect::<Vec<geo_types::Point<f64>>>()
             .into()
     }
@@ -172,7 +187,7 @@ where
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::MultiPoint<f64>> for GenericMultipoint<PointType>
 where
-    PointType: From<geo_types::Point<f64>> + HasXY,
+    PointType: From<geo_types::Point<f64>> + ShrinkablePoint + GrowablePoint + Copy,
 {
     fn from(mp: geo_types::MultiPoint<f64>) -> Self {
         let points = mp.into_iter().map(|p| p.into()).collect();
@@ -234,10 +249,10 @@ impl WritableShape for Multipoint {
         size
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         bbox_write_xy_to(&self.bbox, dest)?;
         dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
-        for point in self.points {
+        for point in self.points.iter() {
             dest.write_f64::<LittleEndian>(point.x)?;
             dest.write_f64::<LittleEndian>(point.y)?;
         }
@@ -321,7 +336,7 @@ impl WritableShape for MultipointM {
         size
     }
 
-    fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, mut dest: &mut T) -> Result<(), Error> {
         bbox_write_xy_to(&self.bbox, dest)?;
         dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
 
@@ -420,7 +435,7 @@ impl WritableShape for MultipointZ {
         size
     }
 
-    fn write_to<T: Write>(self, mut dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, mut dest: &mut T) -> Result<(), Error> {
         bbox_write_xy_to(&self.bbox, dest)?;
         dest.write_i32::<LittleEndian>(self.points.len() as i32)?;
 
@@ -456,24 +471,29 @@ impl EsriShape for MultipointZ {
 
 #[cfg(test)]
 #[cfg(feature = "geo-types")]
-mod tests {
+mod test_geo_types_conversions {
     use super::*;
+    use geo_types::Coordinate;
     use {geo_types, NO_DATA};
 
     #[test]
     fn test_multipoint_to_geo_types_multipoint() {
-        let points = vec![Point::new(1.0, 1.0), Point::new(2.0, 2.0)];
-        let shapefile_multipoint = Multipoint::new(points);
-        let geo_types_multipoint = geo_types::MultiPoint::from(shapefile_multipoint);
+        let shapefile_points = vec![Point::new(1.0, 1.0), Point::new(2.0, 2.0)];
+        let geo_types_coords = shapefile_points
+            .iter()
+            .copied()
+            .map(Coordinate::<f64>::from)
+            .collect::<Vec<Coordinate<f64>>>();
 
-        let mut iter = geo_types_multipoint.into_iter();
-        let p1 = iter.next().unwrap();
-        let p2 = iter.next().unwrap();
-        assert_eq!(p1.x(), 1.0);
-        assert_eq!(p1.y(), 1.0);
+        let expected_shapefile_multipoint = Multipoint::new(shapefile_points);
+        let expected_geo_types_multipoint = geo_types::MultiPoint::from(geo_types_coords);
 
-        assert_eq!(p2.x(), 2.0);
-        assert_eq!(p2.y(), 2.0);
+        let geo_types_multipoint: geo_types::MultiPoint<f64> =
+            expected_shapefile_multipoint.clone().into();
+        let shapefile_multipoint: Multipoint = expected_geo_types_multipoint.clone().into();
+
+        assert_eq!(geo_types_multipoint, expected_geo_types_multipoint);
+        assert_eq!(shapefile_multipoint, expected_shapefile_multipoint);
     }
 
     #[test]

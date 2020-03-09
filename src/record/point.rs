@@ -8,28 +8,12 @@ use std::mem::size_of;
 use {ShapeType, NO_DATA};
 
 use super::Error;
-use crate::record::traits::MultipointShape;
 use record::ConcreteReadableShape;
 use record::{is_no_data, HasShapeType, WritableShape};
 use std::fmt;
 
 #[cfg(feature = "geo-types")]
 use geo_types;
-use std::slice::SliceIndex;
-
-macro_rules! impl_multipoint_shape_for (
-    ($point_type:ty) =>  {
-        impl MultipointShape<$point_type> for $point_type {
-            fn point<I: SliceIndex<[$point_type]>>(&self, index: I) -> Option<&<I as SliceIndex<[$point_type]>>::Output> {
-                self.points().get(index)
-            }
-
-            fn points(&self) -> &[$point_type] {
-                std::slice::from_ref(self)
-            }
-        }
-    }
-);
 
 /// Point with only `x` and `y` coordinates
 #[derive(PartialEq, Debug, Default, Copy, Clone)]
@@ -84,7 +68,7 @@ impl WritableShape for Point {
         2 * size_of::<f64>()
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         dest.write_f64::<LittleEndian>(self.x)?;
         dest.write_f64::<LittleEndian>(self.y)?;
         Ok(())
@@ -106,8 +90,6 @@ impl fmt::Display for Point {
         write!(f, "Point(x: {}, y: {})", self.x, self.y)
     }
 }
-
-impl_multipoint_shape_for!(Point);
 
 #[cfg(feature = "geo-types")]
 impl From<Point> for geo_types::Point<f64> {
@@ -155,10 +137,18 @@ impl PointM {
     /// # Examples
     ///
     /// ```
-    /// use shapefile::{PointM, NO_DATA};
-    /// let point = PointM::new(1.0, 42.0, NO_DATA);
+    /// use shapefile::PointM;
+    /// let point = PointM::new(1.0, 42.0, 13.37);
     /// assert_eq!(point.x, 1.0);
     /// assert_eq!(point.y, 42.0);
+    /// assert_eq!(point.m, 13.37);
+    /// ```
+    ///
+    /// ```
+    /// use shapefile::{PointM, NO_DATA};
+    /// let point = PointM::default();
+    /// assert_eq!(point.x, 0.0);
+    /// assert_eq!(point.y, 0.0);
     /// assert_eq!(point.m, NO_DATA);
     /// ```
     pub fn new(x: f64, y: f64, m: f64) -> Self {
@@ -190,7 +180,7 @@ impl WritableShape for PointM {
         3 * size_of::<f64>()
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         dest.write_f64::<LittleEndian>(self.x)?;
         dest.write_f64::<LittleEndian>(self.y)?;
         dest.write_f64::<LittleEndian>(self.m)?;
@@ -235,8 +225,6 @@ impl Default for PointM {
         }
     }
 }
-
-impl_multipoint_shape_for!(PointM);
 
 #[cfg(feature = "geo-types")]
 impl From<PointM> for geo_types::Point<f64> {
@@ -339,7 +327,7 @@ impl WritableShape for PointZ {
         4 * size_of::<f64>()
     }
 
-    fn write_to<T: Write>(self, dest: &mut T) -> Result<(), Error> {
+    fn write_to<T: Write>(&self, dest: &mut T) -> Result<(), Error> {
         dest.write_f64::<LittleEndian>(self.x)?;
         dest.write_f64::<LittleEndian>(self.y)?;
         dest.write_f64::<LittleEndian>(self.z)?;
@@ -398,8 +386,6 @@ impl fmt::Display for PointZ {
         }
     }
 }
-
-impl_multipoint_shape_for!(PointZ);
 
 #[cfg(feature = "geo-types")]
 impl From<PointZ> for geo_types::Point<f64> {
@@ -477,20 +463,5 @@ mod test_geo_types {
         assert_eq!(p.y, 42.65);
         assert_eq!(p.z, 0.0);
         assert_eq!(p.m, NO_DATA);
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_multipoint_impl_for_point() {
-        let point = Point::new(42.0, 1337.0);
-
-        let points = point.points();
-        assert_eq!(points.len(), 1);
-        assert_eq!(points[0], point);
-        assert_eq!(point.point(10), None);
     }
 }
