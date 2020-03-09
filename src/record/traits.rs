@@ -2,6 +2,23 @@ use record::{Point, PointM, PointZ};
 use writer::{f64_max, f64_min};
 
 /// Trait to access the x, and y values of a point
+///
+/// # Examples
+///
+/// ```
+/// use shapefile::record::traits::HasXY;
+/// use shapefile::Point;
+/// fn mean_x_y<PointType: HasXY>(points: &[PointType]) -> (f64, f64) {
+///     let (sum_x, sum_y) = points.iter()
+///                                .fold((0.0, 0.0),
+///                                       |acc, point| (acc.0 + point.x(), acc.1 + point.z));
+///
+///     (sum_x / points.len() as f64, sum_y / points.len() as f64)
+/// }
+///
+/// assert_eq!(&vec![Point::new(1.0, 2.0), Point::new(1.0, 2.0)], (1.0, 2.0));
+///
+/// ```
 pub trait HasXY {
     /// Returns the value of the x dimension
     fn x(&self) -> f64;
