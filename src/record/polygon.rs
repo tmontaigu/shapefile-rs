@@ -241,6 +241,30 @@ where
     /// (see [`PolygonRing`])
     ///
     ///
+    /// # Example
+    ///
+    /// ```
+    /// use shapefile::{PolygonRing, Point, Polygon};
+    /// let polygon = Polygon::with_rings(vec![
+    ///     PolygonRing::Outer(vec![
+    ///         Point::new(-120.0, 60.0),
+    ///         Point::new(-120.0, -60.0),
+    ///         Point::new(120.0, -60.0),
+    ///         Point::new(120.0, 60.0),
+    ///         Point::new(-120.0, 60.0),
+    ///     ]),
+    ///     PolygonRing::Inner(vec![
+    ///          Point::new(-60.0, 30.0),
+    ///          Point::new(60.0, 30.0),
+    ///          Point::new(60.0, -30.0),
+    ///          Point::new(-60.0, -30.0),
+    ///          Point::new(-60.0, 30.0),
+    ///     ]),
+    /// ]);
+    ///
+    /// assert_eq!(polygon.rings().len(), 2);
+    /// ```
+    ///
     /// [`PolygonRing`]: enum.PolygonRing.html
     pub fn with_rings(mut rings: Vec<PolygonRing<PointType>>) -> Self {
         rings.iter_mut().for_each(PolygonRing::close_and_reorder);
