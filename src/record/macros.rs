@@ -198,12 +198,98 @@ macro_rules! polygon {
     };
 }
 
+
+#[macro_export]
+macro_rules! polyline {
+    // Polyline rules
+    (
+        $(
+           [ $({x: $x_value:expr, y: $y_value:expr}),* $(,)? ]
+        ),* $(,)?
+    ) => {
+        shapefile::Polyline::with_parts(
+            vec! [
+                $(
+                    vec![
+                        $(shapefile::Point {x: $x_value, y: $y_value}),*
+                    ]
+                ),*
+            ]
+        )
+    };
+    (
+        $(
+           [ $(($x_value:expr, $y_value:expr)),* $(,)? ]
+        ),* $(,)?
+    ) => {
+        polyline!{
+            $(
+                 [$({x: $x_value, y: $y_value}),*]
+            ),+
+        }
+    };
+    // Polyline M rules
+    (
+        $(
+           [ $({x: $x_value:expr, y: $y_value:expr, m: $m_value:expr}),* $(,)? ]
+        ),* $(,)?
+    ) => {
+        shapefile::PolylineM::with_parts(
+            vec! [
+                $(
+                    vec![
+                        $(shapefile::PointM {x: $x_value, y: $y_value, m: $m_value}),*
+                    ]
+                ),*
+            ]
+        )
+    };
+    (
+        $(
+           [ $(($x_value:expr, $y_value:expr, $m_value:expr)),* $(,)? ]
+        ),* $(,)?
+    ) => {
+        polyline!{
+            $(
+                 [$({x: $x_value, y: $y_value, m: $m_value}),*]
+            ),+
+        }
+    };
+    //Polyline Z rules
+    (
+        $(
+           [ $({x: $x_value:expr, y: $y_value:expr, z: $z_value:expr, m: $m_value:expr}),* $(,)? ]
+        ),* $(,)?
+    ) => {
+        shapefile::PolylineZ::with_parts(
+            vec! [
+                $(
+                    vec![
+                        $(shapefile::PointZ {x: $x_value, y: $y_value, z: $z_value, m: $m_value}),*
+                    ]
+                ),*
+            ]
+        )
+    };
+    (
+        $(
+           [ $(($x_value:expr, $y_value:expr, $z_value:expr, $m_value:expr)),* $(,)? ]
+        ),* $(,)?
+    ) => {
+        polyline!{
+            $(
+                [ $({x: $x_value, y: $y_value, z: $z_value, m: $m_value}),* ]
+            ),+
+        }
+    };
+}
+
 #[cfg(test)]
 mod test {
     // the macros expect the shapefile namespace to be in scope
     use crate as shapefile;
     use crate::{Patch};
-    use PolygonRing;
+    use ::{PolygonRing, Point, PointM, PointZ, Polyline, PolylineM, PolylineZ};
 
     #[test]
     fn test_multipatch() {
@@ -269,78 +355,125 @@ mod test {
         );
         assert_eq!(multipoint, expected_multipoint);
     }
-    //
-    // #[test]
-    // fn test_polyline_macro() {
-    //     let poly = polyline!(
-    //         [
-    //             x: 1.0, y: 1.0,
-    //             x: 2.0, y: 2.0
-    //         ],
-    //         [
-    //             x: 3.0, y: 3.0,
-    //             x: 3.0, y: 3.0
-    //         ]
-    //     );
-    //
-    //     let expected_points = vec! [
-    //             shapefile::Point { x: 1.0, y: 1.0 },
-    //             shapefile::Point { x: 2.0, y: 2.0 },
-    //             shapefile::Point { x: 3.0, y: 3.0 },
-    //             shapefile::Point { x: 3.0, y: 3.0 },
-    //     ];
-    //     assert_eq!(poly.points, expected_points);
-    //     assert_eq!(poly.parts, vec![0, 2]);
-    // }
-    //
-    //
-    // #[test]
-    // fn test_polyline_m_macro() {
-    //     let poly = polyline!(
-    //         [
-    //             x: 1.0, y: 1.0, m: 5.0,
-    //             x: 2.0, y: 2.0, m: 42.1337
-    //         ],
-    //         [
-    //             x: 3.0, y: 3.0, m: 17.65,
-    //             x: 3.0, y: 3.0, m: 454.4598
-    //         ]
-    //     );
-    //
-    //     let expected_points = vec![
-    //         shapefile::PointM { x: 1.0, y: 1.0, m: 5.0 },
-    //         shapefile::PointM { x: 2.0, y: 2.0, m: 42.1337 },
-    //         shapefile::PointM { x: 3.0, y: 3.0, m: 17.65 },
-    //         shapefile::PointM { x: 3.0, y: 3.0, m: 454.4598 },
-    //     ];
-    //     assert_eq!(poly.points, expected_points);
-    //     assert_eq!(poly.parts, vec![0, 2]);
-    // }
-    //
-    //
-    // #[test]
-    // fn test_polyline_z_macro() {
-    //     let poly = polyline!(
-    //         [
-    //             x: 1.0, y: 1.0, z: 17.56, m: 5.0,
-    //             x: 2.0, y: 2.0, z: 18.17, m: 42.1337
-    //         ],
-    //         [
-    //             x: 3.0, y: 3.0, z: 54.9, m: 17.65,
-    //             x: 3.0, y: 3.0, z: 7.0, m: 454.4598
-    //         ]
-    //     );
-    //
-    //     let expected_points = vec![
-    //         shapefile::PointZ { x: 1.0, y: 1.0, z: 17.56, m: 5.0 },
-    //         shapefile::PointZ { x: 2.0, y: 2.0, z: 18.17, m: 42.1337 },
-    //         shapefile::PointZ { x: 3.0, y: 3.0, z: 54.9, m: 17.65 },
-    //         shapefile::PointZ { x: 3.0, y: 3.0, z: 7.0, m: 454.4598 },
-    //     ];
-    //     assert_eq!(poly.points, expected_points);
-    //     assert_eq!(poly.parts, vec![0, 2]);
-    // }
-    //
+
+    #[test]
+    fn test_polyline_macro() {
+        let poly_1 = polyline!(
+            [
+                {x: 1.0, y: 1.0},
+                {x: 2.0, y: 2.0}
+            ],
+            [
+                {x: 3.0, y: 3.0},
+                {x: 4.0, y: 4.0}
+            ]
+        );
+
+        let poly_2 = polyline!(
+            [
+                (1.0, 1.0),
+                (2.0, 2.0)
+            ],
+            [
+                (3.0, 3.0),
+                (4.0, 4.0)
+            ]
+        );
+
+        let poly_3 = Polyline::with_parts(vec![
+            vec![
+                Point::new(1.0, 1.0),
+                Point::new (2.0, 2.0)
+            ],
+            vec![
+                Point::new(3.0, 3.0),
+                Point::new(4.0, 4.0)
+            ],
+        ]);
+        assert_eq!(poly_1, poly_3);
+        assert_eq!(poly_2, poly_3);
+    }
+
+
+    #[test]
+    fn test_polyline_m_macro() {
+        let poly_1 = polyline!(
+            [
+                {x: 1.0, y: 1.0, m: 5.0},
+                {x: 2.0, y: 2.0, m: 42.1337}
+            ],
+            [
+                {x: 3.0, y: 3.0, m: 17.65},
+                {x: 4.0, y: 4.0, m: 454.4598}
+            ]
+        );
+
+        let poly_2 = polyline!(
+            [
+                (1.0, 1.0, 5.0),
+                (2.0, 2.0, 42.1337)
+            ],
+            [
+                (3.0, 3.0, 17.65),
+                (4.0, 4.0, 454.4598),
+            ]
+        );
+
+        let poly_3 = PolylineM::with_parts(vec![
+            vec![
+                PointM::new(1.0, 1.0, 5.0),
+                PointM::new(2.0, 2.0, 42.1337)
+            ],
+            vec![
+                PointM::new(3.0, 3.0, 17.65),
+                PointM::new(4.0, 4.0, 454.4598),
+            ]
+        ]);
+
+        assert_eq!(poly_1, poly_3);
+        assert_eq!(poly_2, poly_3);
+    }
+
+
+    #[test]
+    fn test_polyline_z_macro() {
+
+        let poly_1 = polyline!(
+            [
+                {x: 1.0, y: 1.0, z: 17.56, m: 5.0},
+                {x: 2.0, y: 2.0, z: 18.17, m: 42.1337}
+            ],
+            [
+                {x: 3.0, y: 3.0, z: 54.9, m: 17.65},
+                {x: 4.0, y: 4.0, z: 7.0, m: 454.4598}
+            ]
+        );
+
+        let poly_2 = polyline!(
+            [
+                (1.0, 1.0, 17.56, 5.0),
+                (2.0, 2.0, 18.17, 42.1337)
+            ],
+            [
+                (3.0, 3.0, 54.9, 17.65),
+                (4.0, 4.0, 7.0, 454.4598),
+            ]
+        );
+
+        let poly_3 = PolylineZ::with_parts(vec![
+            vec![
+                PointZ::new(1.0, 1.0, 17.56, 5.0),
+                PointZ::new(2.0, 2.0, 18.17, 42.1337)
+            ],
+            vec![
+                PointZ::new(3.0, 3.0, 54.9, 17.65),
+                PointZ::new(4.0, 4.0, 7.0, 454.4598),
+            ]
+        ]);
+        assert_eq!(poly_1, poly_3);
+        assert_eq!(poly_2, poly_3);
+    }
+
     #[test]
     fn test_polygon_macro() {
         let polygon_1 = polygon!(
