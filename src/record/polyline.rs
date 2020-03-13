@@ -48,7 +48,7 @@ impl<PointType: ShrinkablePoint + GrowablePoint + Copy> GenericPolyline<PointTyp
     ///
     /// # panic
     ///
-    /// This will panic if the vec has las than 2 points
+    /// This will panic if the vec has less than 2 points
     pub fn new(points: Vec<PointType>) -> Self {
         assert!(
             points.len() >= 2,
@@ -85,7 +85,7 @@ impl<PointType: ShrinkablePoint + GrowablePoint + Copy> GenericPolyline<PointTyp
     ///
     /// # panic
     ///
-    /// This will panic if the vec has las than 2 points
+    /// This will panic if any of the parts are less than 2 points
     pub fn with_parts(parts: Vec<Vec<PointType>>) -> Self {
         assert!(
             parts.iter().all(|p| p.len() >= 2),
