@@ -7,16 +7,16 @@ use writer::{f64_max, f64_min};
 ///
 /// ```
 /// use shapefile::record::traits::HasXY;
-/// use shapefile::Point;
+/// use shapefile::{Point, NO_DATA, PointZ};
 /// fn mean_x_y<PointType: HasXY>(points: &[PointType]) -> (f64, f64) {
 ///     let (sum_x, sum_y) = points.iter()
 ///                                .fold((0.0, 0.0),
-///                                       |acc, point| (acc.0 + point.x(), acc.1 + point.z));
+///                                       |acc, point| (acc.0 + point.x(), acc.1 + point.y()));
 ///
 ///     (sum_x / points.len() as f64, sum_y / points.len() as f64)
 /// }
-///
-/// assert_eq!(&vec![Point::new(1.0, 2.0), Point::new(1.0, 2.0)], (1.0, 2.0));
+/// let points = vec![PointZ::new(1.0, 2.0, 3.0, NO_DATA), PointZ::new(1.0, 2.0, 5.0, NO_DATA)];
+/// assert_eq!(mean_x_y(&points), (1.0, 2.0));
 ///
 /// ```
 pub trait HasXY {
