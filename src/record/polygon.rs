@@ -265,7 +265,25 @@ impl<PointType> GenericPolygon<PointType> {
         &self.rings
     }
 
-    /// Returns the ring
+    /// Returns the ring as index
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use shapefile::{polygon, NO_DATA};
+    ///
+    /// let polygon = polygon!{
+    ///     Outer(
+    ///         (0.0, 0.0, 0.0, NO_DATA),
+    ///         (0.0, 1.0, 0.0, NO_DATA),
+    ///         (1.0, 1.0, 0.0, NO_DATA),
+    ///         (1.0, 0.0, 0.0, NO_DATA),
+    ///     )
+    /// };
+    ///
+    /// assert_eq!( polygon.ring(0).is_some(), true);
+    /// assert_eq!(polygon.ring(1), None);
+    /// ```
     #[inline]
     pub fn ring(&self, index: usize) -> Option<&PolygonRing<PointType>> {
         self.rings.get(index)
