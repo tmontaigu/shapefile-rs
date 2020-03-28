@@ -176,7 +176,7 @@ impl<PointType: HasXY> From<Vec<PointType>> for PolygonRing<PointType> {
 ///
 /// To create a polygon with only one part use [`new`].
 ///
-/// To create a polygon with multiple parts use [`with_parts`].
+/// To create a polygon with multiple rings use [`with_rings`].
 ///
 /// # Notes
 /// - A Polygon ring is a connected sequence of 4 or more points
@@ -187,7 +187,7 @@ impl<PointType: HasXY> From<Vec<PointType>> for PolygonRing<PointType> {
 /// - A polygon may have multiple [`Outer`] rings (p12/34)
 ///
 /// [`new`]: #method.new
-/// [`with_parts`]: #method.with_parts
+/// [`with_rings`]: #method.with_rings
 /// [`Outer`]: enum.PolygonRing.html#variant.Outer
 #[derive(Debug, Clone, PartialEq)]
 pub struct GenericPolygon<PointType> {
