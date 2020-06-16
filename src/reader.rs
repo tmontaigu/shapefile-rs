@@ -26,17 +26,23 @@
 //!
 //! Creates a reader from a path, then iterate over its `Shapes`, reading one shape each iteration
 //! ```
-//! let reader = shapefile::Reader::from_path("tests/data/pointm.shp").unwrap();
+//! # fn main() -> Result<(), shapefile::Error> {
+//! let reader = shapefile::Reader::from_path("tests/data/pointm.shp")?;
 //! for shape in reader {
-//!     let shape = shape.unwrap();
+//!     let shape = shape?;
 //!     println!("{}", shape);
 //! }
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! Creates a reader from a path, reads the whole file at once
 //! ```
-//! let reader = shapefile::Reader::from_path("tests/data/pointm.shp").unwrap();
-//! let shapes = reader.read().unwrap();
+//! # fn main() -> Result<(), shapefile::Error> {
+//! let shapes = shapefile::Reader::from_path("tests/data/pointm.shp")
+//!                 .and_then(|rdr| rdr.read());
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! If you know beforehand the exact type that the .shp file is made of,
@@ -64,10 +70,9 @@ use std::path::Path;
 
 use byteorder::{BigEndian, ReadBytesExt};
 
+use {Error, Shape};
 use header;
 use record;
-use {Error, Shape};
-
 use record::ReadableShape;
 
 const INDEX_RECORD_SIZE: usize = 2 * std::mem::size_of::<i32>();
@@ -182,9 +187,12 @@ impl<T: Read> Reader<T> {
     /// # Example
     ///
     /// ```
+    /// # fn main() -> Result<(), shapefile::Error> {
     /// use std::fs::File;
-    /// let file = File::open("tests/data/line.shp").unwrap();
-    /// let reader = shapefile::Reader::new(file).unwrap();
+    /// let file = File::open("tests/data/line.shp")?;
+    /// let reader = shapefile::Reader::new(file)?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn new(mut source: T) -> Result<Reader<T>, Error> {
         let header = header::Header::read_from(&mut source)?;
@@ -202,9 +210,12 @@ impl<T: Read> Reader<T> {
     /// # Examples
     ///
     /// ```
-    /// let reader = shapefile::Reader::from_path("tests/data/pointz.shp").unwrap();
+    /// # fn main() -> Result<(), shapefile::Error> {
+    /// let reader = shapefile::Reader::from_path("tests/data/pointz.shp")?;
     /// let header = reader.header();
     /// assert_eq!(header.shape_type, shapefile::ShapeType::PointZ);
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn header(&self) -> &header::Header {
         &self.header
@@ -221,16 +232,23 @@ impl<T: Read> Reader<T> {
     /// # Examples
     ///
     /// ```
+    /// # fn main() -> Result<(), shapefile::Error> {
     /// use shapefile::Reader;
-    /// let mut reader = Reader::from_path("tests/data/linem.shp").unwrap();
-    /// let polylines_m = reader.read_as::<shapefile::PolylineM>().unwrap(); // we ask for the correct type
+    /// let mut reader = Reader::from_path("tests/data/linem.shp")?;
+    /// let polylines_m = reader.read_as::<shapefile::PolylineM>(); // we ask for the correct type
+    /// assert_eq!(polylines_m.is_ok(), true);
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// ```
+    /// # fn main() -> Result<(), shapefile::Error> {
     /// use shapefile::Reader;
-    /// let mut reader = Reader::from_path("tests/data/linem.shp").unwrap();
+    /// let mut reader = Reader::from_path("tests/data/linem.shp")?;
     /// let polylines = reader.read_as::<shapefile::Polyline>(); // we ask for the wrong type
     /// assert_eq!(polylines.is_err(), true);
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn read_as<S: ReadableShape>(self) -> Result<Vec<S>, Error> {
         self.iter_shapes_as::<S>().collect()
@@ -240,15 +258,18 @@ impl<T: Read> Reader<T> {
     ///
     /// # Examples
     /// ```
+    /// # fn main() -> Result<(), shapefile::Error> {
     /// use shapefile::Reader;
-    /// let mut reader = Reader::from_path("tests/data/multipoint.shp").unwrap();
-    /// let shapes = reader.read().unwrap();
+    /// let mut reader = Reader::from_path("tests/data/multipoint.shp")?;
+    /// let shapes = reader.read()?;
     /// for shape in shapes {
     ///     match shape {
     ///         shapefile::Shape::Multipoint(pts) => println!(" Yay Multipoints: {}", pts),
     ///         _ => panic!("ups, not multipoints"),
     ///     }
     /// }
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     pub fn read(self) -> Result<Vec<Shape>, Error> {
@@ -267,11 +288,14 @@ impl<T: Read> Reader<T> {
     /// # Examples
     ///
     /// ```
-    /// let reader = shapefile::Reader::from_path("tests/data/multipoint.shp").unwrap();
+    /// # fn main() -> Result<(), shapefile::Error> {
+    /// let reader = shapefile::Reader::from_path("tests/data/multipoint.shp")?;
     /// for multipoints in reader.iter_shapes_as::<shapefile::Multipoint>() {
-    ///     let points = multipoints.unwrap();
+    ///     let points = multipoints?;
     ///     println!("{}", points);
     /// }
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn iter_shapes_as<S: ReadableShape>(self) -> ShapeIterator<T, S> {
         ShapeIterator {
@@ -288,23 +312,29 @@ impl<T: Read> Reader<T> {
     /// # Examples
     ///
     /// ```
-    /// let reader = shapefile::Reader::from_path("tests/data/multipoint.shp").unwrap();
+    /// # fn main() -> Result<(), shapefile::Error> {
+    /// let reader = shapefile::Reader::from_path("tests/data/multipoint.shp")?;
     /// for shape in reader.iter_shapes() {
-    ///     match shape.unwrap() {
+    ///     match shape? {
     ///         shapefile::Shape::Multipatch(shp) => println!("Multipoint!"),
     ///         _ => println!("Other type of shape"),
     ///     }
     /// }
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// ```
-    /// let reader = shapefile::Reader::from_path("tests/data/multipoint.shp").unwrap();
+    /// # fn main() -> Result<(), shapefile::Error> {
+    /// let reader = shapefile::Reader::from_path("tests/data/multipoint.shp")?;
     /// for shape in reader {
-    ///     match shape.unwrap() {
+    ///     match shape? {
     ///         shapefile::Shape::Multipatch(shp) => println!("Multipoint!"),
     ///         _ => println!("Other type of shape"),
     ///     }
     /// }
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn iter_shapes(self) -> ShapeIterator<T, Shape> {
         ShapeIterator {
@@ -323,12 +353,15 @@ impl<T: Read> Reader<T> {
     ///
     /// # Example
     /// ```
+    /// # fn main() -> Result<(), shapefile::Error> {
     /// use shapefile::{Reader, Multipatch};
-    /// let reader = Reader::from_path("tests/data/multipatch.shp").unwrap();
-    /// for result in reader.iter_shapes_and_records_as::<Multipatch>().unwrap() {
-    ///     let (shape, record) = result.unwrap();
+    /// let reader = Reader::from_path("tests/data/multipatch.shp")?;
+    /// for result in reader.iter_shapes_and_records_as::<Multipatch>()? {
+    ///     let (shape, record) = result?;
     ///     // ...
     /// }
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn iter_shapes_and_records_as<S: ReadableShape>(
         mut self,
@@ -353,17 +386,20 @@ impl<T: Read> Reader<T> {
     ///
     /// # Example
     /// ```
+    /// # fn main() -> Result<(), shapefile::Error> {
     /// use shapefile::{Reader, Shape};
-    /// let reader = Reader::from_path("tests/data/multipatch.shp").unwrap();
-    /// for result in reader.iter_shapes_and_records().unwrap() {
-    ///     let (shape, record) = result.unwrap();
+    /// let reader = Reader::from_path("tests/data/multipatch.shp")?;
+    /// for result in reader.iter_shapes_and_records()? {
+    ///     let (shape, record) = result?;
     ///     match shape {
-    ///         Shape::Multipatch(multip) => {/*...*/ },
+    ///         Shape::Multipatch(multip) => { /*...*/ }
     ///         //..
     ///         _ => { /*...*/ }
     ///     }
     ///     // ...
     /// }
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn iter_shapes_and_records(self) -> Result<ShapeRecordIterator<T, Shape>, Error> {
         self.iter_shapes_and_records_as::<Shape>()
@@ -407,27 +443,33 @@ impl Reader<BufReader<File>> {
     ///
     /// ```
     /// use std::path::Path;
+    /// # fn main() -> Result<(), shapefile::Error> {
     /// assert_eq!(Path::new("tests/data/linem.dbf").exists(), false);
     /// assert_eq!(Path::new("tests/data/linem.shx").exists(), false);
     ///
     /// // both .shx and .dbf does not exists, but creation does not fail
-    /// let mut reader = shapefile::Reader::from_path("tests/data/linem.shp").unwrap();
+    /// let mut reader = shapefile::Reader::from_path("tests/data/linem.shp")?;
     /// let result = reader.iter_shapes_and_records();
     /// assert_eq!(result.is_err(),  true);
     ///
     ///
     /// assert_eq!(Path::new("tests/data/multipatch.dbf").exists(), true);
     ///
-    /// let mut reader = shapefile::Reader::from_path("tests/data/multipatch.shp").unwrap();
+    /// let mut reader = shapefile::Reader::from_path("tests/data/multipatch.shp")?;
     /// let result = reader.iter_shapes_and_records();
     /// assert_eq!(result.is_err(),  false);
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     ///
     /// ```
+    /// # fn main() -> Result<(), shapefile::Error> {
     /// use shapefile::Reader;
-    /// let mut reader = Reader::from_path("tests/data/line.shp").unwrap();
-    /// let polylines = reader.read_as::<shapefile::Polyline>().unwrap();
+    /// let mut reader = Reader::from_path("tests/data/line.shp")?;
+    /// let polylines = reader.read_as::<shapefile::Polyline>()?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let shape_path = path.as_ref().to_path_buf();
@@ -516,8 +558,11 @@ impl<T: Read + Seek> Reader<T> {
 /// # Examples
 ///
 /// ```
-/// let shapes = shapefile::read("tests/data/multipatch.shp").unwrap();
+/// # fn main() -> Result<(), shapefile::Error> {
+/// let shapes = shapefile::read("tests/data/multipatch.shp")?;
 /// assert_eq!(shapes.len(), 1);
+/// # Ok(())
+/// # }
 /// ```
 pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
     let reader = Reader::from_path(path)?;

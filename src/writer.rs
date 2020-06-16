@@ -74,20 +74,26 @@ impl<T: Write> Writer<T> {
     /// # Examples
     ///
     /// ```
+    /// # fn main() -> Result<(), shapefile::Error> {
     /// use shapefile::Point;
-    /// let mut writer = shapefile::Writer::from_path("points.shp").unwrap();
+    /// let mut writer = shapefile::Writer::from_path("points.shp")?;
     /// let points = vec![Point::new(0.0, 0.0), Point::new(1.0, 0.0), Point::new(2.0, 0.0)];
     ///
-    /// writer.write_shapes(&points).unwrap();
+    /// writer.write_shapes(&points)?;
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// ```
+    /// # fn main() -> Result<(), shapefile::Error> {
     /// use shapefile::{Point, Polyline};
-    /// let mut writer = shapefile::Writer::from_path("polylines.shp").unwrap();
+    /// let mut writer = shapefile::Writer::from_path("polylines.shp")?;
     /// let points = vec![Point::new(0.0, 0.0), Point::new(1.0, 0.0), Point::new(2.0, 0.0)];
     /// let polyline = Polyline::new(points);
     ///
-    /// writer.write_shapes(&vec![polyline]).unwrap();
+    /// writer.write_shapes(&vec![polyline])?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn write_shapes<S: EsriShape>(&mut self, shapes: &[S]) -> Result<(), Error> {
         let mut file_length = header::HEADER_SIZE as usize;
