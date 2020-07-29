@@ -611,3 +611,173 @@ where
         Self::with_rings(all_rings)
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "geo-types")]
+mod test_geo_types {
+    use super::*; 
+    #[test]
+    fn shapefile_polygon_to_geotypes_polygon() {
+
+        let simple_polygon = Polygon::new(PolygonRing::Outer(vec![
+            Point::new(-1.0,-1.0),
+            Point::new(-1.0, 1.0),
+            Point::new( 1.0, 1.0),
+            Point::new( 1.0,-1.0),
+            Point::new(-1.0,-1.0),
+        ]));
+        
+        let converted_multipolygon = geo_types::MultiPolygon::<f64>::from(simple_polygon);
+
+        let converted_polygon = converted_multipolygon.into_iter().next().unwrap();
+
+        let expected_geotypes_polygon = geo_types::Polygon::new(
+            LineString::from(vec![
+                (-1.0,-1.0),
+                (-1.0, 1.0),
+                ( 1.0, 1.0),
+                ( 1.0,-1.0),
+                (-1.0,-1.0),
+            ]), 
+            vec![],
+        );
+
+        assert_eq!(converted_polygon, expected_geotypes_polygon);
+    }
+
+    #[test]
+    fn shapefile_polygon_to_geotypes_polygon_auto_close() {
+
+        let simple_polygon = Polygon::new(PolygonRing::Outer(vec![
+            Point::new(-1.0,-1.0),
+            Point::new(-1.0, 1.0),
+            Point::new( 1.0, 1.0),
+            Point::new( 1.0,-1.0),
+        ]));
+        
+        let converted_polygon = geo_types::MultiPolygon::<f64>::from(simple_polygon);
+
+        let converted_polygon = converted_polygon.into_iter().next().unwrap();
+
+        let (geotypes_exterior, _) = converted_polygon.into_inner();
+
+        assert_eq!(geotypes_exterior, LineString::from(vec![
+            (-1.0,-1.0),
+            (-1.0, 1.0),
+            ( 1.0, 1.0),
+            ( 1.0,-1.0),
+            (-1.0,-1.0)
+        ]));
+    }
+
+    #[test]
+    fn geotypes_polygon_to_shapefile_polygon() {
+
+        let geotypes_polygon = geo_types::Polygon::new(
+            LineString::from(vec![
+                (-1.0,-1.0),
+                (-1.0, 1.0),
+                ( 1.0, 1.0),
+                ( 1.0,-1.0),
+                (-1.0,-1.0),
+            ]), 
+            vec![],
+        );
+
+        let converted_polygon = Polygon::from(geotypes_polygon);
+
+        let expected_polygon = Polygon::new(PolygonRing::Outer(vec![
+            Point::new(-1.0,-1.0),
+            Point::new(-1.0, 1.0),
+            Point::new( 1.0, 1.0),
+            Point::new( 1.0,-1.0),
+            Point::new(-1.0,-1.0),
+        ]));
+
+
+        assert_eq!(converted_polygon, expected_polygon);
+    }
+
+    #[test]
+    fn shapefile_polygon_to_geotypes_polygon_with_inner_ring() {
+
+        let one_ring_polygon = Polygon::with_rings(vec![
+            PolygonRing::Outer(vec![
+                Point::new(-1.0,-1.0),
+                Point::new(-1.0, 1.0),
+                Point::new( 1.0, 1.0),
+                Point::new( 1.0,-1.0),
+                Point::new(-1.0,-1.0),
+            ]), PolygonRing::Inner(vec![
+                Point::new(-0.5,-0.5),
+                Point::new(-0.5, 0.5),
+                Point::new( 0.5, 0.5),
+                Point::new( 0.5,-0.5),
+                Point::new(-0.5,-0.5),
+        ])]);
+        
+        let converted_multipolygon = geo_types::MultiPolygon::<f64>::from(one_ring_polygon);
+
+        let converted_polygon = converted_multipolygon.into_iter().next().unwrap();
+
+        let expected_geotypes_polygon = geo_types::Polygon::new(
+            LineString::from(vec![
+                (-1.0,-1.0),
+                (-1.0, 1.0),
+                ( 1.0, 1.0),
+                ( 1.0,-1.0),
+                (-1.0,-1.0),
+            ]), 
+            vec![LineString::from(vec![
+                (-0.5,-0.5),
+                (-0.5, 0.5),
+                ( 0.5, 0.5),
+                ( 0.5,-0.5),
+                (-0.5,-0.5),
+            ])],
+        );
+
+        assert_eq!(converted_polygon, expected_geotypes_polygon);
+    }
+
+    #[test]
+    fn geotypes_polygon_to_shapefile_polygon_inner_ring() {
+
+        let geotypes_polygon = geo_types::Polygon::new(
+            LineString::from(vec![
+                (-1.0,-1.0),
+                (-1.0, 1.0),
+                ( 1.0, 1.0),
+                ( 1.0,-1.0),
+                (-1.0,-1.0),
+            ]), 
+            vec![LineString::from(vec![
+                (-0.5,-0.5),
+                (-0.5, 0.5),
+                ( 0.5, 0.5),
+                ( 0.5,-0.5),
+                (-0.5,-0.5),
+            ])]
+        );
+
+        let converted_polygon = Polygon::from(geotypes_polygon);
+
+        let expected_polygon = Polygon::with_rings(vec![
+            PolygonRing::Outer(vec![
+                Point::new(-1.0,-1.0),
+                Point::new(-1.0, 1.0),
+                Point::new( 1.0, 1.0),
+                Point::new( 1.0,-1.0),
+                Point::new(-1.0,-1.0),
+            ]), PolygonRing::Inner(vec![
+                Point::new(-0.5,-0.5),
+                Point::new(-0.5, 0.5),
+                Point::new( 0.5, 0.5),
+                Point::new( 0.5,-0.5),
+                Point::new(-0.5,-0.5),
+        ])]);
+
+
+        assert_eq!(converted_polygon, expected_polygon);
+    }
+}
