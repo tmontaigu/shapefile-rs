@@ -476,6 +476,9 @@ impl TryFrom<geo_types::Geometry<f64>> for Shape {
             geo_types::Geometry::GeometryCollection(_) => {
                 Err("Cannot convert geo_types::GeometryCollection into a Shape")
             }
+            _ => { // New geometries Rect(_) and Triangle(_) added in 0.6.0
+                Err("Cannot convert unrecognized Geometry type into a Shape")
+            }
         }
     }
 }
