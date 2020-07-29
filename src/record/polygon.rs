@@ -620,11 +620,11 @@ mod test_geo_types {
     fn shapefile_polygon_to_geotypes_polygon() {
 
         let simple_polygon = Polygon::new(PolygonRing::Outer(vec![
-            Point::new(-1.0,-1.0),
-            Point::new(-1.0, 1.0),
-            Point::new( 1.0, 1.0),
-            Point::new( 1.0,-1.0),
-            Point::new(-1.0,-1.0),
+            Point::new(-1.1,-1.01),
+            Point::new(-1.2, 1.02),
+            Point::new( 1.3, 1.03),
+            Point::new( 1.4,-1.04),
+            Point::new(-1.1,-1.01),
         ]));
         
         let converted_multipolygon = geo_types::MultiPolygon::<f64>::from(simple_polygon);
@@ -633,11 +633,11 @@ mod test_geo_types {
 
         let expected_geotypes_polygon = geo_types::Polygon::new(
             LineString::from(vec![
-                (-1.0,-1.0),
-                (-1.0, 1.0),
-                ( 1.0, 1.0),
-                ( 1.0,-1.0),
-                (-1.0,-1.0),
+                (-1.1,-1.01),
+                (-1.2, 1.02),
+                ( 1.3, 1.03),
+                ( 1.4,-1.04),
+                (-1.1,-1.01),
             ]), 
             vec![],
         );
@@ -649,10 +649,10 @@ mod test_geo_types {
     fn shapefile_polygon_to_geotypes_polygon_auto_close() {
 
         let simple_polygon = Polygon::new(PolygonRing::Outer(vec![
-            Point::new(-1.0,-1.0),
-            Point::new(-1.0, 1.0),
-            Point::new( 1.0, 1.0),
-            Point::new( 1.0,-1.0),
+            Point::new(-1.1,-1.01),
+            Point::new(-1.2, 1.02),
+            Point::new( 1.3, 1.03),
+            Point::new( 1.4,-1.04),
         ]));
         
         let converted_polygon = geo_types::MultiPolygon::<f64>::from(simple_polygon);
@@ -662,11 +662,11 @@ mod test_geo_types {
         let (geotypes_exterior, _) = converted_polygon.into_inner();
 
         assert_eq!(geotypes_exterior, LineString::from(vec![
-            (-1.0,-1.0),
-            (-1.0, 1.0),
-            ( 1.0, 1.0),
-            ( 1.0,-1.0),
-            (-1.0,-1.0)
+            (-1.1,-1.01),
+            (-1.2, 1.02),
+            ( 1.3, 1.03),
+            ( 1.4,-1.04),
+            (-1.1,-1.01)
         ]));
     }
 
@@ -675,11 +675,11 @@ mod test_geo_types {
 
         let geotypes_polygon = geo_types::Polygon::new(
             LineString::from(vec![
-                (-1.0,-1.0),
-                (-1.0, 1.0),
-                ( 1.0, 1.0),
-                ( 1.0,-1.0),
-                (-1.0,-1.0),
+                (-1.1,-1.01),
+                (-1.2, 1.02),
+                ( 1.3, 1.03),
+                ( 1.4,-1.04),
+                (-1.1,-1.01),
             ]), 
             vec![],
         );
@@ -687,11 +687,11 @@ mod test_geo_types {
         let converted_polygon = Polygon::from(geotypes_polygon);
 
         let expected_polygon = Polygon::new(PolygonRing::Outer(vec![
-            Point::new(-1.0,-1.0),
-            Point::new(-1.0, 1.0),
-            Point::new( 1.0, 1.0),
-            Point::new( 1.0,-1.0),
-            Point::new(-1.0,-1.0),
+            Point::new(-1.1,-1.01),
+            Point::new(-1.2, 1.02),
+            Point::new( 1.3, 1.03),
+            Point::new( 1.4,-1.04),
+            Point::new(-1.1,-1.01),
         ]));
 
 
@@ -703,17 +703,17 @@ mod test_geo_types {
 
         let one_ring_polygon = Polygon::with_rings(vec![
             PolygonRing::Outer(vec![
-                Point::new(-1.0,-1.0),
-                Point::new(-1.0, 1.0),
-                Point::new( 1.0, 1.0),
-                Point::new( 1.0,-1.0),
-                Point::new(-1.0,-1.0),
+                Point::new(-1.1,-1.01),
+                Point::new(-1.2, 1.02),
+                Point::new( 1.3, 1.03),
+                Point::new( 1.4,-1.04),
+                Point::new(-1.1,-1.01),
             ]), PolygonRing::Inner(vec![
-                Point::new(-0.5,-0.5),
-                Point::new(-0.5, 0.5),
-                Point::new( 0.5, 0.5),
-                Point::new( 0.5,-0.5),
-                Point::new(-0.5,-0.5),
+                Point::new(-0.51,-0.501),
+                Point::new(-0.52, 0.502),
+                Point::new( 0.53, 0.503),
+                Point::new( 0.54,-0.504),
+                Point::new(-0.51,-0.501),
         ])]);
         
         let converted_multipolygon = geo_types::MultiPolygon::<f64>::from(one_ring_polygon);
@@ -722,18 +722,18 @@ mod test_geo_types {
 
         let expected_geotypes_polygon = geo_types::Polygon::new(
             LineString::from(vec![
-                (-1.0,-1.0),
-                (-1.0, 1.0),
-                ( 1.0, 1.0),
-                ( 1.0,-1.0),
-                (-1.0,-1.0),
+                (-1.1,-1.01),
+                (-1.2, 1.02),
+                ( 1.3, 1.03),
+                ( 1.4,-1.04),
+                (-1.1,-1.01)
             ]), 
             vec![LineString::from(vec![
-                (-0.5,-0.5),
-                (-0.5, 0.5),
-                ( 0.5, 0.5),
-                ( 0.5,-0.5),
-                (-0.5,-0.5),
+                (-0.51,-0.501),
+                ( 0.54,-0.504), // NOTE: Direction gets reversed in conversion. Is this expected?
+                ( 0.53, 0.503),
+                (-0.52, 0.502),
+                (-0.51,-0.501),
             ])],
         );
 
@@ -745,18 +745,18 @@ mod test_geo_types {
 
         let geotypes_polygon = geo_types::Polygon::new(
             LineString::from(vec![
-                (-1.0,-1.0),
-                (-1.0, 1.0),
-                ( 1.0, 1.0),
-                ( 1.0,-1.0),
-                (-1.0,-1.0),
+                (-1.1,-1.01),
+                (-1.2, 1.02),
+                ( 1.3, 1.03),
+                ( 1.4,-1.04),
+                (-1.1,-1.01),
             ]), 
             vec![LineString::from(vec![
-                (-0.5,-0.5),
-                (-0.5, 0.5),
-                ( 0.5, 0.5),
-                ( 0.5,-0.5),
-                (-0.5,-0.5),
+                (-0.51,-0.501),
+                (-0.52, 0.502),
+                ( 0.53, 0.503),
+                ( 0.54,-0.504),
+                (-0.51,-0.501),
             ])]
         );
 
@@ -764,17 +764,17 @@ mod test_geo_types {
 
         let expected_polygon = Polygon::with_rings(vec![
             PolygonRing::Outer(vec![
-                Point::new(-1.0,-1.0),
-                Point::new(-1.0, 1.0),
-                Point::new( 1.0, 1.0),
-                Point::new( 1.0,-1.0),
-                Point::new(-1.0,-1.0),
+                Point::new(-1.1,-1.01),
+                Point::new(-1.2, 1.02),
+                Point::new( 1.3, 1.03),
+                Point::new( 1.4,-1.04),
+                Point::new(-1.1,-1.01),
             ]), PolygonRing::Inner(vec![
-                Point::new(-0.5,-0.5),
-                Point::new(-0.5, 0.5),
-                Point::new( 0.5, 0.5),
-                Point::new( 0.5,-0.5),
-                Point::new(-0.5,-0.5),
+                Point::new(-0.51,-0.501),
+                Point::new(-0.52, 0.502),
+                Point::new( 0.53, 0.503),
+                Point::new( 0.54,-0.504),
+                Point::new(-0.51,-0.501),
         ])]);
 
 
