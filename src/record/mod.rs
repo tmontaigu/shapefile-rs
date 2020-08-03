@@ -456,7 +456,7 @@ impl TryFrom<Shape> for geo_types::Geometry<f64> {
 /// Since all Geometries are in 2D, the resulting shape will be 2D
 /// (Polygon, Polyline, etc and not PolylineM, PolylineZ, etc)
 ///
-/// Fails if the geometry is a GeometryCollection
+/// Fails if the geometry is a GeometryCollection, Rect, or Triangle
 #[cfg(feature = "geo-types")]
 impl TryFrom<geo_types::Geometry<f64>> for Shape {
     type Error = &'static str;
@@ -476,6 +476,7 @@ impl TryFrom<geo_types::Geometry<f64>> for Shape {
             geo_types::Geometry::GeometryCollection(_) => {
                 Err("Cannot convert geo_types::GeometryCollection into a Shape")
             }
+            #[allow(unreachable_patterns)] // Unreachable before geo-types 0.6.0
             _ => { // New geometries Rect(_) and Triangle(_) added in 0.6.0
                 Err("Cannot convert unrecognized Geometry type into a Shape")
             }
