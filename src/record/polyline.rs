@@ -24,6 +24,23 @@ use geo_types;
 /// To create a polyline with only one part use [`new`],
 /// to create a polyline with multiple parts use [`with_parts`]
 ///
+/// # geo-types
+///
+/// shapefile's Polyline can be converted to geo_types's `MultiLineString<f64>`
+///
+/// geo-types's `Line`, `LineString`, `MultiLineString` can be converted to shapefile's Polyline
+/// ```
+/// # #[cfg(feature = "geo-types")]
+/// # fn main() -> Result<(), shapefile::Error>{
+/// let mut polylines = shapefile::read_as::<_, shapefile::Polyline>("tests/data/line.shp")?;
+/// let geo_polyline: geo_types::MultiLineString<f64> = polylines.pop().unwrap().into();
+/// let polyline = shapefile::Polyline::from(geo_polyline);
+/// # Ok(())
+/// # }
+/// # #[cfg(not(feature = "geo-types"))]
+/// # fn main() {}
+/// ```
+///
 /// [`new`]: #method.new
 /// [`with_parts`]: #method.with_parts
 #[derive(Debug, Clone, PartialEq)]

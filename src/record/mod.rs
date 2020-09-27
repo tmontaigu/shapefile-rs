@@ -146,6 +146,29 @@ pub(crate) fn ring_type_from_points_ordering<PointType: HasXY>(points: &[PointTy
 }
 
 /// enum of Shapes that can be read or written to a shapefile
+///
+/// # geo-types
+///
+/// `shapefile::Shape` and `geo_types::Geometry<f64>` can be converted from one to another,
+/// however this conversion is not infallible so it is done using `TryFrom`
+///
+/// ```
+/// # #[cfg(feature = "geo-types")]
+/// # fn main() -> Result<(), shapefile::Error>{
+/// use std::convert::TryFrom;
+/// use shapefile::Shape;
+/// let mut shapes = shapefile::read("tests/data/line.shp")?;
+/// let last_shape = shapes.pop().unwrap();
+/// let geometry = geo_types::Geometry::<f64>::try_from(last_shape);
+///
+/// assert_eq!(geometry.is_ok(), true);
+/// assert_eq!(geo_types::Geometry::<f64>::try_from(Shape::NullShape).is_err(), true);
+/// # Ok(())
+/// # }
+/// # #[cfg(not(feature = "geo-types"))]
+/// # fn main() {}
+/// ```
+///
 pub enum Shape {
     NullShape,
     Point(Point),

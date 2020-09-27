@@ -197,6 +197,26 @@ impl<PointType: HasXY> From<Vec<PointType>> for PolygonRing<PointType> {
 /// - The order of rings is not significant (p 13/34)
 /// - A polygon may have multiple [`Outer`] rings (p12/34)
 ///
+///
+/// # geo-types
+///
+/// shapefile's Polygons can be converted to geo-types's `MultiPolygon<f64>`,
+/// but not geo-types's Polygon<f64> as they only allow polygons with one outer ring.
+///
+/// geo-types's `Polygon<f64>` and `MultiPolygon<f64>` can be converted to shapefile's Polygon
+///
+/// ```
+/// # #[cfg(feature = "geo-types")]
+/// # fn main() -> Result<(), shapefile::Error>{
+/// let mut polygons = shapefile::read_as::<_, shapefile::PolygonM>("tests/data/polygonm.shp")?;
+/// let geo_polygon: geo_types::MultiPolygon<f64> = polygons.pop().unwrap().into();
+/// let polygon = shapefile::PolygonZ::from(geo_polygon);
+/// # Ok(())
+/// # }
+/// # #[cfg(not(feature = "geo-types"))]
+/// # fn main() {}
+/// ```
+///
 /// [`new`]: #method.new
 /// [`with_rings`]: #method.with_rings
 /// [`Outer`]: enum.PolygonRing.html#variant.Outer

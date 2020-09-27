@@ -44,6 +44,22 @@ use geo_types;
 /// assert_eq!(points.len(), 2);
 /// ```
 ///
+/// # geo-types
+///
+/// Multipoints are convertible to the geo-types's Multipoint<f64>
+///
+/// ```
+/// # #[cfg(feature = "geo-types")]
+/// # fn main() -> Result<(), shapefile::Error> {
+/// let mut multipoints = shapefile::read_as::<_, shapefile::Multipoint>("tests/data/multipoint.shp")?;
+/// let geo_multipoint: geo_types::MultiPoint<f64> = multipoints.pop().unwrap().into();
+/// let multipoint = shapefile::Multipoint::from(geo_multipoint);
+/// # Ok(())
+/// # }
+/// # #[cfg(not(feature = "geo-types"))]
+/// # fn main() {}
+/// ```
+///
 /// [`new`]: #method.new
 #[derive(Debug, Clone, PartialEq)]
 pub struct GenericMultipoint<PointType> {
