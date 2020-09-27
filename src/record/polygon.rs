@@ -16,6 +16,8 @@ use {PointM, PointZ};
 
 #[cfg(feature = "geo-types")]
 use geo_types::{Coordinate, LineString};
+use std::ops::Index;
+use std::slice::SliceIndex;
 
 /// Rings composing a Polygon
 ///
@@ -53,6 +55,7 @@ use geo_types::{Coordinate, LineString};
 ///
 /// let ring = PolygonRing::Outer(points);
 /// assert_ne!(ring.points(), reversed_points.as_slice());
+/// assert_eq!(ring[0], Point::new(-12.0, 6.0));
 ///
 /// // Now the points will be reversed
 /// let polygon = Polygon::new(ring);
@@ -157,6 +160,14 @@ where
             }
             _ => {}
         }
+    }
+}
+
+impl<PointType, I: SliceIndex<[PointType]>> Index<I> for PolygonRing<PointType> {
+    type Output = I::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        Index::index(self.points(), index)
     }
 }
 

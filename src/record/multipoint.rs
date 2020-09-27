@@ -5,6 +5,8 @@
 //!
 use std::fmt;
 use std::io::{Read, Write};
+use std::ops::Index;
+use std::slice::SliceIndex;
 use std::mem::size_of;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -36,9 +38,10 @@ use geo_types;
 ///     Point::new(2.0, 2.0),
 /// ]);
 ///
+/// assert_eq!(multipoint[0], Point::new(1.0, 1.0));
+///
 /// let points: Vec<Point> = multipoint.into();
 /// assert_eq!(points.len(), 2);
-///
 /// ```
 ///
 /// [`new`]: #method.new
@@ -149,6 +152,16 @@ where
 {
     fn from(points: Vec<PointType>) -> Self {
         Self::new(points)
+    }
+}
+
+
+impl<PointType, I: SliceIndex<[PointType]>> Index<I> for GenericMultipoint<PointType> {
+    type Output = I::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        Index::index(&self.points, index)
     }
 }
 
@@ -556,5 +569,24 @@ mod test_geo_types_conversions {
         assert_eq!(shapefile_multipoint.points[1].y, 2.0);
         assert_eq!(shapefile_multipoint.points[0].z, 0.0);
         assert_eq!(shapefile_multipoint.points[0].m, NO_DATA);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ::{PointZ, MultipointZ};
+
+    #[test]
+    fn test_multipoint_index() {
+        let points = vec![
+            PointZ::new(1.0, 1.0, 17.0, 18.0),
+            PointZ::new(2.0, 2.0, 15.0, 16.0),
+        ];
+        let multipoint = MultipointZ::new(points.clone());
+
+        assert_eq!(multipoint[0], points[0]);
+        assert_eq!(multipoint[1], points[1]);
+
+        assert_eq!(multipoint[..1], points[..1]);
     }
 }
