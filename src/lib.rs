@@ -1,6 +1,9 @@
 //! Read & Write [Shapefile](http://downloads.esri.com/support/whitepapers/mo_/shapefile.pdf) in Rust
 //!
-//! _.dbf_ can be read & written to (but the support for this is still alpha-ish)
+//! A _shapefile_ is in reality a collection of 3 mandatory files:
+//!  -  .shp (feature geometry aka shapes)
+//!  -  .shx (index of feature geometry)
+//!  -  .dbf (attribute information, aka records)
 //!
 //! As different shapefiles can store different type of shapes
 //! (but one shapefile can only store the same type of shapes)
@@ -54,7 +57,7 @@ use std::convert::From;
 use std::fmt;
 use std::io::{Read, Write};
 
-pub use reader::{read, read_as, Reader};
+pub use reader::{read, read_as, read_shapes, read_shapes_as, ShapeReader, Reader};
 pub use record::Multipatch;
 pub use record::{convert_shapes_to_vec_of, HasShapeType, ReadableShape};
 pub use record::{Multipoint, MultipointM, MultipointZ};
@@ -62,7 +65,7 @@ pub use record::{Patch, Shape, NO_DATA};
 pub use record::{Point, PointM, PointZ};
 pub use record::{Polygon, PolygonM, PolygonRing, PolygonZ};
 pub use record::{Polyline, PolylineM, PolylineZ};
-pub use writer::Writer;
+pub use writer::{ShapeWriter, Writer};
 
 extern crate core;
 #[cfg(feature = "geo-types")]

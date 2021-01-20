@@ -1,3 +1,13 @@
+# Unreleased
+ - Updated dbase dependency to 0.1.x
+ - Added a `ShapeReader` &`ShapeWriter` struct that only read/write the .shp and .shx
+ - Changed the `Reader`, it now requires the .dbf to exist
+ - Changed the `Writer`, it requires more information to be able to write the .dbf file
+   (Examples are in the docs)
+ - Changed the `Reader` `iter_*` & `read` to take `&mut self` instead of `self` 
+ - Changed `shapefile::read` now returns a `Vec<(Shape, Record)>` 
+   `shapefile::read_shapes` returns `Vec<Shape>`
+
 # 0.2.2
  - Bumped geo-types optional dependency to allow up to 0.8.0
 

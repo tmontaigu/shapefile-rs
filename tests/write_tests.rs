@@ -2,7 +2,8 @@ extern crate shapefile;
 
 mod testfiles;
 
-use shapefile::{Point, Polygon, PolygonRing, Polyline, Writer};
+use shapefile::{Point, Polygon, PolygonRing, Polyline};
+use shapefile::writer::ShapeWriter;
 
 fn read_a_file(path: &str) -> std::io::Result<Vec<u8>> {
     use std::io::Read;
@@ -18,8 +19,7 @@ fn single_point() {
     let point = Point::new(122.0, 37.0);
     let mut shp: Vec<u8> = vec![];
     let mut shx: Vec<u8> = vec![];
-    let mut writer = Writer::new(&mut shp);
-    writer.add_index_dest(&mut shx);
+    let writer = ShapeWriter::with_shx(&mut shp, &mut shx);
     writer.write_shapes(&vec![point]).unwrap();
 
     let expected = read_a_file(testfiles::POINT_PATH);
@@ -45,8 +45,7 @@ fn multi_line() {
     ]);
     let mut shp: Vec<u8> = vec![];
     let mut shx: Vec<u8> = vec![];
-    let mut writer = Writer::new(&mut shp);
-    writer.add_index_dest(&mut shx);
+    let writer = ShapeWriter::with_shx(&mut shp, &mut shx);
     writer.write_shapes(&vec![point]).unwrap();
 
     let expected = read_a_file(testfiles::LINE_PATH);
@@ -78,8 +77,7 @@ fn polygon_inner() {
     ]);
     let mut shp: Vec<u8> = vec![];
     let mut shx: Vec<u8> = vec![];
-    let mut writer = Writer::new(&mut shp);
-    writer.add_index_dest(&mut shx);
+    let writer = ShapeWriter::with_shx(&mut shp, &mut shx);
     writer.write_shapes(&vec![point]).unwrap();
 
     let expected = read_a_file(testfiles::POLYGON_HOLE_PATH);
@@ -113,8 +111,7 @@ fn polygon_inner_is_correctly_reordered() {
     ]);
     let mut shp: Vec<u8> = vec![];
     let mut shx: Vec<u8> = vec![];
-    let mut writer = Writer::new(&mut shp);
-    writer.add_index_dest(&mut shx);
+    let writer = ShapeWriter::with_shx(&mut shp, &mut shx);
     writer.write_shapes(&vec![point]).unwrap();
 
     let expected = read_a_file(testfiles::POLYGON_HOLE_PATH);

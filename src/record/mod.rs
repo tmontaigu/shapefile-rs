@@ -333,7 +333,7 @@ impl RecordHeader {
 /// ```
 /// # fn main() -> Result<(), shapefile::Error> {
 /// use shapefile::{convert_shapes_to_vec_of, MultipointZ};
-/// let shapes = shapefile::read("tests/data/multipointz.shp")?;
+/// let shapes = shapefile::read_shapes("tests/data/multipointz.shp")?;
 /// let multipoints = convert_shapes_to_vec_of::<MultipointZ>(shapes);
 /// assert_eq!(multipoints.is_ok(), true);
 /// # Ok(())

@@ -12,7 +12,7 @@ use shapefile::{Multipoint, MultipointZ};
 use shapefile::{Polygon, PolygonM, PolygonZ};
 use shapefile::{Polyline, PolylineM, PolylineZ};
 
-fn check_line<T: Read>(reader: shapefile::Reader<T>) {
+fn check_line<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     {
         let header = reader.header();
         assert_eq!(header.file_length, 136);
@@ -27,7 +27,7 @@ fn check_line<T: Read>(reader: shapefile::Reader<T>) {
     testfiles::check_line_first_shape(&shapes[0]);
 }
 
-fn check_linem<T: Read>(reader: shapefile::Reader<T>) {
+fn check_linem<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     use shapefile::NO_DATA;
     {
         let header = reader.header();
@@ -91,7 +91,7 @@ fn check_linem<T: Read>(reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_linez<T: Read>(reader: shapefile::Reader<T>) {
+fn check_linez<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     use shapefile::NO_DATA;
     {
         let header = reader.header();
@@ -188,7 +188,7 @@ fn check_first_point(point: &shapefile::Point) {
     assert_eq!(point.y, 37.0);
 }
 
-fn check_point<T: Read>(reader: shapefile::Reader<T>) {
+fn check_point<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     {
         let header = reader.header();
         assert_eq!(header.file_length, 64);
@@ -233,7 +233,7 @@ pub fn check_second_point_m(shape: &shapefile::Shape) {
     }
 }
 
-fn check_pointm<T: Read>(reader: shapefile::Reader<T>) {
+fn check_pointm<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     {
         let header = reader.header();
         assert_eq!(header.file_length, 86);
@@ -268,7 +268,7 @@ fn _check_second_point_z(point: &shapefile::PointZ) {
     assert_eq!(point.m, shapefile::NO_DATA);
 }
 
-fn check_pointz<T: Read>(reader: shapefile::Reader<T>) {
+fn check_pointz<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     {
         let header = reader.header();
         assert_eq!(header.file_length, 94);
@@ -308,7 +308,7 @@ fn check_pointz<T: Read>(reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_polygon<T: Read>(reader: shapefile::Reader<T>) {
+fn check_polygon<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     {
         let header = reader.header();
         assert_eq!(header.file_length, 170);
@@ -346,7 +346,7 @@ fn check_polygon<T: Read>(reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_polygonm<T: Read>(reader: shapefile::Reader<T>) {
+fn check_polygonm<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     {
         let header = reader.header();
         assert_eq!(header.file_length, 134);
@@ -393,7 +393,7 @@ fn check_polygonm<T: Read>(reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_polygonz<T: Read>(reader: shapefile::Reader<T>) {
+fn check_polygonz<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     {
         let header = reader.header();
         assert_eq!(header.file_length, 1262);
@@ -414,7 +414,7 @@ fn check_polygonz<T: Read>(reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_multipoint<T: Read>(reader: shapefile::Reader<T>) {
+fn check_multipoint<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     {
         let header = reader.header();
         assert_eq!(header.file_length, 90);
@@ -433,7 +433,7 @@ fn check_multipoint<T: Read>(reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_multipointz<T: Read>(reader: shapefile::Reader<T>) {
+fn check_multipointz<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     {
         let header = reader.header();
         assert_eq!(header.file_length, 154);
@@ -493,7 +493,7 @@ fn check_multipointz<T: Read>(reader: shapefile::Reader<T>) {
     }
 }
 
-fn check_multipatch<T: Read>(reader: shapefile::Reader<T>) {
+fn check_multipatch<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     {
         let header = reader.header();
         assert_eq!(header.file_length, 356, "Wrong file length");
@@ -618,7 +618,7 @@ macro_rules! read_test {
     ($func:ident, $check_func:ident, $src_file:expr) => {
         #[test]
         fn $func() {
-            let reader = shapefile::Reader::from_path($src_file).unwrap();
+            let reader = shapefile::ShapeReader::from_path($src_file).unwrap();
             $check_func(reader);
         }
     };
@@ -628,17 +628,15 @@ macro_rules! read_write_read_test {
     ($func:ident, $concrete_type:ident, $check_func:ident, $src_file:expr) => {
         #[test]
         fn $func() {
-            let reader = shapefile::Reader::from_path($src_file).unwrap();
+            let reader = shapefile::ShapeReader::from_path($src_file).unwrap();
             let shapes = reader.read().unwrap();
             let shapes =
                 shapefile::record::convert_shapes_to_vec_of::<$concrete_type>(shapes).unwrap();
 
             let v = Vec::<u8>::new();
             let mut cursor = Cursor::new(v);
-            let mut writer = shapefile::writer::Writer::new(cursor);
+            let writer = shapefile::ShapeWriter::new(&mut cursor);
             writer.write_shapes(&shapes).unwrap();
-
-            cursor = writer.dest;
 
             let pos_at_end = cursor.seek(SeekFrom::Current(0)).unwrap();
             cursor.seek(SeekFrom::Start(0)).unwrap();
@@ -650,7 +648,7 @@ macro_rules! read_write_read_test {
             );
 
             cursor.seek(SeekFrom::Start(0)).unwrap();
-            let reader = shapefile::Reader::new(cursor).unwrap();
+            let reader = shapefile::ShapeReader::new(cursor).unwrap();
             $check_func(reader);
         }
     };
@@ -774,7 +772,7 @@ read_write_read_test!(
 
 #[test]
 fn read_as_point() {
-    let points = shapefile::read_as::<&str, shapefile::Point>(testfiles::POINT_PATH);
+    let points = shapefile::read_shapes_as::<&str, shapefile::Point>(testfiles::POINT_PATH);
     assert_eq!(points.is_ok(), true);
 
     let points = points.unwrap();
@@ -784,7 +782,7 @@ fn read_as_point() {
 
 #[test]
 fn read_as_point_m() {
-    let points_m = shapefile::read_as::<&str, shapefile::PointM>(testfiles::POINTM_PATH);
+    let points_m = shapefile::read_shapes_as::<&str, shapefile::PointM>(testfiles::POINTM_PATH);
     assert_eq!(points_m.is_ok(), true);
 
     let points_m = points_m.unwrap();
@@ -795,7 +793,7 @@ fn read_as_point_m() {
 
 #[test]
 fn read_as_point_z() {
-    let points_z = shapefile::read_as::<&str, shapefile::PointZ>(testfiles::POINTZ_PATH);
+    let points_z = shapefile::read_shapes_as::<&str, shapefile::PointZ>(testfiles::POINTZ_PATH);
     //assert_eq!(points_z.is_ok(), true, "Reading result is not Ok");
 
     let points_z = points_z.unwrap();
@@ -807,7 +805,7 @@ fn read_as_point_z() {
 #[test]
 fn read_point_as_wrong_type() {
     use shapefile::{Error, ShapeType};
-    let points = shapefile::read_as::<&str, shapefile::PointM>(testfiles::POINT_PATH);
+    let points = shapefile::read_shapes_as::<&str, shapefile::PointM>(testfiles::POINT_PATH);
 
     if let Err(error) = points {
         match error {
