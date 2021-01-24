@@ -208,7 +208,7 @@ impl<PointType: HasXY> From<Vec<PointType>> for PolygonRing<PointType> {
 /// ```
 /// # #[cfg(feature = "geo-types")]
 /// # fn main() -> Result<(), shapefile::Error>{
-/// let mut polygons = shapefile::read_as::<_, shapefile::PolygonM>("tests/data/polygonm.shp")?;
+/// let mut polygons = shapefile::read_shapes_as::<_, shapefile::PolygonM>("tests/data/polygonm.shp")?;
 /// let geo_polygon: geo_types::MultiPolygon<f64> = polygons.pop().unwrap().into();
 /// let polygon = shapefile::PolygonZ::from(geo_polygon);
 /// # Ok(())

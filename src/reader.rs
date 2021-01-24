@@ -603,6 +603,8 @@ pub fn read_as<T: AsRef<Path>, S: ReadableShape, R: dbase::ReadableRecord>(path:
 
 /// Function to read all the Shapes in a file as a certain type
 ///
+/// It does not open the .dbf file.
+///
 /// Fails and return `Err(Error:MismatchShapeType)`
 ///
 ///  # Examples
