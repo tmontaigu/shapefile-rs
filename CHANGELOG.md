@@ -1,3 +1,6 @@
+# 0.2.2
+ - Bumped geo-types optional dependency to allow up to 0.8.0
+
 # 0.1.1
  - Fixed a problem in the Multipatch/Polygon/Polyline::with_parts ctor which resulted in
    wrong parts creation (Github PR #10)
