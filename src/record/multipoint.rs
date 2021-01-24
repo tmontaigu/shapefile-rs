@@ -51,7 +51,7 @@ use geo_types;
 /// ```
 /// # #[cfg(feature = "geo-types")]
 /// # fn main() -> Result<(), shapefile::Error> {
-/// let mut multipoints = shapefile::read_as::<_, shapefile::Multipoint>("tests/data/multipoint.shp")?;
+/// let mut multipoints = shapefile::read_shapes_as::<_, shapefile::Multipoint>("tests/data/multipoint.shp")?;
 /// let geo_multipoint: geo_types::MultiPoint<f64> = multipoints.pop().unwrap().into();
 /// let multipoint = shapefile::Multipoint::from(geo_multipoint);
 /// # Ok(())

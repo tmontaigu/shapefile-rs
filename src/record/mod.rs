@@ -157,7 +157,7 @@ pub(crate) fn ring_type_from_points_ordering<PointType: HasXY>(points: &[PointTy
 /// # fn main() -> Result<(), shapefile::Error>{
 /// use std::convert::TryFrom;
 /// use shapefile::Shape;
-/// let mut shapes = shapefile::read("tests/data/line.shp")?;
+/// let mut shapes = shapefile::read_shapes("tests/data/line.shp")?;
 /// let last_shape = shapes.pop().unwrap();
 /// let geometry = geo_types::Geometry::<f64>::try_from(last_shape);
 ///
@@ -333,7 +333,7 @@ impl RecordHeader {
 /// ```
 /// # fn main() -> Result<(), shapefile::Error> {
 /// use shapefile::{convert_shapes_to_vec_of, MultipointZ};
-/// let shapes = shapefile::read("tests/data/multipointz.shp")?;
+/// let shapes = shapefile::read_shapes("tests/data/multipointz.shp")?;
 /// let multipoints = convert_shapes_to_vec_of::<MultipointZ>(shapes);
 /// assert_eq!(multipoints.is_ok(), true);
 /// # Ok(())

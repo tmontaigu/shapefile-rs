@@ -32,7 +32,7 @@ use geo_types;
 /// ```
 /// # #[cfg(feature = "geo-types")]
 /// # fn main() -> Result<(), shapefile::Error>{
-/// let mut polylines = shapefile::read_as::<_, shapefile::Polyline>("tests/data/line.shp")?;
+/// let mut polylines = shapefile::read_shapes_as::<_, shapefile::Polyline>("tests/data/line.shp")?;
 /// let geo_polyline: geo_types::MultiLineString<f64> = polylines.pop().unwrap().into();
 /// let polyline = shapefile::Polyline::from(geo_polyline);
 /// # Ok(())
