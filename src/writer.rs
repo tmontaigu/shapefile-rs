@@ -8,17 +8,16 @@
 //!
 //! The [ShapeWriter] can be used if you only want to write the .shp
 //! and .shx files, however since it does not write the .dbf file, it is not recommended.
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Seek, SeekFrom, Write};
 
-use header;
 use record::{BBoxZ, EsriShape, RecordHeader};
 use std::fs::File;
 use std::path::Path;
-use Error;
+use {header, ShapeType};
+use {Error, PointZ};
 
-use byteorder::{BigEndian, WriteBytesExt};
+use dbase::TableWriterBuilder;
 use reader::ShapeIndex;
-use dbase::{TableWriterBuilder};
 
 pub(crate) fn f64_min(a: f64, b: f64) -> f64 {
     if a < b {
@@ -36,24 +35,6 @@ pub(crate) fn f64_max(a: f64, b: f64) -> f64 {
     }
 }
 
-fn write_index_file<T: Write>(
-    mut dest: &mut T,
-    shapefile_header: &header::Header,
-    shapes_index: Vec<ShapeIndex>,
-) -> Result<(), std::io::Error> {
-    let mut header = *shapefile_header;
-    let content_len = shapes_index.len() * 2 * std::mem::size_of::<i32>();
-    header.file_length = header::HEADER_SIZE + content_len as i32;
-    header.file_length /= 2;
-
-    header.write_to(&mut dest)?;
-    for shape_index in shapes_index {
-        dest.write_i32::<BigEndian>(shape_index.offset)?;
-        dest.write_i32::<BigEndian>(shape_index.record_size)?;
-    }
-    Ok(())
-}
-
 /// struct that handles the writing of the .shp
 /// and (optionally) the .idx
 ///
@@ -63,12 +44,14 @@ fn write_index_file<T: Write>(
 ///
 /// As this writer does not write the _.dbf_, it does not write what is considered
 /// a complete (thus valid) shapefile.
-pub struct ShapeWriter<T: Write> {
+pub struct ShapeWriter<T: Write + Seek> {
     shp_dest: T,
     shx_dest: Option<T>,
+    header: header::Header,
+    rec_num: u32,
 }
 
-impl<T: Write> ShapeWriter<T> {
+impl<T: Write + Seek> ShapeWriter<T> {
     /// Creates a writer that can be used to write a new shapefile.
     ///
     /// The `dest` argument is only for the .shp
@@ -76,17 +59,87 @@ impl<T: Write> ShapeWriter<T> {
         Self {
             shp_dest,
             shx_dest: None,
+            header: header::Header::default(),
+            rec_num: 1,
         }
     }
 
     pub fn with_shx(shp_dest: T, shx_dest: T) -> Self {
         Self {
             shp_dest,
-            shx_dest: Some(shx_dest)
+            shx_dest: Some(shx_dest),
+            header: Default::default(),
+            rec_num: 1,
         }
     }
 
-    /// Writes the shapes to the file
+    /// Write the shape to the file
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), shapefile::Error> {
+    /// use shapefile::Point;
+    /// let mut writer = shapefile::ShapeWriter::from_path("points.shp")?;
+    ///
+    /// writer.write_shape(&Point::new(0.0, 0.0))?;
+    /// writer.write_shape(&Point::new(1.0, 0.0))?;
+    /// writer.write_shape(&Point::new(2.0, 0.0))?;
+    ///
+    /// # std::fs::remove_file("points.shp")?;
+    /// # std::fs::remove_file("points.shx")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn write_shape<S: EsriShape>(&mut self, shape: &S) -> Result<(), Error> {
+        match (self.header.shape_type, S::shapetype()) {
+            (ShapeType::NullShape, t) => {
+                use std::f64::{MAX, MIN};
+                self.header.shape_type = t;
+                self.header.bbox = BBoxZ {
+                    max: PointZ::new(MIN, MIN, MIN, MIN),
+                    min: PointZ::new(MAX, MAX, MAX, MAX),
+                };
+                self.header.write_to(&mut self.shp_dest)?;
+                if let Some(shx_dest) = &mut self.shx_dest {
+                    self.header.write_to(shx_dest)?;
+                }
+            }
+            (t1, t2) if t1 != t2 => {
+                return Err(Error::MismatchShapeType {
+                    requested: t1,
+                    actual: t2,
+                });
+            }
+            _ => {}
+        }
+
+        let record_size = (shape.size_in_bytes() + std::mem::size_of::<i32>()) / 2;
+
+        RecordHeader {
+            record_number: self.rec_num as i32,
+            record_size: record_size as i32,
+        }
+        .write_to(&mut self.shp_dest)?;
+        self.header.shape_type.write_to(&mut self.shp_dest)?;
+        shape.write_to(&mut self.shp_dest)?;
+
+        if let Some(shx_dest) = &mut self.shx_dest {
+            ShapeIndex {
+                offset: self.header.file_length,
+                record_size: record_size as i32,
+            }
+            .write_to(shx_dest)?;
+        }
+
+        self.header.file_length += record_size as i32 + RecordHeader::SIZE as i32 / 2;
+        self.header.bbox.grow_from_shape(shape);
+        self.rec_num += 1;
+
+        Ok(())
+    }
+
+    /// Writes a collection of shapes to the file
     ///
     /// # Examples
     ///
@@ -97,6 +150,8 @@ impl<T: Write> ShapeWriter<T> {
     /// let points = vec![Point::new(0.0, 0.0), Point::new(1.0, 0.0), Point::new(2.0, 0.0)];
     ///
     /// writer.write_shapes(&points)?;
+    /// # std::fs::remove_file("points.shp")?;
+    /// # std::fs::remove_file("points.shx")?;
     /// # Ok(())
     /// # }
     /// ```
@@ -109,56 +164,50 @@ impl<T: Write> ShapeWriter<T> {
     /// let polyline = Polyline::new(points);
     ///
     /// writer.write_shapes(&vec![polyline])?;
+    /// # std::fs::remove_file("polylines.shp")?;
+    /// # std::fs::remove_file("polylines.shx")?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn write_shapes<S: EsriShape>(mut self, shapes: &[S]) -> Result<(), Error> {
-        let mut file_length = header::HEADER_SIZE as usize;
-        for shape in shapes {
-            file_length += 2 * std::mem::size_of::<i32>(); // record_header
-            file_length += std::mem::size_of::<i32>(); // shape_type
-            file_length += shape.size_in_bytes();
+    pub fn write_shapes<'a, S: EsriShape + 'a, C: IntoIterator<Item = &'a S>>(
+        mut self,
+        container: C,
+    ) -> Result<(), Error> {
+        for shape in container {
+            self.write_shape(shape)?;
         }
-        file_length /= 2; // file size is in 16bit words
-
-        assert!(file_length <= i32::max_value() as usize);
-
-        let file_length = file_length as i32;
-        let shapetype = S::shapetype();
-        let header = header::Header {
-            bbox: BBoxZ::from_shapes(shapes),
-            file_length,
-            shape_type: shapetype,
-            version: 1000,
-        };
-
-        let mut pos = header::HEADER_SIZE / 2;
-        header.write_to(&mut self.shp_dest)?;
-        let mut shapes_index = Vec::<ShapeIndex>::with_capacity(shapes.len());
-        for (i, shape) in (1..).zip(shapes) {
-            //TODO Check record size < i32_max ?
-            let record_size = (shape.size_in_bytes() + std::mem::size_of::<i32>()) / 2;
-            let rc_hdr = RecordHeader {
-                record_number: i,
-                record_size: record_size as i32,
-            };
-
-            shapes_index.push(ShapeIndex {
-                offset: pos,
-                record_size: record_size as i32,
-            });
-
-            rc_hdr.write_to(&mut self.shp_dest)?;
-            shapetype.write_to(&mut self.shp_dest)?;
-            shape.write_to(&mut self.shp_dest)?;
-            pos += record_size as i32 + RecordHeader::SIZE as i32 / 2;
-        }
-
-        if let Some(ref mut shx_dest) = &mut self.shx_dest {
-            write_index_file(shx_dest, &header, shapes_index)?;
-        }
-
         Ok(())
+    }
+
+    fn close(&mut self) -> Result<(), Error> {
+        if self.header.bbox.max.m == std::f64::MIN && self.header.bbox.min.m == std::f64::MAX {
+            self.header.bbox.max.m = 0.0;
+            self.header.bbox.min.m = 0.0;
+        }
+
+        if self.header.bbox.max.z == std::f64::MIN && self.header.bbox.min.z == std::f64::MAX {
+            self.header.bbox.max.z = 0.0;
+            self.header.bbox.min.z = 0.0;
+        }
+
+        self.shp_dest.seek(SeekFrom::Start(0))?;
+        self.header.write_to(&mut self.shp_dest)?;
+        self.shp_dest.seek(SeekFrom::End(0))?;
+        if let Some(shx_dest) = &mut self.shx_dest {
+            let mut shx_header = self.header;
+            shx_header.file_length = header::HEADER_SIZE / 2
+                + ((self.rec_num - 1) as i32 * 2 * std::mem::size_of::<i32>() as i32 / 2);
+            shx_dest.seek(SeekFrom::Start(0))?;
+            shx_header.write_to(shx_dest)?;
+            shx_dest.seek(SeekFrom::End(0))?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: Write + Seek> Drop for ShapeWriter<T> {
+    fn drop(&mut self) {
+        let _ = self.close();
     }
 }
 
@@ -179,7 +228,7 @@ impl ShapeWriter<BufWriter<File>> {
         let shp_file = BufWriter::new(File::create(shp_path)?);
         let shx_file = BufWriter::new(File::create(shx_path)?);
 
-        Ok(Self::with_shx(shp_file,shx_file))
+        Ok(Self::with_shx(shp_file, shx_file))
     }
 }
 
@@ -208,12 +257,12 @@ impl ShapeWriter<BufWriter<File>> {
 /// # Ok(())
 /// # }
 /// ```
-pub struct Writer<T: Write> {
+pub struct Writer<T: Write + Seek> {
     shape_writer: ShapeWriter<T>,
-    dbase_writer: dbase::TableWriter<T>
+    dbase_writer: dbase::TableWriter<T>,
 }
 
-impl<T: Write> Writer<T> {
+impl<T: Write + Seek> Writer<T> {
     /// Creates a new writer using the provided ShapeWriter and TableWriter
     ///
     /// # Example
@@ -239,13 +288,17 @@ impl<T: Write> Writer<T> {
     pub fn new(shape_writer: ShapeWriter<T>, dbase_writer: dbase::TableWriter<T>) -> Self {
         Self {
             shape_writer,
-            dbase_writer
+            dbase_writer,
         }
     }
 
     // TODO once we get the ability to write shapes and records 'iteratively' the input to
     //      this function could be IntoIterator<Item=(S, R)>
-    pub fn write_shapes_and_records<S: EsriShape, R: dbase::WritableRecord>(self, shapes: &[S], records: &[R]) -> Result<(), Error> {
+    pub fn write_shapes_and_records<S: EsriShape, R: dbase::WritableRecord>(
+        self,
+        shapes: &[S],
+        records: &[R],
+    ) -> Result<(), Error> {
         if shapes.len() != records.len() {
             panic!("There must be has many shapes as there are records");
         }
@@ -270,19 +323,25 @@ impl Writer<BufWriter<File>> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn from_path<P: AsRef<Path>>(path: P, table_builder: TableWriterBuilder) -> Result<Self, Error> {
+    pub fn from_path<P: AsRef<Path>>(
+        path: P,
+        table_builder: TableWriterBuilder,
+    ) -> Result<Self, Error> {
         Ok(Self {
             shape_writer: ShapeWriter::from_path(path.as_ref())?,
-            dbase_writer: table_builder.build_with_file_dest(
-                path.as_ref().with_extension("dbf"))?
+            dbase_writer: table_builder
+                .build_with_file_dest(path.as_ref().with_extension("dbf"))?,
         })
     }
 
-    pub fn from_path_with_info<P: AsRef<Path>>(path: P, table_info: dbase::TableInfo) -> Result<Self, Error> {
+    pub fn from_path_with_info<P: AsRef<Path>>(
+        path: P,
+        table_info: dbase::TableInfo,
+    ) -> Result<Self, Error> {
         Ok(Self {
             shape_writer: ShapeWriter::from_path(path.as_ref())?,
             dbase_writer: dbase::TableWriterBuilder::from_table_info(table_info)
-                .build_with_file_dest(path.as_ref().with_extension("dbf"))?
+                .build_with_file_dest(path.as_ref().with_extension("dbf"))?,
         })
     }
 }

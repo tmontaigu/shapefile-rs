@@ -57,7 +57,7 @@ use std::convert::From;
 use std::fmt;
 use std::io::{Read, Write};
 
-pub use reader::{read, read_as, read_shapes, read_shapes_as, ShapeReader, Reader};
+pub use reader::{read, read_as, read_shapes, read_shapes_as, Reader, ShapeReader};
 pub use record::Multipatch;
 pub use record::{convert_shapes_to_vec_of, HasShapeType, ReadableShape};
 pub use record::{Multipoint, MultipointM, MultipointZ};
@@ -203,7 +203,8 @@ impl ShapeType {
             ShapeType::PointZ
             | ShapeType::PolylineZ
             | ShapeType::PolygonZ
-            | ShapeType::MultipointZ => true,
+            | ShapeType::MultipointZ
+            | ShapeType::Multipatch => true,
             _ => false,
         }
     }
