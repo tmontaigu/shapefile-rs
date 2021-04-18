@@ -93,6 +93,8 @@ impl<T: Write + Seek> ShapeWriter<T> {
     /// ```
     pub fn write_shape<S: EsriShape>(&mut self, shape: &S) -> Result<(), Error> {
         match (self.header.shape_type, S::shapetype()) {
+            // This is the first call to write shape, we shall write the header
+            // to reserve it space in the file.
             (ShapeType::NullShape, t) => {
                 use std::f64::{MAX, MIN};
                 self.header.shape_type = t;
@@ -292,18 +294,23 @@ impl<T: Write + Seek> Writer<T> {
         }
     }
 
-    // TODO once we get the ability to write shapes and records 'iteratively' the input to
-    //      this function could be IntoIterator<Item=(S, R)>
-    pub fn write_shapes_and_records<S: EsriShape, R: dbase::WritableRecord>(
-        self,
-        shapes: &[S],
-        records: &[R],
+    pub fn write_shape_and_record<S: EsriShape, R: dbase::WritableRecord>(
+        &mut self,
+        shape: &S,
+        record: &R) -> Result<(), Error> {
+        self.shape_writer.write_shape(shape)?;
+        self.dbase_writer.write_record(record)?;
+        Ok(())
+    }
+
+
+    pub fn write_shapes_and_records<'a, S: EsriShape +'a , R: dbase::WritableRecord +'a, C: IntoIterator<Item=(&'a S, &'a R)>>(
+        mut self,
+        container: C,
     ) -> Result<(), Error> {
-        if shapes.len() != records.len() {
-            panic!("There must be has many shapes as there are records");
+        for (shape, record) in container.into_iter() {
+            self.write_shape_and_record(shape, record)?;
         }
-        self.shape_writer.write_shapes(shapes)?;
-        self.dbase_writer.write(records)?;
         Ok(())
     }
 }
