@@ -220,7 +220,6 @@ impl Multipatch {
     }
 }
 
-
 impl fmt::Display for Multipatch {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Multipatch({} patches)", self.patches.len())

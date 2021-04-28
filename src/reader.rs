@@ -56,21 +56,30 @@
 //! - [read_shapes_as]
 
 use std::fs::File;
-use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-use byteorder::{BigEndian, ReadBytesExt};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-use {Error, Shape};
 use header;
 use record;
 use record::ReadableShape;
+use {Error, Shape};
 
 const INDEX_RECORD_SIZE: usize = 2 * std::mem::size_of::<i32>();
 
+#[derive(Copy, Clone)]
 pub(crate) struct ShapeIndex {
     pub offset: i32,
     pub record_size: i32,
+}
+
+impl ShapeIndex {
+    pub(crate) fn write_to<W: Write>(self, dest: &mut W) -> std::io::Result<()> {
+        dest.write_i32::<BigEndian>(self.offset)?;
+        dest.write_i32::<BigEndian>(self.record_size)?;
+        Ok(())
+    }
 }
 
 /// Read the content of a .shx file
@@ -128,10 +137,12 @@ impl<'a, T: Read, S: ReadableShape> Iterator for ShapeIterator<'a, T, S> {
 
 pub struct ShapeRecordIterator<'a, T: Read + Seek, S: ReadableShape, R: dbase::ReadableRecord> {
     shape_iter: ShapeIterator<'a, T, S>,
-    record_iter: dbase::RecordIterator<'a, T, R>
+    record_iter: dbase::RecordIterator<'a, T, R>,
 }
 
-impl<'a, T: Read + Seek, S: ReadableShape, R: dbase::ReadableRecord> Iterator for ShapeRecordIterator<'a, T, S, R> {
+impl<'a, T: Read + Seek, S: ReadableShape, R: dbase::ReadableRecord> Iterator
+    for ShapeRecordIterator<'a, T, S, R>
+{
     type Item = Result<(S, R), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -148,8 +159,6 @@ impl<'a, T: Read + Seek, S: ReadableShape, R: dbase::ReadableRecord> Iterator fo
         Some(Ok((shape, record)))
     }
 }
-
-
 
 /// This reader only reads the `.shp` and optionally the (`.shx`) files
 /// of a shapefile.
@@ -212,10 +221,10 @@ impl<T: Read> ShapeReader<T> {
         let shapes_index = Some(read_index_file(shx_source)?);
         let header = header::Header::read_from(&mut source)?;
 
-        Ok(Self{
+        Ok(Self {
             source,
             header,
-            shapes_index
+            shapes_index,
         })
     }
 
@@ -348,8 +357,6 @@ impl<T: Read> ShapeReader<T> {
     }
 }
 
-
-
 /// Sources that implements `Seek` have access to
 /// a few more methods that uses the *index file(.shx)*
 impl<T: Read + Seek> ShapeReader<T> {
@@ -417,12 +424,8 @@ impl<T: Read + Seek> ShapeReader<T> {
                 .map(|shape_idx| (shape_idx.offset * 2) as u64);
 
             match offset {
-                Some(n) => {
-                    self.source.seek(SeekFrom::Start(n))
-                }
-                None => {
-                    self.source.seek(SeekFrom::End(0))
-                }
+                Some(n) => self.source.seek(SeekFrom::Start(n)),
+                None => self.source.seek(SeekFrom::End(0)),
             }?;
             Ok(())
         } else {
@@ -430,7 +433,6 @@ impl<T: Read + Seek> ShapeReader<T> {
         }
     }
 }
-
 
 impl ShapeReader<BufReader<File>> {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
@@ -469,7 +471,7 @@ impl<T: Read + Seek> Reader<T> {
     pub fn new(shape_reader: ShapeReader<T>, dbase_reader: dbase::Reader<T>) -> Self {
         Self {
             shape_reader,
-            dbase_reader
+            dbase_reader,
         }
     }
 
@@ -478,9 +480,9 @@ impl<T: Read + Seek> Reader<T> {
         self.shape_reader.header()
     }
 
-
-    pub fn iter_shapes_and_records_as<S: ReadableShape, R: dbase::ReadableRecord>(&mut self)
-    -> ShapeRecordIterator<'_, T, S, R> {
+    pub fn iter_shapes_and_records_as<S: ReadableShape, R: dbase::ReadableRecord>(
+        &mut self,
+    ) -> ShapeRecordIterator<'_, T, S, R> {
         ShapeRecordIterator {
             shape_iter: self.shape_reader.iter_shapes_as::<S>(),
             record_iter: self.dbase_reader.iter_records_as::<R>(),
@@ -505,10 +507,10 @@ impl<T: Read + Seek> Reader<T> {
         self.iter_shapes_and_records_as::<Shape, dbase::Record>()
     }
 
-
-    pub fn read_as<S: ReadableShape, R: dbase::ReadableRecord>(&mut self) -> Result<Vec<(S, R)>, Error> {
-        self.iter_shapes_and_records_as::<S, R>()
-            .collect()
+    pub fn read_as<S: ReadableShape, R: dbase::ReadableRecord>(
+        &mut self,
+    ) -> Result<Vec<(S, R)>, Error> {
+        self.iter_shapes_and_records_as::<S, R>().collect()
     }
 
     /// Read all the shape and record and returns them in a [Vec]
@@ -587,17 +589,18 @@ impl Reader<BufReader<File>> {
                 dbase_reader: dbf_reader,
             })
         } else {
-            return Err(Error::MissingDbf)
+            return Err(Error::MissingDbf);
         }
     }
 }
-
 
 pub fn read<T: AsRef<Path>>(path: T) -> Result<Vec<(Shape, dbase::Record)>, Error> {
     read_as::<T, Shape, dbase::Record>(path)
 }
 
-pub fn read_as<T: AsRef<Path>, S: ReadableShape, R: dbase::ReadableRecord>(path: T) -> Result<Vec<(S, R)>, Error> {
+pub fn read_as<T: AsRef<Path>, S: ReadableShape, R: dbase::ReadableRecord>(
+    path: T,
+) -> Result<Vec<(S, R)>, Error> {
     Reader::from_path(path).and_then(|mut rdr| rdr.read_as::<S, R>())
 }
 

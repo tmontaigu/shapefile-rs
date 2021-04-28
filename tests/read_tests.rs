@@ -498,9 +498,9 @@ fn check_multipatch<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
         let header = reader.header();
         assert_eq!(header.file_length, 356, "Wrong file length");
         assert_eq!(header.shape_type, shapefile::ShapeType::Multipatch);
-        assert_eq!(header.bbox.min, PointZ::new(0.0, 0.0, 0.0, -10e38));
         // FIXME max z in header of original file is wrong
-        // assert_eq!(header.bbox.max, PointZ::new(5.0, 5.0, 5.0, -10e38));
+        assert_eq!(header.bbox.min, PointZ::new(0.0, 0.0, 0.0, 0.0));
+        assert_eq!(header.bbox.max, PointZ::new(5.0, 5.0, 5.0, 0.0));
     }
     use shapefile::NO_DATA;
     let shapes = reader.read().unwrap();
@@ -628,13 +628,11 @@ macro_rules! read_write_read_test {
     ($func:ident, $concrete_type:ident, $check_func:ident, $src_file:expr) => {
         #[test]
         fn $func() {
-            let reader = shapefile::ShapeReader::from_path($src_file).unwrap();
-            let shapes = reader.read().unwrap();
-            let shapes =
-                shapefile::record::convert_shapes_to_vec_of::<$concrete_type>(shapes).unwrap();
+            let shapes = shapefile::read_shapes($src_file)
+                .and_then(shapefile::record::convert_shapes_to_vec_of::<$concrete_type>)
+                .unwrap();
 
-            let v = Vec::<u8>::new();
-            let mut cursor = Cursor::new(v);
+            let mut cursor = Cursor::new(Vec::<u8>::new());
             let writer = shapefile::ShapeWriter::new(&mut cursor);
             writer.write_shapes(&shapes).unwrap();
 

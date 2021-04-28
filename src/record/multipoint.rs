@@ -5,9 +5,9 @@
 //!
 use std::fmt;
 use std::io::{Read, Write};
+use std::mem::size_of;
 use std::ops::Index;
 use std::slice::SliceIndex;
-use std::mem::size_of;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
@@ -170,7 +170,6 @@ where
         Self::new(points)
     }
 }
-
 
 impl<PointType, I: SliceIndex<[PointType]>> Index<I> for GenericMultipoint<PointType> {
     type Output = I::Output;
@@ -590,7 +589,7 @@ mod test_geo_types_conversions {
 
 #[cfg(test)]
 mod tests {
-    use ::{PointZ, MultipointZ};
+    use {MultipointZ, PointZ};
 
     #[test]
     fn test_multipoint_index() {

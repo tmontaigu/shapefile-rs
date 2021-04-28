@@ -106,7 +106,6 @@ macro_rules! multipatch {
     };
 }
 
-
 #[macro_export]
 macro_rules! polygon {
     // Polygon rules
@@ -198,7 +197,6 @@ macro_rules! polygon {
     };
 }
 
-
 #[macro_export]
 macro_rules! polyline {
     // Polyline rules
@@ -288,8 +286,8 @@ macro_rules! polyline {
 mod test {
     // the macros expect the shapefile namespace to be in scope
     use crate as shapefile;
-    use crate::{Patch};
-    use ::{PolygonRing, Point, PointM, PointZ, Polyline, PolylineM, PolylineZ};
+    use crate::Patch;
+    use {Point, PointM, PointZ, PolygonRing, Polyline, PolylineM, PolylineZ};
 
     #[test]
     fn test_multipatch() {
@@ -298,14 +296,11 @@ mod test {
                 {x: 1.0, y: 1.0, z: 1.0, m: 1.0}
             )
         );
-        let multipatch_2 = multipatch!(
-            TriangleStrip(
-                (1.0, 1.0, 1.0, 1.0)
-            )
-        );
-        let expected_multipatch = shapefile::Multipatch::new(
-            Patch::TriangleStrip(vec![shapefile::PointZ::new(1.0, 1.0, 1.0, 1.0)]),
-        );
+        let multipatch_2 = multipatch!(TriangleStrip((1.0, 1.0, 1.0, 1.0)));
+        let expected_multipatch =
+            shapefile::Multipatch::new(Patch::TriangleStrip(vec![shapefile::PointZ::new(
+                1.0, 1.0, 1.0, 1.0,
+            )]));
 
         assert_eq!(multipatch, expected_multipatch);
         assert_eq!(multipatch_2, expected_multipatch);
@@ -317,9 +312,11 @@ mod test {
                 {x: 1.0, y: 1.0},
                 {x: 2.0, y: 2.0},
         ];
-        let multipoint_2 = multipoint![(1.0, 1.0), (2.0,2.0)];
-        let expected_multipoint = shapefile::Multipoint::new(
-            vec![shapefile::Point::new(1.0, 1.0), shapefile::Point::new(2.0, 2.0)]);
+        let multipoint_2 = multipoint![(1.0, 1.0), (2.0, 2.0)];
+        let expected_multipoint = shapefile::Multipoint::new(vec![
+            shapefile::Point::new(1.0, 1.0),
+            shapefile::Point::new(2.0, 2.0),
+        ]);
 
         assert_eq!(multipoint, expected_multipoint);
         assert_eq!(multipoint, multipoint_2);
@@ -332,12 +329,10 @@ mod test {
                 {x: 2.0, y: 2.0, m: 1337.42}
         ];
 
-        let expected_multipoint = shapefile::MultipointM::new(
-            vec![
-                shapefile::PointM::new(1.0, 1.0, 42.1337),
-                shapefile::PointM::new(2.0, 2.0, 1337.42),
-            ]
-        );
+        let expected_multipoint = shapefile::MultipointM::new(vec![
+            shapefile::PointM::new(1.0, 1.0, 42.1337),
+            shapefile::PointM::new(2.0, 2.0, 1337.42),
+        ]);
         assert_eq!(multipoint, expected_multipoint);
     }
 
@@ -347,12 +342,10 @@ mod test {
                 {x: 1.0, y: 1.0, z: 17.5, m: 42.1337},
                 {x: 2.0, y: 2.0, z: 14.021, m: 1337.42}
         ];
-        let expected_multipoint = shapefile::MultipointZ::new(
-            vec![
-                shapefile::PointZ::new(1.0, 1.0, 17.5, 42.1337),
-                shapefile::PointZ::new(2.0, 2.0, 14.021, 1337.42),
-            ]
-        );
+        let expected_multipoint = shapefile::MultipointZ::new(vec![
+            shapefile::PointZ::new(1.0, 1.0, 17.5, 42.1337),
+            shapefile::PointZ::new(2.0, 2.0, 14.021, 1337.42),
+        ]);
         assert_eq!(multipoint, expected_multipoint);
     }
 
@@ -369,31 +362,15 @@ mod test {
             ]
         );
 
-        let poly_2 = polyline!(
-            [
-                (1.0, 1.0),
-                (2.0, 2.0)
-            ],
-            [
-                (3.0, 3.0),
-                (4.0, 4.0)
-            ]
-        );
+        let poly_2 = polyline!([(1.0, 1.0), (2.0, 2.0)], [(3.0, 3.0), (4.0, 4.0)]);
 
         let poly_3 = Polyline::with_parts(vec![
-            vec![
-                Point::new(1.0, 1.0),
-                Point::new (2.0, 2.0)
-            ],
-            vec![
-                Point::new(3.0, 3.0),
-                Point::new(4.0, 4.0)
-            ],
+            vec![Point::new(1.0, 1.0), Point::new(2.0, 2.0)],
+            vec![Point::new(3.0, 3.0), Point::new(4.0, 4.0)],
         ]);
         assert_eq!(poly_1, poly_3);
         assert_eq!(poly_2, poly_3);
     }
-
 
     #[test]
     fn test_polyline_m_macro() {
@@ -409,35 +386,24 @@ mod test {
         );
 
         let poly_2 = polyline!(
-            [
-                (1.0, 1.0, 5.0),
-                (2.0, 2.0, 42.1337)
-            ],
-            [
-                (3.0, 3.0, 17.65),
-                (4.0, 4.0, 454.4598),
-            ]
+            [(1.0, 1.0, 5.0), (2.0, 2.0, 42.1337)],
+            [(3.0, 3.0, 17.65), (4.0, 4.0, 454.4598),]
         );
 
         let poly_3 = PolylineM::with_parts(vec![
-            vec![
-                PointM::new(1.0, 1.0, 5.0),
-                PointM::new(2.0, 2.0, 42.1337)
-            ],
+            vec![PointM::new(1.0, 1.0, 5.0), PointM::new(2.0, 2.0, 42.1337)],
             vec![
                 PointM::new(3.0, 3.0, 17.65),
                 PointM::new(4.0, 4.0, 454.4598),
-            ]
+            ],
         ]);
 
         assert_eq!(poly_1, poly_3);
         assert_eq!(poly_2, poly_3);
     }
 
-
     #[test]
     fn test_polyline_z_macro() {
-
         let poly_1 = polyline!(
             [
                 {x: 1.0, y: 1.0, z: 17.56, m: 5.0},
@@ -450,25 +416,19 @@ mod test {
         );
 
         let poly_2 = polyline!(
-            [
-                (1.0, 1.0, 17.56, 5.0),
-                (2.0, 2.0, 18.17, 42.1337)
-            ],
-            [
-                (3.0, 3.0, 54.9, 17.65),
-                (4.0, 4.0, 7.0, 454.4598),
-            ]
+            [(1.0, 1.0, 17.56, 5.0), (2.0, 2.0, 18.17, 42.1337)],
+            [(3.0, 3.0, 54.9, 17.65), (4.0, 4.0, 7.0, 454.4598),]
         );
 
         let poly_3 = PolylineZ::with_parts(vec![
             vec![
                 PointZ::new(1.0, 1.0, 17.56, 5.0),
-                PointZ::new(2.0, 2.0, 18.17, 42.1337)
+                PointZ::new(2.0, 2.0, 18.17, 42.1337),
             ],
             vec![
                 PointZ::new(3.0, 3.0, 54.9, 17.65),
                 PointZ::new(4.0, 4.0, 7.0, 454.4598),
-            ]
+            ],
         ]);
         assert_eq!(poly_1, poly_3);
         assert_eq!(poly_2, poly_3);
@@ -494,46 +454,29 @@ mod test {
         );
 
         let polygon_2 = polygon!(
-            Outer(
-                (1.0, 1.0),
-                (2.0, 2.0),
-                (1.0, 1.0),
-                (1.0, 0.0),
-                (1.0, 1.0),
-            ),
-            Inner(
-                (1.0, 1.0),
-                (1.0, 0.0),
-                (1.0, 1.0),
-                (2.0, 2.0),
-                (1.0, 1.0),
-            )
+            Outer((1.0, 1.0), (2.0, 2.0), (1.0, 1.0), (1.0, 0.0), (1.0, 1.0),),
+            Inner((1.0, 1.0), (1.0, 0.0), (1.0, 1.0), (2.0, 2.0), (1.0, 1.0),)
         );
 
         let polygon_3 = shapefile::Polygon::with_rings(vec![
-            PolygonRing::Outer(
-                vec![
-                    shapefile::Point::new(1.0, 1.0),
-                    shapefile::Point::new(2.0, 2.0),
-                    shapefile::Point::new(1.0, 1.0),
-                    shapefile::Point::new(1.0, 0.0),
-                    shapefile::Point::new(1.0, 1.0),
-                ]
-            ),
-            PolygonRing::Inner(
-                vec![
-                    shapefile::Point::new(1.0, 1.0),
-                    shapefile::Point::new(1.0, 0.0),
-                    shapefile::Point::new(1.0, 1.0),
-                    shapefile::Point::new(2.0, 2.0),
-                    shapefile::Point::new(1.0, 1.0),
-                ]
-            )
+            PolygonRing::Outer(vec![
+                shapefile::Point::new(1.0, 1.0),
+                shapefile::Point::new(2.0, 2.0),
+                shapefile::Point::new(1.0, 1.0),
+                shapefile::Point::new(1.0, 0.0),
+                shapefile::Point::new(1.0, 1.0),
+            ]),
+            PolygonRing::Inner(vec![
+                shapefile::Point::new(1.0, 1.0),
+                shapefile::Point::new(1.0, 0.0),
+                shapefile::Point::new(1.0, 1.0),
+                shapefile::Point::new(2.0, 2.0),
+                shapefile::Point::new(1.0, 1.0),
+            ]),
         ]);
         assert_eq!(polygon_1, polygon_3);
         assert_eq!(polygon_1, polygon_2);
     }
-
 
     #[test]
     fn test_polygon_m_macro() {
@@ -572,30 +515,25 @@ mod test {
         );
 
         let polygon_3 = shapefile::PolygonM::with_rings(vec![
-            PolygonRing::Outer(
-                vec![
-                    shapefile::PointM::new(1.0, 1.0, 5.0),
-                    shapefile::PointM::new(2.0, 2.0, 42.1337),
-                    shapefile::PointM::new(1.0, 1.0, 5.0),
-                    shapefile::PointM::new(1.0, 0.0, 2.2),
-                    shapefile::PointM::new(1.0, 1.0, 5.0),
-                ]
-            ),
-            PolygonRing::Inner(
-                vec![
-                    shapefile::PointM::new(1.0, 1.0, 1.0),
-                    shapefile::PointM::new(1.0, 0.0, 2.0),
-                    shapefile::PointM::new(1.0, 1.0, 1.1),
-                    shapefile::PointM::new(2.0, 2.0, 2.2),
-                    shapefile::PointM::new(1.0, 1.0, 1.0),
-                ]
-            )
+            PolygonRing::Outer(vec![
+                shapefile::PointM::new(1.0, 1.0, 5.0),
+                shapefile::PointM::new(2.0, 2.0, 42.1337),
+                shapefile::PointM::new(1.0, 1.0, 5.0),
+                shapefile::PointM::new(1.0, 0.0, 2.2),
+                shapefile::PointM::new(1.0, 1.0, 5.0),
+            ]),
+            PolygonRing::Inner(vec![
+                shapefile::PointM::new(1.0, 1.0, 1.0),
+                shapefile::PointM::new(1.0, 0.0, 2.0),
+                shapefile::PointM::new(1.0, 1.0, 1.1),
+                shapefile::PointM::new(2.0, 2.0, 2.2),
+                shapefile::PointM::new(1.0, 1.0, 1.0),
+            ]),
         ]);
 
         assert_eq!(polygon_1, polygon_3);
         assert_eq!(polygon_2, polygon_3);
     }
-
 
     #[test]
     fn test_polygon_z_macro() {
@@ -634,24 +572,20 @@ mod test {
         );
 
         let polygon_3 = shapefile::PolygonZ::with_rings(vec![
-            PolygonRing::Outer(
-                vec![
-                    shapefile::PointZ::new(1.0, 1.0, 5.0,5.0),
-                    shapefile::PointZ::new(2.0, 2.0, 6.0,42.1337),
-                    shapefile::PointZ::new(1.0, 1.0, 7.0,5.0),
-                    shapefile::PointZ::new(1.0, 0.0, 8.0,2.2),
-                    shapefile::PointZ::new(1.0, 1.0, 5.0,5.0),
-                ]
-            ),
-            PolygonRing::Inner(
-                vec![
-                    shapefile::PointZ::new(1.0, 1.0, 6.0,1.0),
-                    shapefile::PointZ::new(1.0, 0.0, 7.0,2.0),
-                    shapefile::PointZ::new(1.0, 1.0, 8.0,1.1),
-                    shapefile::PointZ::new(2.0, 2.0, 9.9,2.2),
-                    shapefile::PointZ::new(1.0, 1.0, 6.0,1.0),
-                ]
-            )
+            PolygonRing::Outer(vec![
+                shapefile::PointZ::new(1.0, 1.0, 5.0, 5.0),
+                shapefile::PointZ::new(2.0, 2.0, 6.0, 42.1337),
+                shapefile::PointZ::new(1.0, 1.0, 7.0, 5.0),
+                shapefile::PointZ::new(1.0, 0.0, 8.0, 2.2),
+                shapefile::PointZ::new(1.0, 1.0, 5.0, 5.0),
+            ]),
+            PolygonRing::Inner(vec![
+                shapefile::PointZ::new(1.0, 1.0, 6.0, 1.0),
+                shapefile::PointZ::new(1.0, 0.0, 7.0, 2.0),
+                shapefile::PointZ::new(1.0, 1.0, 8.0, 1.1),
+                shapefile::PointZ::new(2.0, 2.0, 9.9, 2.2),
+                shapefile::PointZ::new(1.0, 1.0, 6.0, 1.0),
+            ]),
         ]);
 
         assert_eq!(polygon_1, polygon_3);

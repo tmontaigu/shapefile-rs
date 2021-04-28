@@ -1,5 +1,11 @@
 # Unreleased
- - Updated dbase dependency to 0.1.x
+ - Updated dbase dependency to 0.2.x
+ - Added `Writer::write_shape` to write one shape at a time
+ - Changed `Write<T>` the `T` now must implement `std::io::Seek` and `std::io::Write`.
+   `std::fs::File` and `std::io::Cursor` are valid `T`.
+ - Changed `ShapeWriter::write_shapes` to take as input any type that implements
+   `IntoIterator<Item=&ShapeType>`.
+ - Fixed `ShapeType::Multipatch` wasn't considered as a type with Z coordinates.
  - Added a `ShapeReader` &`ShapeWriter` struct that only read/write the .shp and .shx
  - Changed the `Reader`, it now requires the .dbf to exist
  - Changed the `Writer`, it requires more information to be able to write the .dbf file

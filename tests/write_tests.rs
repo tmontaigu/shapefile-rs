@@ -2,8 +2,9 @@ extern crate shapefile;
 
 mod testfiles;
 
-use shapefile::{Point, Polygon, PolygonRing, Polyline};
 use shapefile::writer::ShapeWriter;
+use shapefile::{Point, Polygon, PolygonRing, Polyline};
+use std::io::Cursor;
 
 fn read_a_file(path: &str) -> std::io::Result<Vec<u8>> {
     use std::io::Read;
@@ -17,18 +18,16 @@ fn read_a_file(path: &str) -> std::io::Result<Vec<u8>> {
 #[test]
 fn single_point() {
     let point = Point::new(122.0, 37.0);
-    let mut shp: Vec<u8> = vec![];
-    let mut shx: Vec<u8> = vec![];
+    let mut shp: Cursor<Vec<u8>> = Cursor::new(vec![]);
+    let mut shx: Cursor<Vec<u8>> = Cursor::new(vec![]);
     let writer = ShapeWriter::with_shx(&mut shp, &mut shx);
     writer.write_shapes(&vec![point]).unwrap();
 
-    let expected = read_a_file(testfiles::POINT_PATH);
-    assert_eq!(expected.is_ok(), true);
-    assert_eq!(shp, expected.unwrap());
+    let expected = read_a_file(testfiles::POINT_PATH).unwrap();
+    assert_eq!(shp.get_ref(), &expected);
 
-    let expected = read_a_file(testfiles::POINT_SHX_PATH);
-    assert_eq!(expected.is_ok(), true);
-    assert_eq!(shx, expected.unwrap());
+    let expected = read_a_file(testfiles::POINT_SHX_PATH).unwrap();
+    assert_eq!(&shx.get_ref()[..100], &expected[..100]);
 }
 
 #[test]
@@ -43,18 +42,16 @@ fn multi_line() {
         ],
         vec![Point::new(3.0, 2.0), Point::new(2.0, 6.0)],
     ]);
-    let mut shp: Vec<u8> = vec![];
-    let mut shx: Vec<u8> = vec![];
+    let mut shp: Cursor<Vec<u8>> = Cursor::new(vec![]);
+    let mut shx: Cursor<Vec<u8>> = Cursor::new(vec![]);
     let writer = ShapeWriter::with_shx(&mut shp, &mut shx);
     writer.write_shapes(&vec![point]).unwrap();
 
-    let expected = read_a_file(testfiles::LINE_PATH);
-    assert_eq!(expected.is_ok(), true);
-    assert_eq!(shp, expected.unwrap());
+    let expected = read_a_file(testfiles::LINE_PATH).unwrap();
+    assert_eq!(shp.get_ref(), &expected);
 
-    let expected = read_a_file(testfiles::LINE_SHX_PATH);
-    assert_eq!(expected.is_ok(), true);
-    assert_eq!(shx, expected.unwrap());
+    let expected = read_a_file(testfiles::LINE_SHX_PATH).unwrap();
+    assert_eq!(shx.get_ref(), &expected);
 }
 
 #[test]
@@ -75,18 +72,16 @@ fn polygon_inner() {
             Point::new(-60.0, 30.0),
         ]),
     ]);
-    let mut shp: Vec<u8> = vec![];
-    let mut shx: Vec<u8> = vec![];
+    let mut shp: Cursor<Vec<u8>> = Cursor::new(vec![]);
+    let mut shx: Cursor<Vec<u8>> = Cursor::new(vec![]);
     let writer = ShapeWriter::with_shx(&mut shp, &mut shx);
     writer.write_shapes(&vec![point]).unwrap();
 
-    let expected = read_a_file(testfiles::POLYGON_HOLE_PATH);
-    assert_eq!(expected.is_ok(), true);
-    assert_eq!(shp, expected.unwrap());
+    let expected = read_a_file(testfiles::POLYGON_HOLE_PATH).unwrap();
+    assert_eq!(shp.get_ref(), &expected);
 
-    let expected = read_a_file(testfiles::POLYGON_HOLE_SHX_PATH);
-    assert_eq!(expected.is_ok(), true);
-    assert_eq!(shx, expected.unwrap());
+    let expected = read_a_file(testfiles::POLYGON_HOLE_SHX_PATH).unwrap();
+    assert_eq!(shx.get_ref(), &expected);
 }
 
 /// Same polygon as test above, but the points for the ring are in the
@@ -109,16 +104,14 @@ fn polygon_inner_is_correctly_reordered() {
             Point::new(-60.0, 30.0),
         ]),
     ]);
-    let mut shp: Vec<u8> = vec![];
-    let mut shx: Vec<u8> = vec![];
+    let mut shp: Cursor<Vec<u8>> = Cursor::new(vec![]);
+    let mut shx: Cursor<Vec<u8>> = Cursor::new(vec![]);
     let writer = ShapeWriter::with_shx(&mut shp, &mut shx);
     writer.write_shapes(&vec![point]).unwrap();
 
-    let expected = read_a_file(testfiles::POLYGON_HOLE_PATH);
-    assert_eq!(expected.is_ok(), true);
-    assert_eq!(shp, expected.unwrap());
+    let expected = read_a_file(testfiles::POLYGON_HOLE_PATH).unwrap();
+    assert_eq!(shp.get_ref(), &expected);
 
-    let expected = read_a_file(testfiles::POLYGON_HOLE_SHX_PATH);
-    assert_eq!(expected.is_ok(), true);
-    assert_eq!(shx, expected.unwrap());
+    let expected = read_a_file(testfiles::POLYGON_HOLE_SHX_PATH).unwrap();
+    assert_eq!(shx.get_ref(), &expected);
 }

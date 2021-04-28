@@ -5,13 +5,13 @@ use std::io::{Read, Write};
 
 pub mod bbox;
 pub(crate) mod io;
+pub mod macros;
 pub mod multipatch;
 pub mod multipoint;
 pub mod point;
 pub mod polygon;
 pub mod polyline;
 pub mod traits;
-pub mod macros;
 
 use super::{Error, ShapeType};
 pub use record::bbox::{BBoxZ, GenericBBox};
@@ -500,7 +500,8 @@ impl TryFrom<geo_types::Geometry<f64>> for Shape {
                 Err("Cannot convert geo_types::GeometryCollection into a Shape")
             }
             #[allow(unreachable_patterns)] // Unreachable before geo-types 0.6.0
-            _ => { // New geometries Rect(_) and Triangle(_) added in 0.6.0
+            _ => {
+                // New geometries Rect(_) and Triangle(_) added in 0.6.0
                 Err("Cannot convert unrecognized Geometry type into a Shape")
             }
         }
