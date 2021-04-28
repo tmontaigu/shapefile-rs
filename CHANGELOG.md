@@ -1,4 +1,4 @@
-# Unreleased
+# 0.3.0
  - Updated dbase dependency to 0.2.x
  - Added `Writer::write_shape` to write one shape at a time
  - Changed `Write<T>` the `T` now must implement `std::io::Seek` and `std::io::Write`.
