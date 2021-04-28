@@ -1,7 +1,6 @@
 extern crate shapefile;
 use std::env;
 use std::process::exit;
-use std::mem::size_of;
 
 fn main() {
     let args: Vec<String> =  env::args().into_iter().collect();
@@ -13,14 +12,9 @@ fn main() {
         }
     };
 
-    let reader = shapefile::Reader::from_path(filename).unwrap();
-    for (i, shape) in reader.into_iter().enumerate() {
-        let shape = shape.unwrap();
-    }
+    let mut reader = shapefile::Reader::from_path(filename).unwrap();
 
-    let reader = shapefile::Reader::from_path(filename).unwrap();
-
-    for result in reader.iter_shapes_and_records().unwrap() {
+    for result in reader.iter_shapes_and_records() {
         let (shape, record) = result.unwrap();
         println!("Shape: {}, records: ", shape);
         for (name, value) in record {
