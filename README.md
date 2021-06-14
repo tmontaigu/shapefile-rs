@@ -14,4 +14,5 @@ for result in reader.iter_shapes_and_records() {
     println ! ();
 }
 ```
+You can check out examples in the [examples](https://github.com/tmontaigu/shapefile-rs/tree/master/examples/) folder
 
