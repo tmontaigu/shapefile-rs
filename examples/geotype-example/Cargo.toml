@@ -8,5 +8,4 @@ edition = "2018"
 
 [dependencies]
 shapefile = {version = "0.3.0", features = ["geo-types"]}
-dbase = "0.2.0"
 geo = "0.18.0"
