@@ -432,6 +432,33 @@ impl<T: Read + Seek> ShapeReader<T> {
             Err(Error::MissingIndexFile)
         }
     }
+
+    /// Returns the number of shapes in the shapefile
+    ///
+    /// # Error
+    ///
+    /// Returns [Error::MissingIndexFile] if the _shx_ file
+    /// was not found by [ShapeReader::from_path] or the reader
+    /// was not constructed with [ShapeReader::with_shx]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let reader = shapefile::ShapeReader::from_path("tests/data/point.shp").unwrap();
+    /// // point.shp has a .shx file next to it, so we can read the count data
+    /// assert_eq!(1, reader.shape_count().unwrap());
+    ///
+    /// let reader = shapefile::ShapeReader::from_path("tests/data/pointm.shp").unwrap();
+    /// // There is no pointm.shx, so the shape_count() method returns error
+    /// assert!(reader.shape_count().is_err(), "Should return error if no index file");
+    /// ```
+    pub fn shape_count(&self) -> Result<usize, Error> {
+        if let Some(ref shapes_index) = self.shapes_index {
+            Ok(shapes_index.len())
+        } else {
+            Err(Error::MissingIndexFile)
+        }
+    }
 }
 
 impl ShapeReader<BufReader<File>> {
@@ -533,6 +560,13 @@ impl<T: Read + Seek> Reader<T> {
         self.shape_reader.seek(index)?;
         self.dbase_reader.seek(index)?;
         Ok(())
+    }
+
+    /// Returns the number of shapes in the shapefile
+    ///
+    /// See [ShapeReader::shape_count]
+    pub fn shape_count(&self) -> Result<usize, Error> {
+        self.shape_reader.shape_count()
     }
 
     /// Consumes the self and returns the dbase table info
