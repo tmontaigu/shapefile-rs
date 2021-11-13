@@ -112,18 +112,35 @@ fn read_one_shape_as<T: Read, S: ReadableShape>(
 /// Struct that handle iteration over the shapes of a .shp file
 pub struct ShapeIterator<'a, T: Read, S: ReadableShape> {
     _shape: std::marker::PhantomData<S>,
+    // From where we read the shapes
     source: &'a mut T,
+    // Current position in bytes in the source.
     current_pos: usize,
+    // How many bytes the header said there are in
+    // the file.
     file_length: usize,
+    // Iterator over the shape indices, used to seek
+    // to the start of a shape when reading
+    shapes_indices: Option<std::slice::Iter<'a, ShapeIndex>>,
 }
 
-impl<'a, T: Read, S: ReadableShape> Iterator for ShapeIterator<'a, T, S> {
-    type Item = Result<S, Error>;
+impl<'a, T: Read + Seek, S: ReadableShape> Iterator for ShapeIterator<'a, T, S> {
+    type Item = Result<S, crate::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_pos >= self.file_length {
             None
         } else {
+            if let Some(ref mut shapes_indices) = self.shapes_indices {
+                // Its 'safer' to seek to the shape offset when we have the `shx` file
+                // as some shapes may not be stored sequentially and may contain 'garbage'
+                // bytes between them
+                let start_pos = shapes_indices.next()?.offset * 2;
+                if let Err(err) = self.source.seek(SeekFrom::Start(start_pos as u64)) {
+                    return Some(Err(err.into()));
+                }
+                self.current_pos = start_pos as usize;
+            }
             let (hdr, shape) = match read_one_shape_as::<T, S>(self.source) {
                 Err(e) => return Some(Err(e)),
                 Ok(hdr_and_shape) => hdr_and_shape,
@@ -162,7 +179,7 @@ impl<'a, T: Read + Seek, S: ReadableShape, R: dbase::ReadableRecord> Iterator
 
 /// This reader only reads the `.shp` and optionally the (`.shx`) files
 /// of a shapefile.
-pub struct ShapeReader<T: Read> {
+pub struct ShapeReader<T> {
     source: T,
     header: header::Header,
     shapes_index: Option<Vec<ShapeIndex>>,
@@ -243,7 +260,9 @@ impl<T: Read> ShapeReader<T> {
     pub fn header(&self) -> &header::Header {
         &self.header
     }
+}
 
+impl<T: Read + Seek> ShapeReader<T> {
     /// Reads all the shape as shape of a certain type.
     ///
     /// To be used if you know in advance which shape type the file contains.
@@ -319,6 +338,7 @@ impl<T: Read> ShapeReader<T> {
             source: &mut self.source,
             current_pos: header::HEADER_SIZE as usize,
             file_length: (self.header.file_length * 2) as usize,
+            shapes_indices: self.shapes_index.as_ref().map(|s| s.iter()),
         }
     }
 
@@ -355,11 +375,7 @@ impl<T: Read> ShapeReader<T> {
     pub fn iter_shapes(&mut self) -> ShapeIterator<'_, T, Shape> {
         self.iter_shapes_as::<Shape>()
     }
-}
 
-/// Sources that implements `Seek` have access to
-/// a few more methods that uses the *index file(.shx)*
-impl<T: Read + Seek> ShapeReader<T> {
     /// Reads the `n`th shape of the shapefile
     ///
     /// # Important
