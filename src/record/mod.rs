@@ -285,6 +285,7 @@ impl fmt::Display for Shape {
 }
 
 /// Header of a shape record, present before any shape record
+#[derive(Debug, Copy, Clone)]
 pub(crate) struct RecordHeader {
     pub record_number: i32,
     pub record_size: i32,
