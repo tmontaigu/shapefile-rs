@@ -234,7 +234,10 @@ impl<T: Read> ShapeReader<T> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn with_shx(mut source: T, shx_source: T) -> Result<Self, Error> {
+    pub fn with_shx<ShxSource>(mut source: T, shx_source: ShxSource) -> Result<Self, Error>
+    where
+        ShxSource: Read,
+    {
         let shapes_index = Some(read_index_file(shx_source)?);
         let header = header::Header::read_from(&mut source)?;
 
