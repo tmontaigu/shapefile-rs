@@ -152,13 +152,19 @@ impl<'a, T: Read + Seek, S: ReadableShape> Iterator for ShapeIterator<'a, T, S> 
     }
 }
 
-pub struct ShapeRecordIterator<'a, T: Read + Seek, S: ReadableShape, R: dbase::ReadableRecord> {
+pub struct ShapeRecordIterator<
+    'a,
+    T: Read + Seek,
+    D: Read + Seek,
+    S: ReadableShape,
+    R: dbase::ReadableRecord,
+> {
     shape_iter: ShapeIterator<'a, T, S>,
-    record_iter: dbase::RecordIterator<'a, T, R>,
+    record_iter: dbase::RecordIterator<'a, D, R>,
 }
 
-impl<'a, T: Read + Seek, S: ReadableShape, R: dbase::ReadableRecord> Iterator
-    for ShapeRecordIterator<'a, T, S, R>
+impl<'a, T: Read + Seek, D: Read + Seek, S: ReadableShape, R: dbase::ReadableRecord> Iterator
+    for ShapeRecordIterator<'a, T, D, S, R>
 {
     type Item = Result<(S, R), Error>;
 
@@ -507,14 +513,14 @@ impl ShapeReader<BufReader<File>> {
 /// If you want to read a shapefile that is not stored in a file
 /// (e.g the shp data is in a buffer), you will have to construct
 /// the *Reader* "by hand" with its [Reader::new] associated function.
-pub struct Reader<T: Read + Seek> {
+pub struct Reader<T: Read + Seek, D: Read + Seek> {
     shape_reader: ShapeReader<T>,
-    dbase_reader: dbase::Reader<T>,
+    dbase_reader: dbase::Reader<D>,
 }
 
-impl<T: Read + Seek> Reader<T> {
+impl<T: Read + Seek, D: Read + Seek> Reader<T, D> {
     /// Creates a new Reader from both a ShapeReader (.shp, .shx) and dbase::Reader (.dbf)
-    pub fn new(shape_reader: ShapeReader<T>, dbase_reader: dbase::Reader<T>) -> Self {
+    pub fn new(shape_reader: ShapeReader<T>, dbase_reader: dbase::Reader<D>) -> Self {
         Self {
             shape_reader,
             dbase_reader,
@@ -528,7 +534,7 @@ impl<T: Read + Seek> Reader<T> {
 
     pub fn iter_shapes_and_records_as<S: ReadableShape, R: dbase::ReadableRecord>(
         &mut self,
-    ) -> ShapeRecordIterator<'_, T, S, R> {
+    ) -> ShapeRecordIterator<'_, T, D, S, R> {
         ShapeRecordIterator {
             shape_iter: self.shape_reader.iter_shapes_as::<S>(),
             record_iter: self.dbase_reader.iter_records_as::<R>(),
@@ -549,7 +555,9 @@ impl<T: Read + Seek> Reader<T> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn iter_shapes_and_records(&mut self) -> ShapeRecordIterator<'_, T, Shape, dbase::Record> {
+    pub fn iter_shapes_and_records(
+        &mut self,
+    ) -> ShapeRecordIterator<'_, T, D, Shape, dbase::Record> {
         self.iter_shapes_and_records_as::<Shape, dbase::Record>()
     }
 
@@ -597,7 +605,7 @@ impl<T: Read + Seek> Reader<T> {
     }
 }
 
-impl Reader<BufReader<File>> {
+impl Reader<BufReader<File>, BufReader<File>> {
     /// Creates a reader from a path the .shp file
     ///
     /// Will attempt to read both the `.shx` and `.dbf` associated with the file,
