@@ -1,3 +1,13 @@
+# 0.4.0
+ - Added `shape_count` to the reader
+ - Bumped dbase to 0.3.0 to bring code page support
+ - Fixed: Use the .shx (index file, if present) when iterating over the shapes
+   contained in the file, as some files may have padding bytes between shapes.
+ - Changed, the `Reader::with_shx` now can work when the source for the shx file
+   can is a different type than the shp source type (can mix io::Cursor and fs::File for example).
+ - Changed the `Reader` to be able to use different type for the sources of the dbase and shape file
+   (e.g. dbase source could be a fs::File whil the shape is a io::Cursor)
+
 # 0.3.0
  - Updated dbase dependency to 0.2.x
  - Added `Writer::write_shape` to write one shape at a time
