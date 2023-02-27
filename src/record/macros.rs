@@ -286,8 +286,8 @@ macro_rules! polyline {
 mod test {
     // the macros expect the shapefile namespace to be in scope
     use crate as shapefile;
+    use crate::record::{Point, PointM, PointZ, PolygonRing, Polyline, PolylineM, PolylineZ};
     use crate::Patch;
-    use {Point, PointM, PointZ, PolygonRing, Polyline, PolylineM, PolylineZ};
 
     #[test]
     fn test_multipatch() {

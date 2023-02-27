@@ -9,7 +9,7 @@ keywords = ["shapefile"]
 homepage = "https://github.com/tmontaigu/shapefile-rs"
 repository = "https://github.com/tmontaigu/shapefile-rs"
 exclude = ["tests/data/*"]
-#edition = "2018"
+edition = "2021"
 
 [dependencies]
 byteorder = "1.2.7"

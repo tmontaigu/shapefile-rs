@@ -2,9 +2,9 @@ use std::io::{Read, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use record::traits::{HasM, HasMutM, HasMutXY, HasMutZ, HasXY, HasZ};
-use record::{GenericBBox, PointZ, NO_DATA};
-use {Point, PointM};
+use super::traits::{HasM, HasMutM, HasMutXY, HasMutZ, HasXY, HasZ};
+use super::{GenericBBox, PointZ, NO_DATA};
+use super::{Point, PointM};
 
 pub(crate) fn bbox_read_xy_from<PointType: HasMutXY, R: Read>(
     bbox: &mut GenericBBox<PointType>,

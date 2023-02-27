@@ -1,5 +1,5 @@
-use record::{Point, PointM, PointZ};
-use writer::{f64_max, f64_min};
+use super::{Point, PointM, PointZ};
+use crate::writer::{f64_max, f64_min};
 
 /// Trait to access the x, and y values of a point
 ///

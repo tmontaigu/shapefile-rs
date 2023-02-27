@@ -11,13 +11,13 @@ use std::slice::SliceIndex;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use record::io::*;
-use record::traits::{GrowablePoint, ShrinkablePoint};
-use record::EsriShape;
-use record::{ConcreteReadableShape, GenericBBox};
-use record::{HasShapeType, WritableShape};
-use record::{Point, PointM, PointZ};
-use {Error, ShapeType};
+use super::io::*;
+use super::traits::{GrowablePoint, ShrinkablePoint};
+use super::EsriShape;
+use super::{ConcreteReadableShape, GenericBBox};
+use super::{Error, ShapeType};
+use super::{HasShapeType, WritableShape};
+use super::{Point, PointM, PointZ};
 
 #[cfg(feature = "geo-types")]
 use geo_types;
@@ -501,8 +501,8 @@ impl EsriShape for MultipointZ {
 #[cfg(feature = "geo-types")]
 mod test_geo_types_conversions {
     use super::*;
+    use crate::{geo_types, NO_DATA};
     use geo_types::Coordinate;
-    use {geo_types, NO_DATA};
 
     #[test]
     fn test_multipoint_to_geo_types_multipoint() {
@@ -589,7 +589,7 @@ mod test_geo_types_conversions {
 
 #[cfg(test)]
 mod tests {
-    use {MultipointZ, PointZ};
+    use super::{MultipointZ, PointZ};
 
     #[test]
     fn test_multipoint_index() {

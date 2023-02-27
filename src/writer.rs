@@ -10,14 +10,14 @@
 //! and .shx files, however since it does not write the .dbf file, it is not recommended.
 use std::io::{BufWriter, Seek, SeekFrom, Write};
 
-use record::{BBoxZ, EsriShape, RecordHeader};
+use super::{header, ShapeType};
+use super::{Error, PointZ};
+use crate::record::{BBoxZ, EsriShape, RecordHeader};
 use std::fs::File;
 use std::path::Path;
-use {header, ShapeType};
-use {Error, PointZ};
 
+use crate::reader::ShapeIndex;
 use dbase::TableWriterBuilder;
-use reader::ShapeIndex;
 
 pub(crate) fn f64_min(a: f64, b: f64) -> f64 {
     if a < b {
@@ -297,14 +297,19 @@ impl<T: Write + Seek> Writer<T> {
     pub fn write_shape_and_record<S: EsriShape, R: dbase::WritableRecord>(
         &mut self,
         shape: &S,
-        record: &R) -> Result<(), Error> {
+        record: &R,
+    ) -> Result<(), Error> {
         self.shape_writer.write_shape(shape)?;
         self.dbase_writer.write_record(record)?;
         Ok(())
     }
 
-
-    pub fn write_shapes_and_records<'a, S: EsriShape +'a , R: dbase::WritableRecord +'a, C: IntoIterator<Item=(&'a S, &'a R)>>(
+    pub fn write_shapes_and_records<
+        'a,
+        S: EsriShape + 'a,
+        R: dbase::WritableRecord + 'a,
+        C: IntoIterator<Item = (&'a S, &'a R)>,
+    >(
         mut self,
         container: C,
     ) -> Result<(), Error> {

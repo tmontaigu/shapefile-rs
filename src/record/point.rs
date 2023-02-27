@@ -2,14 +2,14 @@
 
 use std::io::{Read, Write};
 
+use super::EsriShape;
+use super::{ShapeType, NO_DATA};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use record::EsriShape;
 use std::mem::size_of;
-use {ShapeType, NO_DATA};
 
+use super::ConcreteReadableShape;
 use super::Error;
-use record::ConcreteReadableShape;
-use record::{is_no_data, HasShapeType, WritableShape};
+use super::{is_no_data, HasShapeType, WritableShape};
 use std::fmt;
 
 #[cfg(feature = "geo-types")]

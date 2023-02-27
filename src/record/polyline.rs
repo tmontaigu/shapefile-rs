@@ -4,13 +4,13 @@ use std::fmt;
 use std::io::{Read, Write};
 use std::mem::size_of;
 
-use record::io::*;
-use record::traits::{GrowablePoint, ShrinkablePoint};
-use record::ConcreteReadableShape;
-use record::GenericBBox;
-use record::{EsriShape, HasShapeType, WritableShape};
-use record::{Point, PointM, PointZ};
-use {Error, ShapeType};
+use super::io::*;
+use super::traits::{GrowablePoint, ShrinkablePoint};
+use super::ConcreteReadableShape;
+use super::GenericBBox;
+use super::{Error, ShapeType};
+use super::{EsriShape, HasShapeType, WritableShape};
+use super::{Point, PointM, PointZ};
 
 #[cfg(feature = "geo-types")]
 use geo_types;
@@ -413,7 +413,6 @@ where
     geo_types::Coordinate<f64>: From<PointType>,
 {
     fn from(polyline: GenericPolyline<PointType>) -> Self {
-        use std::iter::FromIterator;
         let mut lines = Vec::<geo_types::LineString<f64>>::with_capacity(polyline.parts().len());
 
         for points in polyline.parts {
@@ -487,9 +486,9 @@ mod tests {
 #[cfg(feature = "geo-types")]
 mod test_geo_types_conversions {
     use super::*;
+    use crate::NO_DATA;
+    use crate::{PointM, PolylineM};
     use geo_types::{Coordinate, LineString, MultiLineString};
-    use NO_DATA;
-    use {PointM, PolylineM};
 
     #[test]
     fn test_polyline_into_multiline_string() {

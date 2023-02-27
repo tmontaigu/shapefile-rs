@@ -1,7 +1,7 @@
 use super::{Error, ShapeType};
 
+use crate::record::BBoxZ;
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
-use record::BBoxZ;
 use std::io::{Read, Write};
 
 pub(crate) const HEADER_SIZE: i32 = 100;

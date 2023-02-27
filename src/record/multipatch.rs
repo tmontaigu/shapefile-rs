@@ -5,11 +5,11 @@ use std::fmt;
 use std::io::{Read, Write};
 use std::mem::size_of;
 
-use record::io::*;
-use record::ConcreteReadableShape;
-use record::{close_points_if_not_already, GenericBBox};
-use record::{EsriShape, HasShapeType, Point, PointZ, WritableShape};
-use {Error, ShapeType};
+use super::io::*;
+use super::ConcreteReadableShape;
+use super::{close_points_if_not_already, GenericBBox};
+use super::{Error, ShapeType};
+use super::{EsriShape, HasShapeType, Point, PointZ, WritableShape};
 
 #[cfg(feature = "geo-types")]
 use geo_types;

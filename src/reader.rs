@@ -61,10 +61,10 @@ use std::path::Path;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-use header;
-use record;
-use record::ReadableShape;
-use {Error, Shape};
+use crate::header;
+use crate::record;
+use crate::record::ReadableShape;
+use crate::{Error, Shape};
 
 const INDEX_RECORD_SIZE: usize = 2 * std::mem::size_of::<i32>();
 

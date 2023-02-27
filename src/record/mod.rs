@@ -14,14 +14,14 @@ pub mod polyline;
 pub mod traits;
 
 use super::{Error, ShapeType};
-pub use record::bbox::{BBoxZ, GenericBBox};
-pub use record::multipatch::{Multipatch, Patch};
-pub use record::multipoint::{Multipoint, MultipointM, MultipointZ};
-pub use record::point::{Point, PointM, PointZ};
-pub use record::polygon::{Polygon, PolygonM, PolygonRing, PolygonZ};
-pub use record::polyline::{Polyline, PolylineM, PolylineZ};
-use record::traits::HasXY;
+pub use bbox::{BBoxZ, GenericBBox};
+pub use multipatch::{Multipatch, Patch};
+pub use multipoint::{Multipoint, MultipointM, MultipointZ};
+pub use point::{Point, PointM, PointZ};
+pub use polygon::{Polygon, PolygonM, PolygonRing, PolygonZ};
+pub use polyline::{Polyline, PolylineM, PolylineZ};
 use std::convert::TryFrom;
+use traits::HasXY;
 
 #[cfg(feature = "geo-types")]
 use geo_types;

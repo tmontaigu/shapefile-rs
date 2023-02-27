@@ -1,8 +1,8 @@
 ///! Bounding Boxes
-use record::traits::{GrowablePoint, HasM, HasXY, HasZ, ShrinkablePoint};
-use record::EsriShape;
-use writer::{f64_max, f64_min};
-use PointZ;
+use super::traits::{GrowablePoint, HasM, HasXY, HasZ, ShrinkablePoint};
+use super::EsriShape;
+use super::PointZ;
+use crate::writer::{f64_max, f64_min};
 
 /// The Bounding Box type used in this crate.
 ///

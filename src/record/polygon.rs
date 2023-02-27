@@ -1,18 +1,18 @@
 //! Module with the definition of Polygon, PolygonM, PolygonZ
-use super::{Polyline, PolylineM, PolylineZ};
-use core::fmt;
-use record::io::MultiPartShapeWriter;
-use record::polyline::GenericPolyline;
-use record::traits::{GrowablePoint, HasXY, ShrinkablePoint};
-use record::{
+use super::io::MultiPartShapeWriter;
+use super::polyline::GenericPolyline;
+use super::traits::{GrowablePoint, HasXY, ShrinkablePoint};
+use super::{
     close_points_if_not_already, ring_type_from_points_ordering, ConcreteReadableShape, EsriShape,
     GenericBBox, RingType, WritableShape,
 };
+use super::{Error, ShapeType};
+use super::{HasShapeType, Point};
+use super::{PointM, PointZ};
+use super::{Polyline, PolylineM, PolylineZ};
+use core::fmt;
 use std::io::{Read, Write};
 use std::mem::size_of;
-use {Error, ShapeType};
-use {HasShapeType, Point};
-use {PointM, PointZ};
 
 #[cfg(feature = "geo-types")]
 use geo_types::{Coordinate, LineString};
