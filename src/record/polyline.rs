@@ -181,11 +181,9 @@ impl ConcreteReadableShape for Polyline {
         if record_size != Self::size_of_record(rdr.num_points, rdr.num_parts) as i32 {
             Err(Error::InvalidShapeRecordSize)
         } else {
-            rdr.read_xy().map_err(Error::IoError).and_then(|rdr| {
-                Ok(Self {
-                    bbox: rdr.bbox,
-                    parts: rdr.parts,
-                })
+            rdr.read_xy().map_err(Error::IoError).map(|rdr| Self {
+                bbox: rdr.bbox,
+                parts: rdr.parts,
             })
         }
     }
@@ -265,11 +263,9 @@ impl ConcreteReadableShape for PolylineM {
             rdr.read_xy()
                 .and_then(|rdr| rdr.read_ms_if(record_size == record_size_with_m))
                 .map_err(Error::IoError)
-                .and_then(|rdr| {
-                    Ok(Self {
-                        bbox: rdr.bbox,
-                        parts: rdr.parts,
-                    })
+                .map(|rdr| Self {
+                    bbox: rdr.bbox,
+                    parts: rdr.parts,
                 })
         }
     }
@@ -277,7 +273,7 @@ impl ConcreteReadableShape for PolylineM {
 
 impl WritableShape for PolylineM {
     fn size_in_bytes(&self) -> usize {
-        let mut size = 0 as usize;
+        let mut size = 0_usize;
         size += size_of::<f64>() * 4;
         size += size_of::<i32>(); // num parts
         size += size_of::<i32>(); //num points
@@ -357,11 +353,9 @@ impl ConcreteReadableShape for PolylineZ {
                 .and_then(|rdr| rdr.read_zs())
                 .and_then(|rdr| rdr.read_ms_if(record_size == record_size_with_m))
                 .map_err(Error::IoError)
-                .and_then(|rdr| {
-                    Ok(Self {
-                        bbox: rdr.bbox,
-                        parts: rdr.parts,
-                    })
+                .map(|rdr| Self {
+                    bbox: rdr.bbox,
+                    parts: rdr.parts,
                 })
         }
     }
@@ -369,7 +363,7 @@ impl ConcreteReadableShape for PolylineZ {
 
 impl WritableShape for PolylineZ {
     fn size_in_bytes(&self) -> usize {
-        let mut size = 0 as usize;
+        let mut size = 0_usize;
         size += size_of::<f64>() * 4;
         size += size_of::<i32>(); // num parts
         size += size_of::<i32>(); //num points

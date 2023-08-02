@@ -650,7 +650,7 @@ impl Reader<BufReader<File>, BufReader<File>> {
                 dbase_reader: dbf_reader,
             })
         } else {
-            return Err(Error::MissingDbf);
+            Err(Error::MissingDbf)
         }
     }
 }

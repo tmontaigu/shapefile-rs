@@ -1,4 +1,4 @@
-///! Bounding Boxes
+//! Bounding Boxes
 use super::traits::{GrowablePoint, HasM, HasXY, HasZ, ShrinkablePoint};
 use super::EsriShape;
 use super::PointZ;
@@ -57,7 +57,7 @@ impl<PointType> GenericBBox<PointType> {
         }
     }
 
-    pub(crate) fn from_parts(parts: &Vec<Vec<PointType>>) -> Self
+    pub(crate) fn from_parts(parts: &[Vec<PointType>]) -> Self
     where
         PointType: ShrinkablePoint + GrowablePoint + Copy,
     {

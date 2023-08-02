@@ -49,14 +49,16 @@ impl Header {
         let mut skip: [u8; SIZE_OF_SKIP] = [0; SIZE_OF_SKIP];
         source.read_exact(&mut skip)?;
 
-        let file_length_16_bit = source.read_i32::<BigEndian>()?;
+        let file_length = source.read_i32::<BigEndian>()?;
         let version = source.read_i32::<LittleEndian>()?;
         let shape_type = ShapeType::read_from(&mut source)?;
 
-        let mut hdr = Header::default();
-        hdr.shape_type = shape_type;
-        hdr.version = version;
-        hdr.file_length = file_length_16_bit;
+        let mut hdr = Header {
+            shape_type,
+            version,
+            file_length,
+            ..Default::default()
+        };
 
         hdr.bbox.min.x = source.read_f64::<LittleEndian>()?;
         hdr.bbox.min.y = source.read_f64::<LittleEndian>()?;

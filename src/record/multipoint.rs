@@ -254,13 +254,13 @@ impl HasShapeType for Multipoint {
 }
 
 impl ConcreteReadableShape for Multipoint {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
+    fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
         let mut bbox = GenericBBox::<Point>::default();
         bbox_read_xy_from(&mut bbox, source)?;
 
         let num_points = source.read_i32::<LittleEndian>()?;
         if record_size == Self::size_of_record(num_points) as i32 {
-            let points = read_xy_in_vec_of::<Point, T>(&mut source, num_points)?;
+            let points = read_xy_in_vec_of::<Point, T>(source, num_points)?;
             Ok(Self { bbox, points })
         } else {
             Err(Error::InvalidShapeRecordSize)
@@ -330,7 +330,7 @@ impl HasShapeType for MultipointM {
 }
 
 impl ConcreteReadableShape for MultipointM {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
+    fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
         let mut bbox = GenericBBox::<PointM>::default();
         bbox_read_xy_from(&mut bbox, source)?;
 
@@ -343,11 +343,11 @@ impl ConcreteReadableShape for MultipointM {
             Err(Error::InvalidShapeRecordSize)
         } else {
             let m_is_used = size_with_m == record_size;
-            let mut points = read_xy_in_vec_of::<PointM, T>(&mut source, num_points)?;
+            let mut points = read_xy_in_vec_of::<PointM, T>(source, num_points)?;
 
             if m_is_used {
                 bbox_read_m_range_from(&mut bbox, source)?;
-                read_ms_into(&mut source, &mut points)?;
+                read_ms_into(source, &mut points)?;
             }
             Ok(Self { bbox, points })
         }
@@ -425,7 +425,7 @@ impl HasShapeType for MultipointZ {
 }
 
 impl ConcreteReadableShape for MultipointZ {
-    fn read_shape_content<T: Read>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
+    fn read_shape_content<T: Read>(source: &mut T, record_size: i32) -> Result<Self, Error> {
         let mut bbox = GenericBBox::<PointZ>::default();
         bbox_read_xy_from(&mut bbox, source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
@@ -437,14 +437,14 @@ impl ConcreteReadableShape for MultipointZ {
             Err(Error::InvalidShapeRecordSize)
         } else {
             let m_is_used = size_with_m == record_size;
-            let mut points = read_xy_in_vec_of::<PointZ, T>(&mut source, num_points)?;
+            let mut points = read_xy_in_vec_of::<PointZ, T>(source, num_points)?;
 
             bbox_read_z_range_from(&mut bbox, source)?;
-            read_zs_into(&mut source, &mut points)?;
+            read_zs_into(source, &mut points)?;
 
             if m_is_used {
                 bbox_read_m_range_from(&mut bbox, source)?;
-                read_ms_into(&mut source, &mut points)?;
+                read_ms_into(source, &mut points)?;
             }
 
             Ok(Self { bbox, points })

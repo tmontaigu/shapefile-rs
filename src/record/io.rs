@@ -84,7 +84,7 @@ where
 
 pub(crate) fn read_ms_into<T: Read, D: HasMutM>(
     source: &mut T,
-    points: &mut Vec<D>,
+    points: &mut [D],
 ) -> Result<(), std::io::Error> {
     for point in points {
         *point.m_mut() = f64::max(source.read_f64::<LittleEndian>()?, NO_DATA);
@@ -94,9 +94,9 @@ pub(crate) fn read_ms_into<T: Read, D: HasMutM>(
 
 pub(crate) fn read_zs_into<T: Read>(
     source: &mut T,
-    points: &mut Vec<PointZ>,
+    points: &mut [PointZ],
 ) -> Result<(), std::io::Error> {
-    for point in points.iter_mut() {
+    for point in points {
         point.z = source.read_f64::<LittleEndian>()?;
     }
     Ok(())
@@ -294,7 +294,7 @@ where
     PointType: HasXY,
 {
     pub(crate) fn write_bbox_xy(self) -> std::io::Result<Self> {
-        bbox_write_xy_to(&self.bbox, self.dst)?;
+        bbox_write_xy_to(self.bbox, self.dst)?;
         Ok(self)
     }
 
@@ -313,7 +313,7 @@ where
     PointType: HasM,
 {
     pub(crate) fn write_bbox_m_range(self) -> std::io::Result<Self> {
-        bbox_write_m_range_to(&self.bbox, self.dst)?;
+        bbox_write_m_range_to(self.bbox, self.dst)?;
         Ok(self)
     }
 
@@ -331,7 +331,7 @@ where
     W: Write,
 {
     pub(crate) fn write_bbox_z_range(self) -> std::io::Result<Self> {
-        bbox_write_z_range_to(&self.bbox, self.dst)?;
+        bbox_write_z_range_to(self.bbox, self.dst)?;
         Ok(self)
     }
 
