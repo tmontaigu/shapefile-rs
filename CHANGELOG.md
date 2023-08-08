@@ -1,3 +1,6 @@
+# 0.5.0
+ - Bumped dbase to 0.4.0
+
 # 0.4.0
  - Added `shape_count` to the reader
  - Bumped dbase to 0.3.0 to bring code page support
