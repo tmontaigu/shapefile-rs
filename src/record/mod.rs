@@ -20,7 +20,6 @@ pub use multipoint::{Multipoint, MultipointM, MultipointZ};
 pub use point::{Point, PointM, PointZ};
 pub use polygon::{Polygon, PolygonM, PolygonRing, PolygonZ};
 pub use polyline::{Polyline, PolylineM, PolylineZ};
-use std::convert::TryFrom;
 use traits::HasXY;
 
 #[cfg(feature = "geo-types")]
