@@ -53,7 +53,6 @@ pub mod record;
 pub mod writer;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::convert::From;
 use std::fmt;
 use std::io::{Read, Write};
 

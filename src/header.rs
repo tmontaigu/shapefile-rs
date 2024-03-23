@@ -99,7 +99,6 @@ impl Header {
 mod tests {
     use super::*;
 
-    use byteorder::WriteBytesExt;
     use std::io::{Seek, SeekFrom};
 
     #[test]
