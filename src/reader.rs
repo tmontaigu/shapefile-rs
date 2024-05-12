@@ -136,10 +136,12 @@ impl<'a, T: Read + Seek, S: ReadableShape> Iterator for ShapeIterator<'a, T, S> 
                 // as some shapes may not be stored sequentially and may contain 'garbage'
                 // bytes between them
                 let start_pos = shapes_indices.next()?.offset * 2;
-                if let Err(err) = self.source.seek(SeekFrom::Start(start_pos as u64)) {
-                    return Some(Err(err.into()));
+                if start_pos != self.current_pos as i32 {
+                    if let Err(err) = self.source.seek(SeekFrom::Start(start_pos as u64)) {
+                        return Some(Err(err.into()));
+                    }
+                    self.current_pos = start_pos as usize;
                 }
-                self.current_pos = start_pos as usize;
             }
             let (hdr, shape) = match read_one_shape_as::<T, S>(self.source) {
                 Err(e) => return Some(Err(e)),
