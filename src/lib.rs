@@ -52,6 +52,9 @@ pub mod reader;
 pub mod record;
 pub mod writer;
 
+#[cfg(feature = "geo-traits")]
+mod geo_traits_impl;
+
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::fmt;
 use std::io::{Read, Write};

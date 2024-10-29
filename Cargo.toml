@@ -14,8 +14,9 @@ edition = "2021"
 [dependencies]
 byteorder = "1.2.7"
 dbase = "0.5.0"
-geo-types = {version = ">=0.4.0, <0.8.0", optional = true}
+geo-types = { version = ">=0.4.0, <0.8.0", optional = true }
+geo-traits = { version = "0.2", optional = true }
 
 
 [package.metadata.docs.rs]
-features = ["geo-types"]
+features = ["geo-types", "geo-traits"]
