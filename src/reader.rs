@@ -348,7 +348,7 @@ impl<T: Read + Seek> ShapeReader<T> {
             _shape: std::marker::PhantomData,
             source: &mut self.source,
             current_pos: header::HEADER_SIZE as usize,
-            file_length: (self.header.file_length * 2) as usize,
+            file_length: (self.header.file_length as usize) * 2,
             shapes_indices: self.shapes_index.as_ref().map(|s| s.iter()),
         }
     }
