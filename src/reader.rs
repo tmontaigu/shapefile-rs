@@ -152,6 +152,13 @@ impl<'a, T: Read + Seek, S: ReadableShape> Iterator for ShapeIterator<'a, T, S> 
             Some(Ok(shape))
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.shapes_indices
+            .as_ref()
+            .map(|s| s.size_hint())
+            .unwrap_or((0, None))
+    }
 }
 
 pub struct ShapeRecordIterator<

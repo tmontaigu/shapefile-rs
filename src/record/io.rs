@@ -175,6 +175,15 @@ impl<'a> Iterator for PartIndexIter<'a> {
             None
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if self.num_points < 0 {
+            (0, None)
+        } else {
+            let remaining = self.parts_indices.len() - self.current_part_index;
+            (remaining, Some(remaining))
+        }
+    }
 }
 
 pub(crate) struct MultiPartShapeReader<'a, PointType, R: Read> {
