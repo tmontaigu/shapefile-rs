@@ -115,3 +115,37 @@ fn polygon_inner_is_correctly_reordered() {
     let expected = read_a_file(testfiles::POLYGON_HOLE_SHX_PATH).unwrap();
     assert_eq!(shx.get_ref(), &expected);
 }
+
+/// Same polygon as test above, but the points for the ring are in the
+/// incorrect order for a shapefile, so this test if we reorder points correctly
+#[test]
+fn shape_writer_explicit_finalize() {
+    let shape = Polygon::with_rings(vec![
+        PolygonRing::Outer(vec![
+            Point::new(-120.0, 60.0),
+            Point::new(-120.0, -60.0),
+            Point::new(120.0, -60.0),
+            Point::new(120.0, 60.0),
+            Point::new(-120.0, 60.0),
+        ]),
+        PolygonRing::Inner(vec![
+            Point::new(-60.0, 30.0),
+            Point::new(60.0, 30.0),
+            Point::new(60.0, -30.0),
+            Point::new(-60.0, -30.0),
+            Point::new(-60.0, 30.0),
+        ]),
+    ]);
+    let mut shp: Cursor<Vec<u8>> = Cursor::new(vec![]);
+    let mut shx: Cursor<Vec<u8>> = Cursor::new(vec![]);
+    let mut writer = ShapeWriter::with_shx(&mut shp, &mut shx);
+    writer.write_shape(&shape).unwrap();
+    writer.finalize().unwrap();
+    drop(writer);
+
+    let expected = read_a_file(testfiles::POLYGON_HOLE_PATH).unwrap();
+    assert_eq!(shp.get_ref(), &expected);
+
+    let expected = read_a_file(testfiles::POLYGON_HOLE_SHX_PATH).unwrap();
+    assert_eq!(shx.get_ref(), &expected);
+}

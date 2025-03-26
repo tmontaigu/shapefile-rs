@@ -49,6 +49,7 @@ pub struct ShapeWriter<T: Write + Seek> {
     shx_dest: Option<T>,
     header: header::Header,
     rec_num: u32,
+    dirty: bool,
 }
 
 impl<T: Write + Seek> ShapeWriter<T> {
@@ -61,6 +62,7 @@ impl<T: Write + Seek> ShapeWriter<T> {
             shx_dest: None,
             header: header::Header::default(),
             rec_num: 1,
+            dirty: true,
         }
     }
 
@@ -70,6 +72,7 @@ impl<T: Write + Seek> ShapeWriter<T> {
             shx_dest: Some(shx_dest),
             header: Default::default(),
             rec_num: 1,
+            dirty: true,
         }
     }
 
@@ -137,6 +140,7 @@ impl<T: Write + Seek> ShapeWriter<T> {
         self.header.file_length += record_size as i32 + RecordHeader::SIZE as i32 / 2;
         self.header.bbox.grow_from_shape(shape);
         self.rec_num += 1;
+        self.dirty = true;
 
         Ok(())
     }
@@ -181,7 +185,14 @@ impl<T: Write + Seek> ShapeWriter<T> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), Error> {
+    /// Finalizes the file by updating the header
+    ///
+    /// * Also flushes the destinations
+    pub fn finalize(&mut self) -> Result<(), Error> {
+        if !self.dirty {
+            return Ok(());
+        }
+
         if self.header.bbox.max.m == std::f64::MIN && self.header.bbox.min.m == std::f64::MAX {
             self.header.bbox.max.m = 0.0;
             self.header.bbox.min.m = 0.0;
@@ -195,21 +206,25 @@ impl<T: Write + Seek> ShapeWriter<T> {
         self.shp_dest.seek(SeekFrom::Start(0))?;
         self.header.write_to(&mut self.shp_dest)?;
         self.shp_dest.seek(SeekFrom::End(0))?;
+        self.shp_dest.flush()?;
+
         if let Some(shx_dest) = &mut self.shx_dest {
             let mut shx_header = self.header;
             shx_header.file_length = header::HEADER_SIZE / 2
-                + ((self.rec_num - 1) as i32 * 2 * std::mem::size_of::<i32>() as i32 / 2);
+                + ((self.rec_num - 1) as i32 * 2 * size_of::<i32>() as i32 / 2);
             shx_dest.seek(SeekFrom::Start(0))?;
             shx_header.write_to(shx_dest)?;
             shx_dest.seek(SeekFrom::End(0))?;
+            shx_dest.flush()?;
         }
+        self.dirty = false;
         Ok(())
     }
 }
 
 impl<T: Write + Seek> Drop for ShapeWriter<T> {
     fn drop(&mut self) {
-        let _ = self.close();
+        let _ = self.finalize();
     }
 }
 
