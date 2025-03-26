@@ -404,15 +404,15 @@ impl EsriShape for PolylineZ {
 impl<PointType> From<GenericPolyline<PointType>> for geo_types::MultiLineString<f64>
 where
     PointType: Copy,
-    geo_types::Coordinate<f64>: From<PointType>,
+    geo_types::Coord<f64>: From<PointType>,
 {
     fn from(polyline: GenericPolyline<PointType>) -> Self {
         let mut lines = Vec::<geo_types::LineString<f64>>::with_capacity(polyline.parts().len());
 
         for points in polyline.parts {
-            let line: Vec<geo_types::Coordinate<f64>> = points
+            let line: Vec<geo_types::Coord<f64>> = points
                 .into_iter()
-                .map(geo_types::Coordinate::<f64>::from)
+                .map(geo_types::Coord::<f64>::from)
                 .collect();
             lines.push(line.into());
         }
@@ -434,7 +434,7 @@ where
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::LineString<f64>> for GenericPolyline<PointType>
 where
-    PointType: From<geo_types::Coordinate<f64>> + ShrinkablePoint + GrowablePoint + Copy,
+    PointType: From<geo_types::Coord<f64>> + ShrinkablePoint + GrowablePoint + Copy,
 {
     fn from(line: geo_types::LineString<f64>) -> Self {
         let points: Vec<PointType> = line.into_iter().map(PointType::from).collect();
@@ -445,7 +445,7 @@ where
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::MultiLineString<f64>> for GenericPolyline<PointType>
 where
-    PointType: From<geo_types::Coordinate<f64>> + ShrinkablePoint + GrowablePoint + Copy,
+    PointType: From<geo_types::Coord<f64>> + ShrinkablePoint + GrowablePoint + Copy,
 {
     fn from(mls: geo_types::MultiLineString<f64>) -> Self {
         let mut parts = Vec::<Vec<PointType>>::with_capacity(mls.0.len());
@@ -482,7 +482,7 @@ mod test_geo_types_conversions {
     use super::*;
     use crate::NO_DATA;
     use crate::{PointM, PolylineM};
-    use geo_types::{Coordinate, LineString, MultiLineString};
+    use geo_types::{Coord, LineString, MultiLineString};
 
     #[test]
     fn test_polyline_into_multiline_string() {
@@ -499,13 +499,13 @@ mod test_geo_types_conversions {
 
         let expected_multiline = geo_types::MultiLineString(vec![
             LineString::<f64>(vec![
-                Coordinate { x: 1.0, y: 5.0 },
-                Coordinate { x: 5.0, y: 5.0 },
-                Coordinate { x: 5.0, y: 1.0 },
+                Coord { x: 1.0, y: 5.0 },
+                Coord { x: 5.0, y: 5.0 },
+                Coord { x: 5.0, y: 1.0 },
             ]),
             LineString::<f64>(vec![
-                Coordinate { x: 1.0, y: 5.0 },
-                Coordinate { x: 1.0, y: 1.0 },
+                Coord { x: 1.0, y: 5.0 },
+                Coord { x: 1.0, y: 1.0 },
             ]),
         ]);
         assert_eq!(multiline_string, expected_multiline);
@@ -514,8 +514,8 @@ mod test_geo_types_conversions {
     #[test]
     fn test_line_into_polyline() {
         let line = geo_types::Line::new(
-            Coordinate { x: 2.0, y: 3.0 },
-            Coordinate { x: 6.0, y: -6.0 },
+            Coord { x: 2.0, y: 3.0 },
+            Coord { x: 6.0, y: -6.0 },
         );
         let polyline: PolylineZ = line.into();
 
@@ -531,9 +531,9 @@ mod test_geo_types_conversions {
     #[test]
     fn test_linestring_into_polyline() {
         let linestring = LineString::from(vec![
-            Coordinate { x: 1.0, y: 5.0 },
-            Coordinate { x: 5.0, y: 5.0 },
-            Coordinate { x: 5.0, y: 1.0 },
+            Coord { x: 1.0, y: 5.0 },
+            Coord { x: 5.0, y: 5.0 },
+            Coord { x: 5.0, y: 1.0 },
         ]);
 
         let polyline: Polyline = linestring.into();
@@ -551,13 +551,13 @@ mod test_geo_types_conversions {
     fn test_multi_line_string_into_polyline() {
         let multiline_string = geo_types::MultiLineString(vec![
             LineString::<f64>(vec![
-                Coordinate { x: 1.0, y: 5.0 },
-                Coordinate { x: 5.0, y: 5.0 },
-                Coordinate { x: 5.0, y: 1.0 },
+                Coord { x: 1.0, y: 5.0 },
+                Coord { x: 5.0, y: 5.0 },
+                Coord { x: 5.0, y: 1.0 },
             ]),
             LineString::<f64>(vec![
-                Coordinate { x: 1.0, y: 5.0 },
-                Coordinate { x: 1.0, y: 1.0 },
+                Coord { x: 1.0, y: 5.0 },
+                Coord { x: 1.0, y: 1.0 },
             ]),
         ]);
 

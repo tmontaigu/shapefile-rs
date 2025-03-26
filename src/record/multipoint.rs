@@ -502,7 +502,7 @@ impl EsriShape for MultipointZ {
 mod test_geo_types_conversions {
     use super::*;
     use crate::{geo_types, NO_DATA};
-    use geo_types::Coordinate;
+    use geo_types::Coord;
 
     #[test]
     fn test_multipoint_to_geo_types_multipoint() {
@@ -510,8 +510,8 @@ mod test_geo_types_conversions {
         let geo_types_coords = shapefile_points
             .iter()
             .copied()
-            .map(Coordinate::<f64>::from)
-            .collect::<Vec<Coordinate<f64>>>();
+            .map(Coord::<f64>::from)
+            .collect::<Vec<Coord<f64>>>();
 
         let expected_shapefile_multipoint = Multipoint::new(shapefile_points);
         let expected_geo_types_multipoint = geo_types::MultiPoint::from(geo_types_coords);

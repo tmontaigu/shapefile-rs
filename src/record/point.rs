@@ -15,7 +15,7 @@ use std::fmt;
 #[cfg(feature = "geo-types")]
 use geo_types;
 
-/// Point with only `x` and `y` coordinates
+/// Point with only `x` and `y` Coords
 #[derive(PartialEq, Debug, Default, Copy, Clone)]
 pub struct Point {
     pub x: f64,
@@ -106,16 +106,16 @@ impl From<geo_types::Point<f64>> for Point {
 }
 
 #[cfg(feature = "geo-types")]
-impl From<geo_types::Coordinate<f64>> for Point {
-    fn from(c: geo_types::Coordinate<f64>) -> Self {
+impl From<geo_types::Coord<f64>> for Point {
+    fn from(c: geo_types::Coord<f64>) -> Self {
         Point::new(c.x, c.y)
     }
 }
 
 #[cfg(feature = "geo-types")]
-impl From<Point> for geo_types::Coordinate<f64> {
+impl From<Point> for geo_types::Coord<f64> {
     fn from(p: Point) -> Self {
-        geo_types::Coordinate { x: p.x, y: p.y }
+        geo_types::Coord { x: p.x, y: p.y }
     }
 }
 
@@ -245,16 +245,16 @@ impl From<geo_types::Point<f64>> for PointM {
 }
 
 #[cfg(feature = "geo-types")]
-impl From<geo_types::Coordinate<f64>> for PointM {
-    fn from(c: geo_types::Coordinate<f64>) -> Self {
+impl From<geo_types::Coord<f64>> for PointM {
+    fn from(c: geo_types::Coord<f64>) -> Self {
         PointM::new(c.x, c.y, NO_DATA)
     }
 }
 
 #[cfg(feature = "geo-types")]
-impl From<PointM> for geo_types::Coordinate<f64> {
+impl From<PointM> for geo_types::Coord<f64> {
     fn from(p: PointM) -> Self {
-        geo_types::Coordinate { x: p.x, y: p.y }
+        geo_types::Coord { x: p.x, y: p.y }
     }
 }
 
@@ -406,16 +406,16 @@ impl From<geo_types::Point<f64>> for PointZ {
 }
 
 #[cfg(feature = "geo-types")]
-impl From<geo_types::Coordinate<f64>> for PointZ {
-    fn from(c: geo_types::Coordinate<f64>) -> Self {
+impl From<geo_types::Coord<f64>> for PointZ {
+    fn from(c: geo_types::Coord<f64>) -> Self {
         PointZ::new(c.x, c.y, 0.0, NO_DATA)
     }
 }
 
 #[cfg(feature = "geo-types")]
-impl From<PointZ> for geo_types::Coordinate<f64> {
+impl From<PointZ> for geo_types::Coord<f64> {
     fn from(p: PointZ) -> Self {
-        geo_types::Coordinate { x: p.x, y: p.y }
+        geo_types::Coord { x: p.x, y: p.y }
     }
 }
 

@@ -15,7 +15,7 @@ use std::io::{Read, Write};
 use std::mem::size_of;
 
 #[cfg(feature = "geo-types")]
-use geo_types::{Coordinate, LineString};
+use geo_types::{Coord, LineString};
 use std::ops::Index;
 use std::slice::SliceIndex;
 
@@ -559,7 +559,7 @@ impl EsriShape for PolygonZ {
 impl<PointType> From<GenericPolygon<PointType>> for geo_types::MultiPolygon<f64>
 where
     PointType: ShrinkablePoint + GrowablePoint + Copy,
-    geo_types::Coordinate<f64>: From<PointType>,
+    geo_types::Coord<f64>: From<PointType>,
 {
     fn from(p: GenericPolygon<PointType>) -> Self {
         let mut last_poly = None;
@@ -569,8 +569,8 @@ where
                 PolygonRing::Outer(points) => {
                     let exterior = points
                         .into_iter()
-                        .map(Coordinate::<f64>::from)
-                        .collect::<Vec<Coordinate<f64>>>();
+                        .map(Coord::<f64>::from)
+                        .collect::<Vec<Coord<f64>>>();
 
                     if let Some(poly) = last_poly.take() {
                         polygons.push(poly);
@@ -580,15 +580,15 @@ where
                 PolygonRing::Inner(points) => {
                     let interior = points
                         .into_iter()
-                        .map(Coordinate::<f64>::from)
-                        .collect::<Vec<Coordinate<f64>>>();
+                        .map(Coord::<f64>::from)
+                        .collect::<Vec<Coord<f64>>>();
 
                     if let Some(poly) = last_poly.as_mut() {
                         poly.interiors_push(interior);
                     } else {
                         // This is the strange (?) case: inner ring without a previous outer ring
                         polygons.push(geo_types::Polygon::<f64>::new(
-                            LineString::<f64>::from(Vec::<Coordinate<f64>>::new()),
+                            LineString::<f64>::from(Vec::<Coord<f64>>::new()),
                             vec![LineString::from(interior)],
                         ));
                     }
@@ -605,7 +605,7 @@ where
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::Polygon<f64>> for GenericPolygon<PointType>
 where
-    PointType: From<geo_types::Coordinate<f64>>
+    PointType: From<geo_types::Coord<f64>>
         + GrowablePoint
         + ShrinkablePoint
         + PartialEq
@@ -632,7 +632,7 @@ where
 impl<PointType> From<geo_types::MultiPolygon<f64>> for GenericPolygon<PointType>
 where
     PointType: HasXY
-        + From<geo_types::Coordinate<f64>>
+        + From<geo_types::Coord<f64>>
         + GrowablePoint
         + ShrinkablePoint
         + PartialEq

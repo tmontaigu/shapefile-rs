@@ -349,7 +349,7 @@ impl TryFrom<Multipatch> for geo_types::MultiPolygon<f64> {
     type Error = &'static str;
 
     fn try_from(mp: Multipatch) -> Result<Self, Self::Error> {
-        use geo_types::{Coordinate, LineString};
+        use geo_types::{Coord, LineString};
 
         let mut polygons = Vec::<geo_types::Polygon<f64>>::new();
         let mut last_poly = None;
@@ -364,8 +364,8 @@ impl TryFrom<Multipatch> for geo_types::MultiPolygon<f64> {
                 Patch::OuterRing(points) | Patch::FirstRing(points) => {
                     let exterior = points
                         .into_iter()
-                        .map(Coordinate::<f64>::from)
-                        .collect::<Vec<Coordinate<f64>>>();
+                        .map(Coord::<f64>::from)
+                        .collect::<Vec<Coord<f64>>>();
 
                     if let Some(poly) = last_poly.take() {
                         polygons.push(poly);
@@ -375,15 +375,15 @@ impl TryFrom<Multipatch> for geo_types::MultiPolygon<f64> {
                 Patch::InnerRing(points) | Patch::Ring(points) => {
                     let interior = points
                         .into_iter()
-                        .map(Coordinate::<f64>::from)
-                        .collect::<Vec<Coordinate<f64>>>();
+                        .map(Coord::<f64>::from)
+                        .collect::<Vec<Coord<f64>>>();
 
                     if let Some(poly) = last_poly.as_mut() {
                         poly.interiors_push(interior);
                     } else {
                         // This is the strange (?) case: inner ring without a previous outer ring
                         polygons.push(geo_types::Polygon::<f64>::new(
-                            LineString::<f64>::from(Vec::<Coordinate<f64>>::new()),
+                            LineString::<f64>::from(Vec::<Coord<f64>>::new()),
                             vec![LineString::from(interior)],
                         ));
                     }
