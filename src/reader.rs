@@ -124,7 +124,7 @@ pub struct ShapeIterator<'a, T: Read, S: ReadableShape> {
     shapes_indices: Option<std::slice::Iter<'a, ShapeIndex>>,
 }
 
-impl<'a, T: Read + Seek, S: ReadableShape> Iterator for ShapeIterator<'a, T, S> {
+impl<T: Read + Seek, S: ReadableShape> Iterator for ShapeIterator<'_, T, S> {
     type Item = Result<S, crate::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -172,8 +172,8 @@ pub struct ShapeRecordIterator<
     record_iter: dbase::RecordIterator<'a, D, R>,
 }
 
-impl<'a, T: Read + Seek, D: Read + Seek, S: ReadableShape, R: dbase::ReadableRecord> Iterator
-    for ShapeRecordIterator<'a, T, D, S, R>
+impl<T: Read + Seek, D: Read + Seek, S: ReadableShape, R: dbase::ReadableRecord> Iterator
+    for ShapeRecordIterator<'_, T, D, S, R>
 {
     type Item = Result<(S, R), Error>;
 

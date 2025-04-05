@@ -10,10 +10,10 @@ fn test_line_read_nth() {
         let shp = shape.unwrap();
         testfiles::check_line_first_shape(&shp);
     } else {
-        assert!(false, "Should be Some(shape)")
+        panic!("Should be Some(shape)")
     }
 
-    assert_eq!(reader.read_nth_shape(1).is_none(), true);
+    assert!(reader.read_nth_shape(1).is_none());
 }
 
 #[test]

@@ -157,7 +157,7 @@ impl<'a> PartIndexIter<'a> {
     }
 }
 
-impl<'a> Iterator for PartIndexIter<'a> {
+impl Iterator for PartIndexIter<'_> {
     type Item = (i32, i32);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -223,7 +223,7 @@ impl<'a, PointType: Default + HasMutXY, R: Read> MultiPartShapeReader<'a, PointT
     }
 }
 
-impl<'a, PointType: HasMutM, R: Read> MultiPartShapeReader<'a, PointType, R> {
+impl<PointType: HasMutM, R: Read> MultiPartShapeReader<'_, PointType, R> {
     pub(crate) fn read_ms(mut self) -> std::io::Result<Self> {
         bbox_read_m_range_from(&mut self.bbox, &mut self.source)?;
         for part_points in self.parts.iter_mut() {
@@ -241,7 +241,7 @@ impl<'a, PointType: HasMutM, R: Read> MultiPartShapeReader<'a, PointType, R> {
     }
 }
 
-impl<'a, R: Read> MultiPartShapeReader<'a, PointZ, R> {
+impl<R: Read> MultiPartShapeReader<'_, PointZ, R> {
     pub(crate) fn read_zs(mut self) -> std::io::Result<Self> {
         bbox_read_z_range_from(&mut self.bbox, &mut self.source)?;
         for part_points in self.parts.iter_mut() {

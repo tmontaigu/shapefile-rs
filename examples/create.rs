@@ -2,7 +2,7 @@ use dbase::{dbase_record, TableWriterBuilder};
 use shapefile::{dbase, Point, Polyline, Writer};
 
 fn example_1() {
-    const FILE_NAME: &'static str = "hello_shape_1.shp";
+    const FILE_NAME: &str = "hello_shape_1.shp";
 
     let square = Polyline::new(vec![
         Point::new(0.0, 0.0),
@@ -53,7 +53,7 @@ fn example_2() {
         }
     );
 
-    const FILE_NAME: &'static str = "hello_shape_2.shp";
+    const FILE_NAME: &str = "hello_shape_2.shp";
 
     let square = Polyline::new(vec![
         Point::new(0.0, 0.0),

@@ -41,6 +41,6 @@ pub fn check_line_first_shape(shape: &shapefile::Shape) {
         assert_eq!(shp.parts()[0], first_part.as_slice());
         assert_eq!(shp.parts()[1], second_part.as_slice());
     } else {
-        assert!(false, "The shape is not a Polyline");
+        panic!("The shape is not a Polyline");
     }
 }

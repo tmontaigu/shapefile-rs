@@ -29,7 +29,7 @@ enum PatchType {
 impl PatchType {
     pub fn read_from<T: Read>(source: &mut T) -> Result<PatchType, Error> {
         let code = source.read_i32::<LittleEndian>()?;
-        Self::from(code).ok_or_else(|| Error::InvalidPatchType(code))
+        Self::from(code).ok_or(Error::InvalidPatchType(code))
     }
 
     pub fn from(code: i32) -> Option<PatchType> {

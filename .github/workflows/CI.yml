@@ -22,8 +22,8 @@ jobs:
       - name: check fmt
         run: cargo fmt --check
 
-      - name: check ${{ matrix.features }}
-        run: cargo check ${{ matrix.features }}
+      - name: clippy ${{ matrix.features }}
+        run: cargo clippy ${{ matrix.features }}
 
 
   test:

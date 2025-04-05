@@ -99,11 +99,10 @@ impl<T: Write + Seek> ShapeWriter<T> {
             // This is the first call to write shape, we shall write the header
             // to reserve it space in the file.
             (ShapeType::NullShape, t) => {
-                use std::f64::{MAX, MIN};
                 self.header.shape_type = t;
                 self.header.bbox = BBoxZ {
-                    max: PointZ::new(MIN, MIN, MIN, MIN),
-                    min: PointZ::new(MAX, MAX, MAX, MAX),
+                    max: PointZ::new(f64::MIN, f64::MIN, f64::MIN, f64::MIN),
+                    min: PointZ::new(f64::MAX, f64::MAX, f64::MAX, f64::MAX),
                 };
                 self.header.write_to(&mut self.shp_dest)?;
                 if let Some(shx_dest) = &mut self.shx_dest {
@@ -193,12 +192,12 @@ impl<T: Write + Seek> ShapeWriter<T> {
             return Ok(());
         }
 
-        if self.header.bbox.max.m == std::f64::MIN && self.header.bbox.min.m == std::f64::MAX {
+        if self.header.bbox.max.m == f64::MIN && self.header.bbox.min.m == f64::MAX {
             self.header.bbox.max.m = 0.0;
             self.header.bbox.min.m = 0.0;
         }
 
-        if self.header.bbox.max.z == std::f64::MIN && self.header.bbox.min.z == std::f64::MAX {
+        if self.header.bbox.max.z == f64::MIN && self.header.bbox.min.z == f64::MAX {
             self.header.bbox.max.z = 0.0;
             self.header.bbox.min.z = 0.0;
         }

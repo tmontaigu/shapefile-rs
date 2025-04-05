@@ -101,7 +101,6 @@ impl<PointType: ShrinkablePoint + GrowablePoint + Copy> GenericMultipoint<PointT
     /// ];
     /// let multipointz = MultipointZ::new(points);
     /// ```
-
     pub fn new(points: Vec<PointType>) -> Self {
         let bbox = GenericBBox::<PointType>::from_points(&points);
         Self { bbox, points }

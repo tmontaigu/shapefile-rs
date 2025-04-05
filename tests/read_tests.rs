@@ -87,7 +87,7 @@ fn check_linem<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
         assert_eq!(shape.parts()[0], first_part.as_slice());
         assert_eq!(shape.parts()[1], second_part.as_slice());
     } else {
-        assert!(false, "The shape is not a PolylineM");
+        panic!("The shape is not a PolylineM");
     }
 }
 
@@ -178,7 +178,7 @@ fn check_linez<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
         //assert_eq!(shp.z_range, [0.0, 22.0]);
         //assert_eq!(shp.m_range, [0.0, 3.0]);
         } else {
-            assert!(false, "The shape is not a PolylineZ");
+            panic!("The shape is not a PolylineZ");
         }
     }
 }
@@ -215,7 +215,7 @@ pub fn check_first_point_m(shape: &shapefile::Shape) {
     if let shapefile::Shape::PointM(shp) = shape {
         _check_first_point_m(shp);
     } else {
-        assert!(false, "The first shape is not a PointZ");
+        panic!("The first shape is not a PointZ");
     }
 }
 
@@ -229,7 +229,7 @@ pub fn check_second_point_m(shape: &shapefile::Shape) {
     if let shapefile::Shape::PointM(shp) = shape {
         _check_second_point_m(shp);
     } else {
-        assert!(false, "The second shape is not a PointZ");
+        panic!("The second shape is not a PointZ");
     }
 }
 
@@ -298,13 +298,13 @@ fn check_pointz<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     if let shapefile::Shape::PointZ(shp) = &shapes[0] {
         _check_first_point_z(shp);
     } else {
-        assert!(false, "The first shape is not a PointZ");
+        panic!("The first shape is not a PointZ");
     }
 
     if let shapefile::Shape::PointZ(shp) = &shapes[1] {
         _check_second_point_z(shp);
     } else {
-        assert!(false, "The second shape is not a PointZ");
+        panic!("The second shape is not a PointZ");
     }
 }
 
@@ -342,7 +342,7 @@ fn check_polygon<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
         assert_eq!(shp.ring(2), Some(&third_part));
         assert_eq!(shp.rings().len(), 3);
     } else {
-        assert!(false, "The second shape is not a Polygon");
+        panic!("The second shape is not a Polygon");
     }
 }
 
@@ -389,7 +389,7 @@ fn check_polygonm<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
         assert_eq!(shp.ring(0), Some(&first_ring));
         assert_eq!(shp.rings().len(), 1);
     } else {
-        assert!(false, "The second shape is not a PolygonZ");
+        panic!("The second shape is not a PolygonZ");
     }
 }
 
@@ -410,7 +410,7 @@ fn check_polygonz<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
     if let shapefile::Shape::PolygonZ(shp) = &shapes[0] {
         assert_eq!(shp.rings().len(), 1);
     } else {
-        assert!(false, "The second shape is not a PolygonZ");
+        panic!("The second shape is not a PolygonZ");
     }
 }
 
@@ -429,7 +429,7 @@ fn check_multipoint<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
         let expected_points = vec![Point { x: 122.0, y: 37.0 }, Point { x: 124.0, y: 32.0 }];
         assert_eq!(shp.points(), expected_points.as_slice());
     } else {
-        assert!(false, "Shape is not a Multipoint");
+        panic!("Shape is not a Multipoint");
     }
 }
 
@@ -489,7 +489,7 @@ fn check_multipointz<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
         ];
         assert_eq!(shp.points(), expected_points.as_slice());
     } else {
-        assert!(false, "Shape is not a Multipoint");
+        panic!("Shape is not a Multipoint");
     }
 }
 
@@ -610,7 +610,7 @@ fn check_multipatch<T: Read + Seek>(reader: shapefile::ShapeReader<T>) {
         assert_eq!(shp.patch(0), Some(&first_patch));
         assert_eq!(shp.patch(1), Some(&second_patch));
     } else {
-        assert!(false, "Shape is not a Multipatch");
+        panic!("Shape is not a Multipatch");
     }
 }
 
@@ -771,7 +771,7 @@ read_write_read_test!(
 #[test]
 fn read_as_point() {
     let points = shapefile::read_shapes_as::<&str, shapefile::Point>(testfiles::POINT_PATH);
-    assert_eq!(points.is_ok(), true);
+    assert!(points.is_ok());
 
     let points = points.unwrap();
     assert_eq!(points.len(), 1);
@@ -781,7 +781,7 @@ fn read_as_point() {
 #[test]
 fn read_as_point_m() {
     let points_m = shapefile::read_shapes_as::<&str, shapefile::PointM>(testfiles::POINTM_PATH);
-    assert_eq!(points_m.is_ok(), true);
+    assert!(points_m.is_ok());
 
     let points_m = points_m.unwrap();
     assert_eq!(points_m.len(), 2);
@@ -811,9 +811,9 @@ fn read_point_as_wrong_type() {
                 requested: ShapeType::PointM,
                 actual: ShapeType::Point,
             } => {}
-            _ => assert!(false),
+            _ => panic!(),
         }
     } else {
-        assert!(false);
+        panic!();
     }
 }

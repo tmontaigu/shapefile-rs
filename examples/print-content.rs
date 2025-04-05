@@ -2,7 +2,7 @@ use std::env;
 use std::process::exit;
 
 fn main() {
-    let args: Vec<String> = env::args().into_iter().collect();
+    let args: Vec<String> = env::args().collect();
     let filename = match args.get(1) {
         Some(arg) => arg,
         None => {

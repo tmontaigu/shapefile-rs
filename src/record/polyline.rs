@@ -416,7 +416,7 @@ where
                 .collect();
             lines.push(line.into());
         }
-        geo_types::MultiLineString::<f64>::from_iter(lines.into_iter())
+        geo_types::MultiLineString::<f64>::from_iter(lines)
     }
 }
 

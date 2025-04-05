@@ -11,7 +11,7 @@
 //!
 //! 1) Reading as [Shape](record/enum.Shape.html) and then do a `match` to handle the different shapes
 //! 2) Reading directly as concrete shapes (ie Polyline, PolylineZ, Point, etc) this of course only
-//! works if the file actually contains shapes that matches the requested type
+//!    works if the file actually contains shapes that matches the requested type
 //!
 //! # dBase
 //!
@@ -175,7 +175,7 @@ pub enum ShapeType {
 impl ShapeType {
     pub(crate) fn read_from<T: Read>(source: &mut T) -> Result<ShapeType, Error> {
         let code = source.read_i32::<LittleEndian>()?;
-        Self::from(code).ok_or_else(|| Error::InvalidShapeType(code))
+        Self::from(code).ok_or(Error::InvalidShapeType(code))
     }
 
     pub(crate) fn write_to<T: Write>(self, dest: &mut T) -> Result<(), std::io::Error> {
