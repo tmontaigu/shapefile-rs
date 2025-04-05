@@ -13,6 +13,15 @@
 //! 2) Reading directly as concrete shapes (ie Polyline, PolylineZ, Point, etc) this of course only
 //! works if the file actually contains shapes that matches the requested type
 //!
+//! # dBase
+//!
+//! The attributes (stored in the .dbg) files are read and written using the dbase crate
+//! which is re-exported so you can use `use shapefile::dbase`.
+//! dBase files may have different encoding which may only be supported if either one of the
+//! following features is enabled:
+//! - `encoding_rs` (notably supports GBK encoding)
+//! - `yore`
+//!
 //! # Shapefiles shapes
 //!
 //! The [`Point`], [`PointM`] and [`PointZ`] are the base data types of shapefiles,
@@ -36,6 +45,9 @@
 //! The `geo-types` feature can be enabled to have access to `From` and `TryFrom`
 //! implementations allowing to convert (or try to) back and forth between shapefile's type and
 //! the one in `geo_types`
+//!
+//! The `yore` or `encoding_rs` feature can be activated to allows the dbase crate
+//! to handle files with special encodings.
 //!
 //! [`Point`]: record/point/struct.Point.html
 //! [`PointM`]: record/point/struct.PointM.html

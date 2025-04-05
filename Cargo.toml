@@ -17,6 +17,10 @@ dbase = "0.6.0"
 geo-types = { version = ">=0.4.0, <0.8.0", optional = true }
 geo-traits = { version = "0.2", optional = true }
 
+[features]
+encoding_rs = ["dbase/encoding_rs"]
+yore = ["dbase/yore"]
+
 
 [package.metadata.docs.rs]
 features = ["geo-types", "geo-traits"]
