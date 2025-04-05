@@ -1,3 +1,12 @@
+# 0.7.0
+ - Bumped dbase to 0.6
+ - Added `yore` and `encoding_rs` features which are forwarded to `dbase`
+   allowing to read dbf files with special encodings.
+ - Added `finalize` method to writer, to be able to explicitly handle errors when the file
+   is finalized (instead of  silently ignoring errors by relying on the drop mechanism)
+ - Fixed overflow that could happen on large files
+ - Fixes performance issue for shapefiles which had a .shx index file
+
 # 0.6.0
  - Bumped dbase to 0.5.0
 
