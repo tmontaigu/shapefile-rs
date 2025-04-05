@@ -503,20 +503,14 @@ mod test_geo_types_conversions {
                 Coord { x: 5.0, y: 5.0 },
                 Coord { x: 5.0, y: 1.0 },
             ]),
-            LineString::<f64>(vec![
-                Coord { x: 1.0, y: 5.0 },
-                Coord { x: 1.0, y: 1.0 },
-            ]),
+            LineString::<f64>(vec![Coord { x: 1.0, y: 5.0 }, Coord { x: 1.0, y: 1.0 }]),
         ]);
         assert_eq!(multiline_string, expected_multiline);
     }
 
     #[test]
     fn test_line_into_polyline() {
-        let line = geo_types::Line::new(
-            Coord { x: 2.0, y: 3.0 },
-            Coord { x: 6.0, y: -6.0 },
-        );
+        let line = geo_types::Line::new(Coord { x: 2.0, y: 3.0 }, Coord { x: 6.0, y: -6.0 });
         let polyline: PolylineZ = line.into();
 
         assert_eq!(
@@ -555,10 +549,7 @@ mod test_geo_types_conversions {
                 Coord { x: 5.0, y: 5.0 },
                 Coord { x: 5.0, y: 1.0 },
             ]),
-            LineString::<f64>(vec![
-                Coord { x: 1.0, y: 5.0 },
-                Coord { x: 1.0, y: 1.0 },
-            ]),
+            LineString::<f64>(vec![Coord { x: 1.0, y: 5.0 }, Coord { x: 1.0, y: 1.0 }]),
         ]);
 
         let expected_polyline_z = PolylineZ::with_parts(vec![

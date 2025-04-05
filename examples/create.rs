@@ -1,7 +1,6 @@
 use dbase::{dbase_record, TableWriterBuilder};
 use shapefile::{dbase, Point, Polyline, Writer};
 
-
 fn example_1() {
     const FILE_NAME: &'static str = "hello_shape_1.shp";
 
@@ -71,10 +70,9 @@ fn example_2() {
     ]);
 
     // Create the builder for the accompanying dbase (.dbf) file
-    let table_builder =
-        TableWriterBuilder::new()
-            .add_character_field("FirstName".try_into().unwrap(), 55)
-            .add_character_field("LastName".try_into().unwrap(), 55);
+    let table_builder = TableWriterBuilder::new()
+        .add_character_field("FirstName".try_into().unwrap(), 55)
+        .add_character_field("LastName".try_into().unwrap(), 55);
 
     {
         let mut writer = Writer::from_path(FILE_NAME, table_builder)

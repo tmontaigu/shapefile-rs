@@ -605,12 +605,8 @@ where
 #[cfg(feature = "geo-types")]
 impl<PointType> From<geo_types::Polygon<f64>> for GenericPolygon<PointType>
 where
-    PointType: From<geo_types::Coord<f64>>
-        + GrowablePoint
-        + ShrinkablePoint
-        + PartialEq
-        + HasXY
-        + Copy,
+    PointType:
+        From<geo_types::Coord<f64>> + GrowablePoint + ShrinkablePoint + PartialEq + HasXY + Copy,
 {
     fn from(polygon: geo_types::Polygon<f64>) -> Self {
         let (outer, inners) = polygon.into_inner();
