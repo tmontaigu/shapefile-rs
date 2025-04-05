@@ -9,19 +9,22 @@ jobs:
 
     strategy:
       matrix:
-        features: ["", "--features geo-types"]
+        features: ["", "--features geo-types", "--features yore", "--features encoding_rs", "--all-features"]
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v4
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@888c2e1ea69ab0d4330cbf0af1ecc7b68f368cc1
         with:
-          profile: minimal
           toolchain: stable
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: ${{ matrix.features }}
+
+      - name: check fmt
+        run: cargo fmt --check
+
+      - name: check ${{ matrix.features }}
+        run: cargo check ${{ matrix.features }}
+
 
   test:
     name: Test Suite
@@ -30,16 +33,16 @@ jobs:
 
     strategy:
       matrix:
-        features: ["", "--features geo-types"]
+        features: [ "", "--features geo-types", "--features yore", "--features encoding_rs", "--all-features" ]
+
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v4
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@888c2e1ea69ab0d4330cbf0af1ecc7b68f368cc1
         with:
-          profile: minimal
           toolchain: stable
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: ${{ matrix.features }}
+
+      - name: test ${{ matrix.features }}
+        run: cargo test ${{ matrix.features }}
 
