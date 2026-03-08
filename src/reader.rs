@@ -648,19 +648,47 @@ impl Reader<BufReader<File>, BufReader<File>> {
     /// ```
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let shape_path = path.as_ref().to_path_buf();
-        let dbf_path = shape_path.with_extension("dbf");
+        let shape_reader = ShapeReader::from_path(path)?;
 
-        if dbf_path.exists() {
-            let shape_reader = ShapeReader::from_path(path)?;
-            let dbf_source = BufReader::new(File::open(dbf_path)?);
-            let dbf_reader = dbase::Reader::new(dbf_source)?;
-            Ok(Self {
-                shape_reader,
-                dbase_reader: dbf_reader,
+        let dbf_path = shape_path.with_extension("dbf");
+        let dbf_source = File::open(dbf_path)
+            .map_err(|err| {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    Error::MissingDbf
+                } else {
+                    err.into()
+                }
             })
-        } else {
-            Err(Error::MissingDbf)
-        }
+            .map(BufReader::new)?;
+
+        #[cfg(any(feature = "encoding_rs", feature = "yore"))]
+        let dbf_reader = {
+            let cpg_enc = {
+                let cpg_path = shape_path.with_extension("cpg");
+                File::open(cpg_path).ok().and_then(|cpg_file| {
+                    let mut label = String::new();
+                    if cpg_file.take(1026).read_to_string(&mut label).is_ok() && label.len() <= 1025
+                    {
+                        let name = label.trim().trim_start_matches('\u{feff}');
+
+                        dbase::encoding::DynEncoding::from_name(name)
+                    } else {
+                        None
+                    }
+                })
+            };
+            match cpg_enc {
+                Some(encoding) => dbase::Reader::new_with_encoding(dbf_source, encoding),
+                None => dbase::Reader::new(dbf_source),
+            }
+        };
+        #[cfg(all(not(feature = "encoding_rs"), not(feature = "yore")))]
+        let dbf_reader = { dbase::Reader::new(dbf_source) };
+
+        Ok(Self {
+            shape_reader,
+            dbase_reader: dbf_reader?,
+        })
     }
 }
 

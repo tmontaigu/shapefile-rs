@@ -828,3 +828,18 @@ fn supports_wrongly_sized_polylines() {
     let polygons = shapefile::read_shapes_as::<_, Polygon>(PATH).unwrap();
     assert_eq!(polygons.len(), 1162);
 }
+
+#[cfg(feature = "encoding_rs")]
+#[test]
+fn test_file_with_cpg() {
+    // This dbf of this file has been altered to have an incorrect code page mark, however, the
+    // it has a .cpg file with the correct code page mark, so if the test succeed it means this CPG
+    // was correctly parsed, and took priority over whatever there is in the file
+    let mut reader = shapefile::Reader::from_path("./tests/data/file_cp936.shp").unwrap();
+    let records = reader.read().unwrap();
+
+    assert_eq!(
+        records[0].1.get("TEST"),
+        Some(&dbase::FieldValue::Character(Some("测试中文".to_string())))
+    );
+}
