@@ -19,6 +19,7 @@ geo-traits = { version = "0.3", optional = true }
 
 [features]
 encoding_rs = ["dbase/encoding_rs"]
+serde = ["dbase/serde"]
 yore = ["dbase/yore"]
 
 
