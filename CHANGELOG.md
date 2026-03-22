@@ -1,4 +1,9 @@
-# unreleased
+# 0.8.0
+- Added `serde` feature which is forwarded to `dbase`, enabling serde support for dbase record field types.
+- Added reading of `.cpg` files to detect the encoding of `.dbf` files.
+- Fixed overly strict size-checks for shapes; shapes with a record size larger than
+  expected are now read successfully (extra bytes are skipped) instead of returning an error.
+- Updated `geo-traits` dependency to 0.3.
 - Added `Polygon::try_into_geo_traits()`, which converts a polygon to an object that implements
   `geo_traits::PolygonTrait`.
 - Converting to `geo_types::Polygon` is now fallible (i.e. `TryFrom`, not `From`).
