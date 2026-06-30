@@ -87,7 +87,7 @@ fn read_index_file<T: Read>(mut source: T) -> Result<Vec<ShapeIndex>, Error> {
     let header = header::Header::read_from(&mut source)?;
 
     let num_shapes = ((header.file_length * 2) - header::HEADER_SIZE) / INDEX_RECORD_SIZE as i32;
-    let mut shapes_index = Vec::<ShapeIndex>::with_capacity(num_shapes as usize);
+    let mut shapes_index = record::io::vec_with_capacity_safe::<ShapeIndex>(num_shapes as usize)?;
     for _ in 0..num_shapes {
         let offset = source.read_i32::<BigEndian>()?;
         let record_size = source.read_i32::<BigEndian>()?;

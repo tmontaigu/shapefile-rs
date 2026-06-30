@@ -258,6 +258,9 @@ impl ConcreteReadableShape for Multipoint {
         bbox_read_xy_from(&mut bbox, source)?;
 
         let num_points = source.read_i32::<LittleEndian>()?;
+        if num_points < 0 {
+            return Err(Error::InvalidShapeRecordSize);
+        }
         let expected = Self::size_of_record(num_points) as i32;
         let diff = record_size - expected;
 
@@ -342,6 +345,9 @@ impl ConcreteReadableShape for MultipointM {
         bbox_read_xy_from(&mut bbox, source)?;
 
         let num_points = source.read_i32::<LittleEndian>()?;
+        if num_points < 0 {
+            return Err(Error::InvalidShapeRecordSize);
+        }
 
         let size_with_m = Self::size_of_record(num_points, true) as i32;
         let size_without_m = Self::size_of_record(num_points, false) as i32;
@@ -447,6 +453,9 @@ impl ConcreteReadableShape for MultipointZ {
         let mut bbox = GenericBBox::<PointZ>::default();
         bbox_read_xy_from(&mut bbox, source)?;
         let num_points = source.read_i32::<LittleEndian>()?;
+        if num_points < 0 {
+            return Err(Error::InvalidShapeRecordSize);
+        }
 
         let size_with_m = Self::size_of_record(num_points, true) as i32;
         let size_without_m = Self::size_of_record(num_points, false) as i32;

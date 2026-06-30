@@ -252,16 +252,15 @@ impl ConcreteReadableShape for Multipatch {
             return Err(Error::InvalidShapeRecordSize);
         }
 
-        let mut patch_types = vec![PatchType::Ring; reader.num_parts as usize];
-        let mut patches = Vec::<Patch>::with_capacity(reader.num_parts as usize);
-        for i in 0..reader.num_parts {
-            patch_types[i as usize] = PatchType::read_from(reader.source)?;
+        let mut patch_types = vec_with_capacity_safe::<PatchType>(reader.num_parts as usize)?;
+        let mut patches = vec_with_capacity_safe::<Patch>(reader.num_parts as usize)?;
+        for _ in 0..reader.num_parts {
+            patch_types.push(PatchType::read_from(reader.source)?);
         }
         let (bbox, patches_points) = reader
             .read_xy()
             .and_then(|rdr| rdr.read_zs())
             .and_then(|rdr| rdr.read_ms_if(record_size >= record_size_with_m))
-            .map_err(Error::IoError)
             .map(|rdr| (rdr.bbox, rdr.parts))?;
 
         for (patch_type, points) in patch_types.iter().zip(patches_points) {

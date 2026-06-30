@@ -106,6 +106,15 @@ pub enum Error {
         actual: ShapeType,
     },
     InvalidShapeRecordSize,
+    /// A file declared a number of points/parts/shapes that would require
+    /// allocating more memory than could be reserved.
+    ///
+    /// This guards against crafted files that declare huge counts to trigger
+    /// an out-of-memory abort.
+    AllocationLimitExceeded {
+        /// The number of bytes the declared count would have required.
+        requested_bytes: usize,
+    },
     /// The Polygon shape read from the file contains an orphaned inner ring,
     /// which doesn't have the corresponding outer ring.
     #[cfg(feature = "geo-types")]
@@ -144,6 +153,14 @@ impl fmt::Display for Error {
             Error::MismatchShapeType { requested, actual } => write!(
                 f,
                 "The requested type: '{requested}' does not correspond to the actual shape type: '{actual}'"
+            ),
+            Error::InvalidShapeRecordSize => write!(
+                f,
+                "The record size declared in the file is inconsistent or invalid"
+            ),
+            Error::AllocationLimitExceeded { requested_bytes } => write!(
+                f,
+                "The file declares data requiring {requested_bytes} bytes, which could not be allocated"
             ),
             #[cfg(feature = "geo-types")]
             Error::OrphanedInnerRing => write!(f, "Inner ring without a previous outer ring"),
