@@ -694,7 +694,9 @@ impl Reader<BufReader<File>, BufReader<File>> {
                 })
             };
             match cpg_enc {
-                Some(encoding) => dbase::Reader::new_with_encoding(dbf_source, encoding),
+                Some(encoding) => dbase::ReaderBuilder::new()
+                    .with_encoding(encoding)
+                    .build(dbf_source),
                 None => dbase::Reader::new(dbf_source),
             }
         };
