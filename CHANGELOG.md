@@ -1,3 +1,13 @@
+# 0.9.0
+- Hardened the reader against malformed or malicious files: 
+  'Safe' allocation method try_reserve is used to avoid panics if the file
+  makes the crate do a big allocation, the new `Error::AllocationLimitExceeded` variant,
+  is returned when it happens
+- Fixed integer-overflow panics (in builds with overflow checks) when reading,
+  rejected with `Error::InvalidShapeRecordSize`.
+- Bumped `dbase` to 0.8.0, which also hardens against panics on bad input.
+- Bumped `byteorder` to 1.5.
+
 # 0.8.0
 - Added `serde` feature which is forwarded to `dbase`, enabling serde support for dbase record field types.
 - Added reading of `.cpg` files to detect the encoding of `.dbf` files.

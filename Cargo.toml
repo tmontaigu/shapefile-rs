@@ -1,6 +1,6 @@
 [package]
 name = "shapefile"
-version = "0.8.0"
+version = "0.9.0"
 authors = ["tmontaigu <thomas.montaigu@laposte.net>"]
 description = "Read & Write shapefiles in Rust"
 license = "MIT"
@@ -8,7 +8,7 @@ readme = "README.md"
 keywords = ["shapefile"]
 homepage = "https://github.com/tmontaigu/shapefile-rs"
 repository = "https://github.com/tmontaigu/shapefile-rs"
-exclude = ["tests/data/*"]
+exclude = ["tests/data/*", "fuzz/*"]
 edition = "2021"
 
 [dependencies]
