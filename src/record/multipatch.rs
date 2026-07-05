@@ -247,10 +247,10 @@ impl ConcreteReadableShape for Multipatch {
             record_size_without_m
         };
 
-        let diff = record_size - size_read;
-        if diff < 0 {
-            return Err(Error::InvalidShapeRecordSize);
-        }
+        let diff = record_size
+            .checked_sub(size_read)
+            .filter(|n| *n >= 0)
+            .ok_or(Error::InvalidShapeRecordSize)?;
 
         let mut patch_types = vec_with_capacity_safe::<PatchType>(reader.num_parts as usize)?;
         let mut patches = vec_with_capacity_safe::<Patch>(reader.num_parts as usize)?;

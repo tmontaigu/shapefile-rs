@@ -179,10 +179,10 @@ impl ConcreteReadableShape for Polyline {
         let rdr = MultiPartShapeReader::<Point, T>::new(source)?;
 
         let expected_size = Self::size_of_record(rdr.num_points, rdr.num_parts) as i32;
-        let diff = record_size - expected_size;
-        if diff < 0 {
-            return Err(Error::InvalidShapeRecordSize);
-        }
+        let diff = record_size
+            .checked_sub(expected_size)
+            .filter(|n| *n >= 0)
+            .ok_or(Error::InvalidShapeRecordSize)?;
 
         let poly = rdr.read_xy().map(|rdr| Self {
             bbox: rdr.bbox,
@@ -271,10 +271,10 @@ impl ConcreteReadableShape for PolylineM {
             record_size_without_m
         };
 
-        let diff = record_size - size_read;
-        if diff < 0 {
-            return Err(Error::InvalidShapeRecordSize);
-        }
+        let diff = record_size
+            .checked_sub(size_read)
+            .filter(|n| *n >= 0)
+            .ok_or(Error::InvalidShapeRecordSize)?;
 
         let polyline_m = rdr
             .read_xy()
@@ -373,10 +373,10 @@ impl ConcreteReadableShape for PolylineZ {
             record_size_without_m
         };
 
-        let diff = record_size - size_read;
-        if diff < 0 {
-            return Err(Error::InvalidShapeRecordSize);
-        }
+        let diff = record_size
+            .checked_sub(size_read)
+            .filter(|n| *n >= 0)
+            .ok_or(Error::InvalidShapeRecordSize)?;
 
         let polyline_z = rdr
             .read_xy()

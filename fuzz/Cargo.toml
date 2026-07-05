@@ -1,0 +1,35 @@
+[package]
+name = "shapefile-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.shapefile]
+path = ".."
+
+[[bin]]
+name = "reader_new"
+path = "fuzz_targets/reader_new.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "read_all"
+path = "fuzz_targets/read_all.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "read_with_shx"
+path = "fuzz_targets/read_with_shx.rs"
+test = false
+doc = false
+bench = false

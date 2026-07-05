@@ -86,7 +86,13 @@ impl ShapeIndex {
 fn read_index_file<T: Read>(mut source: T) -> Result<Vec<ShapeIndex>, Error> {
     let header = header::Header::read_from(&mut source)?;
 
-    let num_shapes = ((header.file_length * 2) - header::HEADER_SIZE) / INDEX_RECORD_SIZE as i32;
+    let content_length = header
+        .file_length
+        .checked_mul(2)
+        .and_then(|len| len.checked_sub(header::HEADER_SIZE))
+        .filter(|len| *len >= 0)
+        .ok_or(Error::InvalidShapeRecordSize)?;
+    let num_shapes = content_length / INDEX_RECORD_SIZE as i32;
     let mut shapes_index = record::io::vec_with_capacity_safe::<ShapeIndex>(num_shapes as usize)?;
     for _ in 0..num_shapes {
         let offset = source.read_i32::<BigEndian>()?;
@@ -104,7 +110,10 @@ fn read_one_shape_as<T: Read + Seek, S: ReadableShape>(
     mut source: &mut T,
 ) -> Result<(record::RecordHeader, S), Error> {
     let hdr = record::RecordHeader::read_from(&mut source)?;
-    let record_size = hdr.record_size * 2;
+    let record_size = hdr
+        .record_size
+        .checked_mul(2)
+        .ok_or(Error::InvalidShapeRecordSize)?;
     let shape = S::read_from(&mut source, record_size)?;
     Ok((hdr, shape))
 }
@@ -135,7 +144,10 @@ impl<T: Read + Seek, S: ReadableShape> Iterator for ShapeIterator<'_, T, S> {
                 // Its 'safer' to seek to the shape offset when we have the `shx` file
                 // as some shapes may not be stored sequentially and may contain 'garbage'
                 // bytes between them
-                let start_pos = shapes_indices.next()?.offset * 2;
+                let start_pos = match shapes_indices.next()?.offset.checked_mul(2) {
+                    Some(pos) if pos >= 0 => pos,
+                    _ => return Some(Err(Error::InvalidShapeRecordSize)),
+                };
                 if start_pos != self.current_pos as i32 {
                     if let Err(err) = self.source.seek(SeekFrom::Start(start_pos as u64)) {
                         return Some(Err(err.into()));
@@ -148,7 +160,10 @@ impl<T: Read + Seek, S: ReadableShape> Iterator for ShapeIterator<'_, T, S> {
                 Ok(hdr_and_shape) => hdr_and_shape,
             };
             self.current_pos += record::RecordHeader::SIZE;
-            self.current_pos += hdr.record_size as usize * 2;
+            match (hdr.record_size as usize).checked_mul(2) {
+                Some(record_bytes) => self.current_pos += record_bytes,
+                None => return Some(Err(Error::InvalidShapeRecordSize)),
+            }
             Some(Ok(shape))
         }
     }
@@ -455,10 +470,11 @@ impl<T: Read + Seek> ShapeReader<T> {
         if let Some(ref shapes_index) = self.shapes_index {
             let offset = shapes_index
                 .get(index)
-                .map(|shape_idx| (shape_idx.offset * 2) as u64);
+                .map(|shape_idx| shape_idx.offset.checked_mul(2).filter(|pos| *pos >= 0));
 
             match offset {
-                Some(n) => self.source.seek(SeekFrom::Start(n)),
+                Some(Some(n)) => self.source.seek(SeekFrom::Start(n as u64)),
+                Some(None) => return Err(Error::InvalidShapeRecordSize),
                 None => self.source.seek(SeekFrom::End(0)),
             }?;
             Ok(())

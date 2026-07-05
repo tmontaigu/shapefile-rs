@@ -54,10 +54,10 @@ impl HasShapeType for Point {
 impl ConcreteReadableShape for Point {
     fn read_shape_content<T: Read + Seek>(source: &mut T, record_size: i32) -> Result<Self, Error> {
         const EXPECTED_SIZE: i32 = 2 * size_of::<f64>() as i32;
-        let diff = record_size - EXPECTED_SIZE;
-        if diff < 0 {
-            return Err(Error::InvalidShapeRecordSize);
-        }
+        let diff = record_size
+            .checked_sub(EXPECTED_SIZE)
+            .filter(|n| *n >= 0)
+            .ok_or(Error::InvalidShapeRecordSize)?;
 
         let x = source.read_f64::<LittleEndian>()?;
         let y = source.read_f64::<LittleEndian>()?;
@@ -172,10 +172,10 @@ impl HasShapeType for PointM {
 impl ConcreteReadableShape for PointM {
     fn read_shape_content<T: Read + Seek>(source: &mut T, record_size: i32) -> Result<Self, Error> {
         const EXPECTED_SIZE: i32 = 3 * size_of::<f64>() as i32;
-        let diff = record_size - EXPECTED_SIZE;
-        if diff < 0 {
-            return Err(Error::InvalidShapeRecordSize);
-        }
+        let diff = record_size
+            .checked_sub(EXPECTED_SIZE)
+            .filter(|n| *n >= 0)
+            .ok_or(Error::InvalidShapeRecordSize)?;
 
         let x = source.read_f64::<LittleEndian>()?;
         let y = source.read_f64::<LittleEndian>()?;
@@ -327,11 +327,21 @@ impl ConcreteReadableShape for PointZ {
             let expected = 4 * size_of::<f64>() as i32;
             let mut point = Self::read_xyz(source)?;
             point.m = source.read_f64::<LittleEndian>()?;
-            (point, record_size - expected)
+            (
+                point,
+                record_size
+                    .checked_sub(expected)
+                    .ok_or(Error::InvalidShapeRecordSize)?,
+            )
         } else if record_size >= 3 * size_of::<f64>() as i32 {
             let expected = 3 * size_of::<f64>() as i32;
             let point = Self::read_xyz(source)?;
-            (point, record_size - expected)
+            (
+                point,
+                record_size
+                    .checked_sub(expected)
+                    .ok_or(Error::InvalidShapeRecordSize)?,
+            )
         } else {
             return Err(Error::InvalidShapeRecordSize);
         };

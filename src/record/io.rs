@@ -178,7 +178,6 @@ impl Iterator for PartIndexIter<'_> {
                 .copied()
                 .unwrap_or(self.num_points);
             self.current_part_index += 1;
-            debug_assert!(end_of_part_index >= start_of_part_index);
             Some((start_of_part_index, end_of_part_index))
         } else {
             None
@@ -227,7 +226,10 @@ impl<'a, PointType: Default + HasMutXY, R: Read> MultiPartShapeReader<'a, PointT
 
     pub(crate) fn read_xy(mut self) -> Result<Self, Error> {
         for (start_index, end_index) in PartIndexIter::new(&self.parts_array, self.num_points) {
-            let num_points_in_part = end_index - start_index;
+            let num_points_in_part = end_index
+                .checked_sub(start_index)
+                .filter(|n| *n >= 0)
+                .ok_or(Error::InvalidShapeRecordSize)?;
             self.parts
                 .push(read_xy_in_vec_of(self.source, num_points_in_part)?);
         }

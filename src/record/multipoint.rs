@@ -262,11 +262,10 @@ impl ConcreteReadableShape for Multipoint {
             return Err(Error::InvalidShapeRecordSize);
         }
         let expected = Self::size_of_record(num_points) as i32;
-        let diff = record_size - expected;
-
-        if diff < 0 {
-            return Err(Error::InvalidShapeRecordSize);
-        }
+        let diff = record_size
+            .checked_sub(expected)
+            .filter(|n| *n >= 0)
+            .ok_or(Error::InvalidShapeRecordSize)?;
 
         let points = read_xy_in_vec_of::<Point, T>(source, num_points)?;
 
@@ -358,10 +357,10 @@ impl ConcreteReadableShape for MultipointM {
             size_without_m
         };
 
-        let diff = record_size - size_read;
-        if diff < 0 {
-            return Err(Error::InvalidShapeRecordSize);
-        }
+        let diff = record_size
+            .checked_sub(size_read)
+            .filter(|n| *n >= 0)
+            .ok_or(Error::InvalidShapeRecordSize)?;
 
         let mut points = read_xy_in_vec_of::<PointM, T>(source, num_points)?;
 
@@ -466,10 +465,10 @@ impl ConcreteReadableShape for MultipointZ {
             size_without_m
         };
 
-        let diff = record_size - size_read;
-        if diff < 0 {
-            return Err(Error::InvalidShapeRecordSize);
-        }
+        let diff = record_size
+            .checked_sub(size_read)
+            .filter(|n| *n >= 0)
+            .ok_or(Error::InvalidShapeRecordSize)?;
 
         let mut points = read_xy_in_vec_of::<PointZ, T>(source, num_points)?;
 

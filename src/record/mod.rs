@@ -53,9 +53,11 @@ pub trait ReadableShape: Sized {
 }
 
 impl<S: ConcreteReadableShape> ReadableShape for S {
-    fn read_from<T: Read + Seek>(mut source: &mut T, mut record_size: i32) -> Result<S, Error> {
+    fn read_from<T: Read + Seek>(mut source: &mut T, record_size: i32) -> Result<S, Error> {
         let shapetype = ShapeType::read_from(&mut source)?;
-        record_size -= std::mem::size_of::<i32>() as i32;
+        let record_size = record_size
+            .checked_sub(std::mem::size_of::<i32>() as i32)
+            .ok_or(Error::InvalidShapeRecordSize)?;
         if shapetype == Self::shapetype() {
             S::read_shape_content(&mut source, record_size)
         } else {
@@ -192,9 +194,11 @@ impl HasShapeType for Shape {
 }
 
 impl ReadableShape for Shape {
-    fn read_from<T: Read + Seek>(mut source: &mut T, mut record_size: i32) -> Result<Self, Error> {
+    fn read_from<T: Read + Seek>(mut source: &mut T, record_size: i32) -> Result<Self, Error> {
         let shapetype = ShapeType::read_from(&mut source)?;
-        record_size -= size_of::<i32>() as i32;
+        let record_size = record_size
+            .checked_sub(size_of::<i32>() as i32)
+            .ok_or(Error::InvalidShapeRecordSize)?;
         let shape = match shapetype {
             ShapeType::Polyline => {
                 Shape::Polyline(Polyline::read_shape_content(&mut source, record_size)?)

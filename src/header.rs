@@ -50,6 +50,9 @@ impl Header {
         source.read_exact(&mut skip)?;
 
         let file_length = source.read_i32::<BigEndian>()?;
+        if file_length < 0 {
+            return Err(Error::InvalidShapeRecordSize);
+        }
         let version = source.read_i32::<LittleEndian>()?;
         let shape_type = ShapeType::read_from(&mut source)?;
 

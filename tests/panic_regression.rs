@@ -31,6 +31,18 @@ fn push_header_and_record_header(buf: &mut Vec<u8>, shape_type: i32, content_len
     push_be_i32(buf, content_length_words);
 }
 
+/// Builds a valid 100-byte main header with the given shape type and file length.
+fn main_header(shape_type: i32, file_length: i32) -> Vec<u8> {
+    let mut buf = Vec::new();
+    push_be_i32(&mut buf, 9994); // file code
+    buf.extend_from_slice(&[0u8; 20]); // 5 unused i32
+    push_be_i32(&mut buf, file_length);
+    push_le_i32(&mut buf, 1000); // version
+    push_le_i32(&mut buf, shape_type);
+    buf.extend_from_slice(&[0u8; 64]); // header bbox: 8 f64
+    buf
+}
+
 fn read_shapes(buf: Vec<u8>) -> Result<Vec<shapefile::Shape>, shapefile::Error> {
     shapefile::ShapeReader::new(Cursor::new(buf))
         .expect("header is valid")
@@ -58,6 +70,54 @@ fn multipoint_with_negative_point_count_errors_instead_of_panicking() {
     push_le_i32(&mut buf, 8); // record shape type = Multipoint
     buf.extend_from_slice(&[0u8; 32]); // record bbox
     push_le_i32(&mut buf, -1); // negative count
+
+    let err = read_shapes(buf).err().expect("reading must fail");
+    assert!(matches!(err, shapefile::Error::InvalidShapeRecordSize));
+}
+
+#[test]
+fn negative_file_length_header_errors_instead_of_panicking() {
+    // A negative file_length used to overflow `(file_length as usize) * 2`
+    // when building the shape iterator (reproduced by the fuzzer).
+    let buf = main_header(8, -6);
+    let err = shapefile::ShapeReader::new(Cursor::new(buf))
+        .err()
+        .expect("header must be rejected");
+    assert!(matches!(err, shapefile::Error::InvalidShapeRecordSize));
+}
+
+#[test]
+fn huge_record_size_errors_instead_of_panicking() {
+    // `record_size * 2` would overflow i32 while reading the record.
+    let mut buf = Vec::new();
+    push_header_and_record_header(&mut buf, 8, 1_200_000_000);
+
+    let err = read_shapes(buf).err().expect("reading must fail");
+    assert!(matches!(err, shapefile::Error::InvalidShapeRecordSize));
+}
+
+#[test]
+fn huge_shx_file_length_errors_instead_of_panicking() {
+    // In read_index_file, `file_length * 2` would overflow i32.
+    let shp = main_header(1, 50);
+    let shx = main_header(1, 1_200_000_000);
+    let err = shapefile::ShapeReader::with_shx(Cursor::new(shp), Cursor::new(shx))
+        .err()
+        .expect("index must be rejected");
+    assert!(matches!(err, shapefile::Error::InvalidShapeRecordSize));
+}
+
+#[test]
+fn polyline_with_non_monotonic_parts_array_errors_instead_of_panicking() {
+    // A part index greater than the following one (or than num_points) yields a
+    // negative span; it must error rather than trip a debug assertion.
+    let mut buf = Vec::new();
+    push_header_and_record_header(&mut buf, 3, 24);
+    push_le_i32(&mut buf, 3); // record shape type = Polyline
+    buf.extend_from_slice(&[0u8; 32]); // record bbox
+    push_le_i32(&mut buf, 1); // num_parts
+    push_le_i32(&mut buf, 0); // num_points
+    push_le_i32(&mut buf, 5); // parts_array[0] = 5 > num_points (0)
 
     let err = read_shapes(buf).err().expect("reading must fail");
     assert!(matches!(err, shapefile::Error::InvalidShapeRecordSize));
