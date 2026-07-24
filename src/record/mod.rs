@@ -257,8 +257,8 @@ impl Shape {
             Shape::PolygonM(_) => ShapeType::PolygonM,
             Shape::PolygonZ(_) => ShapeType::PolygonZ,
             Shape::Multipoint(_) => ShapeType::Multipoint,
-            Shape::MultipointM(_) => ShapeType::Multipoint,
-            Shape::MultipointZ(_) => ShapeType::Multipoint,
+            Shape::MultipointM(_) => ShapeType::MultipointM,
+            Shape::MultipointZ(_) => ShapeType::MultipointZ,
             Shape::Multipatch(_) => ShapeType::Multipatch,
             Shape::NullShape => ShapeType::NullShape,
         }
