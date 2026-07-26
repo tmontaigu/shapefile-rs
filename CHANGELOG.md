@@ -1,3 +1,11 @@
+# Unreleased
+- Fixed `ShapeIterator` and `ShapeRecordIterator` never terminating after a read
+  error: iterating a `.shp` with no `.shx` used to yield the same error forever
+  (an infinite loop for any caller using a `for` loop rather than `read`).
+  Both iterators now return `None` after the first error.
+- Added an `iter_shapes` fuzz target, which drives the iterator instead of
+  `read`, so the fuzzer can observe iteration that does not terminate.
+
 # 0.9.0
 - Hardened the reader against malformed or malicious files: 
   'Safe' allocation method try_reserve is used to avoid panics if the file

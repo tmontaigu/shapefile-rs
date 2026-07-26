@@ -119,6 +119,10 @@ fn read_one_shape_as<T: Read + Seek, S: ReadableShape>(
 }
 
 /// Struct that handle iteration over the shapes of a .shp file
+///
+/// Iteration stops after the first error: a failed read leaves the source
+/// somewhere in the middle of a record, so the bytes that follow cannot be
+/// interpreted. `next` returns `None` from then on.
 pub struct ShapeIterator<'a, T: Read, S: ReadableShape> {
     _shape: std::marker::PhantomData<S>,
     // From where we read the shapes
@@ -131,13 +135,17 @@ pub struct ShapeIterator<'a, T: Read, S: ReadableShape> {
     // Iterator over the shape indices, used to seek
     // to the start of a shape when reading
     shapes_indices: Option<std::slice::Iter<'a, ShapeIndex>>,
+    // Set once an error has been returned. `current_pos` only advances on the
+    // success path, so after an error the source position and `current_pos` are
+    // out of sync and nothing that follows can be read reliably.
+    errored: bool,
 }
 
 impl<T: Read + Seek, S: ReadableShape> Iterator for ShapeIterator<'_, T, S> {
     type Item = Result<S, crate::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_pos >= self.file_length {
+        if self.errored || self.current_pos >= self.file_length {
             None
         } else {
             if let Some(ref mut shapes_indices) = self.shapes_indices {
@@ -146,29 +154,42 @@ impl<T: Read + Seek, S: ReadableShape> Iterator for ShapeIterator<'_, T, S> {
                 // bytes between them
                 let start_pos = match shapes_indices.next()?.offset.checked_mul(2) {
                     Some(pos) if pos >= 0 => pos,
-                    _ => return Some(Err(Error::InvalidShapeRecordSize)),
+                    _ => {
+                        self.errored = true;
+                        return Some(Err(Error::InvalidShapeRecordSize));
+                    }
                 };
                 if start_pos != self.current_pos as i32 {
                     if let Err(err) = self.source.seek(SeekFrom::Start(start_pos as u64)) {
+                        self.errored = true;
                         return Some(Err(err.into()));
                     }
                     self.current_pos = start_pos as usize;
                 }
             }
             let (hdr, shape) = match read_one_shape_as::<T, S>(self.source) {
-                Err(e) => return Some(Err(e)),
+                Err(e) => {
+                    self.errored = true;
+                    return Some(Err(e));
+                }
                 Ok(hdr_and_shape) => hdr_and_shape,
             };
             self.current_pos += record::RecordHeader::SIZE;
             match (hdr.record_size as usize).checked_mul(2) {
                 Some(record_bytes) => self.current_pos += record_bytes,
-                None => return Some(Err(Error::InvalidShapeRecordSize)),
+                None => {
+                    self.errored = true;
+                    return Some(Err(Error::InvalidShapeRecordSize));
+                }
             }
             Some(Ok(shape))
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
+        if self.errored {
+            return (0, Some(0));
+        }
         self.shapes_indices
             .as_ref()
             .map(|s| s.size_hint())
@@ -176,6 +197,9 @@ impl<T: Read + Seek, S: ReadableShape> Iterator for ShapeIterator<'_, T, S> {
     }
 }
 
+/// Struct that handle iteration over the shapes and records of a shapefile
+///
+/// Like [ShapeIterator], iteration stops after the first error.
 pub struct ShapeRecordIterator<
     'a,
     T: Read + Seek,
@@ -185,6 +209,10 @@ pub struct ShapeRecordIterator<
 > {
     shape_iter: ShapeIterator<'a, T, S>,
     record_iter: dbase::RecordIterator<'a, D, R>,
+    // The .shp and .dbf cursors advance independently, so once either side has
+    // failed the two are out of step and later shapes would be paired with the
+    // wrong records.
+    errored: bool,
 }
 
 impl<T: Read + Seek, D: Read + Seek, S: ReadableShape, R: dbase::ReadableRecord> Iterator
@@ -193,13 +221,23 @@ impl<T: Read + Seek, D: Read + Seek, S: ReadableShape, R: dbase::ReadableRecord>
     type Item = Result<(S, R), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.errored {
+            return None;
+        }
+
         let shape = match self.shape_iter.next()? {
-            Err(e) => return Some(Err(e)),
+            Err(e) => {
+                self.errored = true;
+                return Some(Err(e));
+            }
             Ok(shp) => shp,
         };
 
         let record = match self.record_iter.next()? {
-            Err(e) => return Some(Err(Error::DbaseError(e))),
+            Err(e) => {
+                self.errored = true;
+                return Some(Err(Error::DbaseError(e)));
+            }
             Ok(rcd) => rcd,
         };
 
@@ -372,6 +410,7 @@ impl<T: Read + Seek> ShapeReader<T> {
             current_pos: header::HEADER_SIZE as usize,
             file_length: (self.header.file_length as usize) * 2,
             shapes_indices: self.shapes_index.as_ref().map(|s| s.iter()),
+            errored: false,
         }
     }
 
@@ -563,6 +602,7 @@ impl<T: Read + Seek, D: Read + Seek> Reader<T, D> {
         ShapeRecordIterator {
             shape_iter: self.shape_reader.iter_shapes_as::<S>(),
             record_iter: self.dbase_reader.iter_records_as::<R>(),
+            errored: false,
         }
     }
 

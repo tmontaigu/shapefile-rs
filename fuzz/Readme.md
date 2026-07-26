@@ -22,6 +22,11 @@ set, `try_reserve` sees the failure and returns an error as intended.
 - `read_with_shx` — parses the `.shx` index and reads shapes using the index
   offsets and seeks (`ShapeReader::with_shx`). The input is a `(shp, shx)` byte
   tuple.
+- `iter_shapes` — drives `iter_shapes_as` in a `for` loop instead of collecting.
+  `read` / `read_as` are `iter_shapes_as().collect()`, which stops at the first
+  error, so the other targets cannot observe an iterator that keeps yielding
+  errors instead of stopping. Run it with a timeout so libFuzzer reports a hang:
+  `cargo +nightly fuzz run iter_shapes -- -timeout=10`.
 
 ## Seeding the corpus (optional, speeds convergence)
 
