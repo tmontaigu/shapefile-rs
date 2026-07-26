@@ -33,3 +33,10 @@ path = "fuzz_targets/read_with_shx.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "iter_shapes"
+path = "fuzz_targets/iter_shapes.rs"
+test = false
+doc = false
+bench = false
