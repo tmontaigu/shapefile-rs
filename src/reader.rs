@@ -110,6 +110,18 @@ fn read_one_shape_as<T: Read + Seek, S: ReadableShape>(
     mut source: &mut T,
 ) -> Result<(record::RecordHeader, S), Error> {
     let hdr = record::RecordHeader::read_from(&mut source)?;
+    // `record_size` is a length in 16-bit words read straight from the file, so
+    // its value is whatever the file says - negative values included.  It has to
+    // be rejected *before* the doubling: `-1 * 2` does not overflow, so
+    // `checked_mul` lets a negative length through as a valid-looking `-2`.
+    //
+    // This also guards `ShapeIterator::next`, which advances `current_pos` by
+    // `hdr.record_size as usize * 2` - a cast that turns a negative length into
+    // an enormous position.  That runs only once this function has returned
+    // `Ok`, so the check here is the one that makes it safe.
+    if hdr.record_size < 0 {
+        return Err(Error::InvalidShapeRecordSize);
+    }
     let record_size = hdr
         .record_size
         .checked_mul(2)
@@ -765,3 +777,73 @@ pub fn read_shapes<T: AsRef<Path>>(path: T) -> Result<Vec<Shape>, Error> {
 
 #[cfg(test)]
 mod tests {}
+
+#[cfg(test)]
+mod negative_record_size_tests {
+    use super::*;
+    use std::io::Cursor;
+
+    const SHP_HEADER_SIZE: usize = 100;
+
+    fn header_bytes(shape_type: i32, extra: usize) -> Vec<u8> {
+        let mut file = vec![0_u8; SHP_HEADER_SIZE];
+        file[0..4].copy_from_slice(&9994_i32.to_be_bytes());
+        let words = i32::try_from((SHP_HEADER_SIZE + extra) / 2).unwrap();
+        file[24..28].copy_from_slice(&words.to_be_bytes());
+        file[28..32].copy_from_slice(&1000_i32.to_le_bytes());
+        file[32..36].copy_from_slice(&shape_type.to_le_bytes());
+        for (index, value) in [0.0_f64, 0.0, 10.0, 10.0].into_iter().enumerate() {
+            let start = 36 + index * 8;
+            file[start..start + 8].copy_from_slice(&value.to_le_bytes());
+        }
+        file
+    }
+
+    /// A `.shp` whose single record declares a negative content length.
+    fn shp_with_negative_record() -> Vec<u8> {
+        let mut record = 1_i32.to_be_bytes().to_vec();
+        record.extend_from_slice(&(-1_i32).to_be_bytes());
+        record.extend_from_slice(&0_i32.to_le_bytes());
+        let mut file = header_bytes(1, record.len());
+        file.extend_from_slice(&record);
+        file
+    }
+
+    /// The matching `.shx`, pointing at that record.
+    fn shx_for(offset_words: i32, length_words: i32) -> Vec<u8> {
+        let mut file = header_bytes(1, 8);
+        file.extend_from_slice(&offset_words.to_be_bytes());
+        file.extend_from_slice(&length_words.to_be_bytes());
+        file
+    }
+
+    /// `read_nth_shape_as` must not accept a negative record size.
+    ///
+    /// `ShapeIterator::next` is already covered, though by accident: it does
+    /// `(hdr.record_size as usize).checked_mul(2)`, and on a negative value the
+    /// cast yields a huge number that overflows. `read_nth_shape_as` calls
+    /// `read_one_shape_as` without that guard, so before this fix a record
+    /// declaring `-1` words came back as a valid `NullShape`.
+    #[test]
+    fn negative_record_size_is_rejected_on_read_nth_shape() {
+        let mut reader = ShapeReader::with_shx(
+            Cursor::new(shp_with_negative_record()),
+            Cursor::new(shx_for(50, 2)),
+        )
+        .expect("the files themselves are well formed");
+        match reader.read_nth_shape_as::<Shape>(0) {
+            Some(Err(Error::InvalidShapeRecordSize)) => {}
+            Some(Err(other)) => panic!("expected InvalidShapeRecordSize, got {other:?}"),
+            Some(Ok(shape)) => panic!("expected a rejection, got {}", shape.shapetype()),
+            None => panic!("the index declares one shape"),
+        }
+    }
+
+    /// And the iterator path keeps rejecting it too.
+    #[test]
+    fn negative_record_size_is_rejected_on_the_iterator_path() {
+        let result =
+            ShapeReader::new(Cursor::new(shp_with_negative_record())).and_then(|r| r.read());
+        assert!(matches!(result, Err(Error::InvalidShapeRecordSize)));
+    }
+}
