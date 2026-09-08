@@ -237,7 +237,29 @@ impl ReadableShape for Shape {
             ShapeType::Multipatch => {
                 Shape::Multipatch(Multipatch::read_shape_content(&mut source, record_size)?)
             }
-            ShapeType::NullShape => Shape::NullShape,
+            // A null record's content is its four-byte shape type and nothing
+            // else.  Every other arm above consumes the content the header
+            // declares; this one used to ignore `record_size` entirely and
+            // return, leaving the rest of the record in the stream.  The
+            // iterator then read the next record header from the middle of this
+            // record's content, and arbitrary bytes became a `record_size`.
+            //
+            // Anything beyond the tag is not padding to be skipped but a record
+            // that disagrees with its own header, so it is rejected rather than
+            // tolerated: skipping the remainder would keep the stream aligned
+            // while accepting a file whose shape count and shape contents
+            // cannot both be true.
+            //
+            // `record_size` has already had the four bytes of the tag
+            // subtracted, so a conforming record leaves exactly zero.  A record
+            // declaring fewer than four bytes leaves it negative, and the same
+            // test rejects that too.
+            ShapeType::NullShape => {
+                if record_size != 0 {
+                    return Err(Error::InvalidShapeRecordSize);
+                }
+                Shape::NullShape
+            }
         };
         Ok(shape)
     }
@@ -569,5 +591,81 @@ mod tests {
         assert_eq!(ring_type_from_points_ordering(&points), RingType::InnerRing);
         points.reverse();
         assert_eq!(ring_type_from_points_ordering(&points), RingType::OuterRing);
+    }
+}
+
+#[cfg(test)]
+mod defensive_tests {
+    use super::*;
+    use std::io::Cursor;
+
+    const SHP_HEADER_SIZE: usize = 100;
+
+    /// A `.shp` with the minimum header and one block of record bytes.
+    fn shp_with_record(declared_type: i32, record: &[u8]) -> Vec<u8> {
+        let mut file = vec![0_u8; SHP_HEADER_SIZE];
+        file[0..4].copy_from_slice(&9994_i32.to_be_bytes());
+        // File length is declared in 16-bit words, not bytes.
+        let words = i32::try_from((SHP_HEADER_SIZE + record.len()) / 2).unwrap();
+        file[24..28].copy_from_slice(&words.to_be_bytes());
+        file[28..32].copy_from_slice(&1000_i32.to_le_bytes());
+        file[32..36].copy_from_slice(&declared_type.to_le_bytes());
+        for (index, value) in [0.0_f64, 0.0, 10.0, 10.0].into_iter().enumerate() {
+            let start = 36 + index * 8;
+            file[start..start + 8].copy_from_slice(&value.to_le_bytes());
+        }
+        file.extend_from_slice(record);
+        file
+    }
+
+    /// A record header: number and content length, in words.
+    fn record_header(number: i32, words: i32) -> Vec<u8> {
+        let mut header = number.to_be_bytes().to_vec();
+        header.extend_from_slice(&words.to_be_bytes());
+        header
+    }
+
+    fn read_all(bytes: Vec<u8>) -> Result<Vec<Shape>, Error> {
+        crate::ShapeReader::new(Cursor::new(bytes)).and_then(|r| r.read())
+    }
+
+    /// A null record declaring more than its own tag is rejected.
+    ///
+    /// The remainder is built so that, read as a record header, it is *valid*:
+    /// a well-formed header followed by the null tag it promises, and then the
+    /// file ends. Without the check the read does not panic and does not fail
+    /// visibly - it returns `Ok` having read half the file and handed it over
+    /// as whole. That is the dangerous shape of this defect.
+    #[test]
+    fn oversized_null_record_is_rejected() {
+        // Eight words declared, sixteen bytes of content.
+        let mut record = record_header(1, 8);
+        record.extend_from_slice(&0_i32.to_le_bytes());
+        record.extend_from_slice(&record_header(2, 2));
+        record.extend_from_slice(&0_i32.to_le_bytes());
+        match read_all(shp_with_record(1, &record)) {
+            Err(Error::InvalidShapeRecordSize) => {}
+            Err(other) => panic!("expected InvalidShapeRecordSize, got {other:?}"),
+            Ok(shapes) => panic!("expected a rejection, got {} shapes", shapes.len()),
+        }
+    }
+
+    /// A *conforming* null record does not displace the one after it.
+    ///
+    /// Without this, "rejects the oversized null" would also be true of a
+    /// reader that had stopped reading null records altogether.
+    #[test]
+    fn conforming_null_record_keeps_the_next_one_aligned() {
+        let mut record = record_header(1, 2);
+        record.extend_from_slice(&0_i32.to_le_bytes());
+        record.extend_from_slice(&record_header(2, 10));
+        record.extend_from_slice(&1_i32.to_le_bytes());
+        record.extend_from_slice(&3.0_f64.to_le_bytes());
+        record.extend_from_slice(&4.0_f64.to_le_bytes());
+        let shapes =
+            read_all(shp_with_record(1, &record)).expect("a null then a point is readable");
+        assert_eq!(2, shapes.len());
+        assert!(matches!(shapes[0], Shape::NullShape));
+        assert!(matches!(shapes[1], Shape::Point(_)));
     }
 }
